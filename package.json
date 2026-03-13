@@ -1,0 +1,21 @@
+{
+  "name": "jira-planning-extention",
+  "version": "1.0.0",
+  "description": "## Current mode This MVP is implemented for development/debugging without build packaging first, as defined in BRD.",
+  "main": "index.js",
+  "directories": {
+    "test": "tests"
+  },
+  "scripts": {
+    "dev": "browser-sync start --server --files \"src/**/*\" --port 4173 --no-open",
+    "dev:open": "browser-sync start --server --files \"src/**/*\" --port 4173",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "browser-sync": "^3.0.4",
+    "playwright": "^1.58.2"
+  }
+}
