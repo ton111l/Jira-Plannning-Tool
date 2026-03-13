@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Jira Planning Tool</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand">Jira Planning Tool</div>
+      <div class="toolbar">
+        <button id="createPlanBtn" class="btn">Create Plan</button>
+        <select id="planSelect" class="input select" aria-label="Select Plan">
+          <option value="">Select Plan</option>
+        </select>
+        <button id="settingsBtn" class="toolbar-glyph-btn" title="Settings" aria-label="Settings">⚙️</button>
+      </div>
+    </header>
+
+    <main class="layout">
+      <nav class="tabs">
+        <button data-tab="capacity" class="tab tab-active">Capacity</button>
+        <button data-tab="backlog" class="tab">Backlog for planning</button>
+      </nav>
+
+      <section id="statusBar" class="status-bar"></section>
+
+      <div class="capacity-wrapper">
+        <section id="capacityPanel" class="panel panel-active">
+          <div class="panel-header">
+            <h2>Capacity</h2>
+          </div>
+          <div id="capacityContent" class="capacity-content">
+            <div id="capacityTableWrap" class="table-wrap">
+              <table id="capacityTable" class="grid-table"></table>
+            </div>
+            <div id="capacityOverlay" class="plan-overlay">
+              <button id="createPlanOverlayBtn" class="btn overlay-btn">Create Plan</button>
+            </div>
+            <button
+              type="button"
+              id="addQuarterBtn"
+              class="fab fab-quarter"
+              aria-label="Add planning quarter columns"
+              title="Add quarter"
+            >+</button>
+          </div>
+        </section>
+        <button
+          type="button"
+          id="addCapacityRowBtn"
+          class="fab fab-row"
+          aria-label="Add capacity row"
+          title="Add row"
+        >+</button>
+      </div>
+
+      <section id="backlogPanel" class="panel">
+        <div class="panel-header">
+          <h2>Backlog for planning</h2>
+          <div class="panel-actions">
+            <button id="openImportModalBtn" class="btn">Import</button>
+          </div>
+        </div>
+        <div id="backlogContent" class="capacity-content">
+          <div id="backlogTableWrap" class="table-wrap">
+            <table id="backlogTable" class="grid-table"></table>
+          </div>
+          <div id="backlogOverlay" class="plan-overlay">
+            <div class="overlay-actions">
+              <button id="importOverlayBtn" class="btn overlay-btn">Import</button>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <dialog id="createPlanDialog" class="modal">
+      <form method="dialog" id="createPlanForm">
+        <h3>Create Plan</h3>
+        <label for="planNameInput">Name</label>
+        <input id="planNameInput" class="input" required />
+
+        <label for="quarterInput">Start period</label>
+        <div class="row">
+          <select id="quarterInput" class="input select">
+            <option value="Q1">Q1</option>
+            <option value="Q2">Q2</option>
+            <option value="Q3">Q3</option>
+            <option value="Q4">Q4</option>
+          </select>
+          <input id="yearInput" class="input" type="number" min="2000" max="2100" />
+        </div>
+
+        <label for="createPlanEstimationTypeSelect" class="label-with-help">
+          Estimation type
+          <span
+            class="help-tooltip"
+            tabindex="0"
+            aria-label="Help: Estimation type"
+            data-tooltip="Defines the unit used across planning metrics and backlog estimates. Story Points are relative effort, while Person-days are calendar capacity."
+          >?</span>
+        </label>
+        <select id="createPlanEstimationTypeSelect" class="input select">
+          <option value="story_points">Story Points</option>
+          <option value="person_days">Person-days</option>
+        </select>
+
+        <label for="createPlanResourceGroupingTypeSelect" class="label-with-help">
+          Resource grouping type
+          <span
+            class="help-tooltip"
+            tabindex="0"
+            aria-label="Help: Resource grouping type"
+            data-tooltip="Controls how capacity and totals are aggregated. By team combines everyone into one group, while By roles splits calculations and summaries per role."
+          >?</span>
+        </label>
+        <select id="createPlanResourceGroupingTypeSelect" class="input select">
+          <option value="by_team">By team</option>
+          <option value="by_roles">By roles</option>
+        </select>
+
+        <div class="modal-actions">
+          <button type="submit" value="cancel" formnovalidate class="btn btn-secondary">Cancel</button>
+          <button type="submit" id="confirmCreatePlanBtn" value="default" class="btn">Create</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="createPeriodDialog" class="modal">
+      <form method="dialog" id="createPeriodForm">
+        <h3>Create period</h3>
+        <label for="periodQuarterInput">Start period</label>
+        <div class="row">
+          <select id="periodQuarterInput" class="input select">
+            <option value="Q1">Q1</option>
+            <option value="Q2">Q2</option>
+            <option value="Q3">Q3</option>
+            <option value="Q4">Q4</option>
+          </select>
+          <input id="periodYearInput" class="input" type="number" min="2000" max="2100" />
+        </div>
+        <div class="modal-actions">
+          <button type="submit" value="cancel" class="btn btn-secondary">Cancel</button>
+          <button type="submit" value="create" class="btn">Create</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="importDialog" class="modal">
+      <form method="dialog" id="importForm">
+        <h3>Import candidate's backlog</h3>
+        <label for="importJiraBaseUrlInput">Jira Base URL</label>
+        <input id="importJiraBaseUrlInput" class="input" placeholder="https://jira.company.local" />
+        <label>Estimation field source</label>
+        <div id="importEstimationFieldModeWrap">
+          <label>
+            <input type="radio" name="importEstimationFieldMode" value="custom" checked />
+            Story Point
+          </label>
+          <label>
+            <input type="radio" name="importEstimationFieldMode" value="system" />
+            Original Estimate (timetracking)
+          </label>
+        </div>
+        <div id="importEstimationFieldCustomWrap">
+          <label for="importEstimationFieldInput">Story Point field name</label>
+          <input
+            id="importEstimationFieldInput"
+            class="input"
+            placeholder="customfield_10016"
+          />
+        </div>
+        <label for="jqlInput">Input JQL request</label>
+        <textarea
+          id="jqlInput"
+          class="input textarea"
+          rows="4"
+          placeholder="project = ABC AND issuetype in (Story, Bug) ORDER BY priority DESC"
+        ></textarea>
+
+        <div class="import-meta">
+          <div>Issues count: <span id="issuesCount">0</span></div>
+          <progress id="importProgress" max="100" value="0"></progress>
+        </div>
+
+        <div class="modal-actions">
+          <button type="submit" value="cancel" formnovalidate class="btn">Close</button>
+          <button type="submit" id="confirmImportBtn" value="default" class="btn">Import</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="settingsDialog" class="modal">
+      <form method="dialog" id="settingsForm">
+        <h3>Settings</h3>
+        <label for="estimationTypeSelect" class="label-with-help">
+          Estimation type
+          <span
+            class="help-tooltip"
+            tabindex="0"
+            aria-label="Help: Estimation type"
+            data-tooltip="Defines the unit used across planning metrics and backlog estimates. Story Points are relative effort, while Person-days are calendar capacity."
+          >?</span>
+        </label>
+        <select id="estimationTypeSelect" class="input select">
+          <option value="story_points">Story Points</option>
+          <option value="person_days">Person-days</option>
+        </select>
+
+        <label for="resourceGroupingTypeSelect" class="label-with-help">
+          Resource grouping type
+          <span
+            class="help-tooltip"
+            tabindex="0"
+            aria-label="Help: Resource grouping type"
+            data-tooltip="Controls how capacity and totals are aggregated. By team combines everyone into one group, while By roles splits calculations and summaries per role."
+          >?</span>
+        </label>
+        <select id="resourceGroupingTypeSelect" class="input select">
+          <option value="by_team">By team</option>
+          <option value="by_roles">By roles</option>
+        </select>
+
+        <div class="modal-actions">
+          <button type="submit" value="cancel" class="btn btn-secondary">Close</button>
+          <button type="submit" id="saveSettingsBtn" value="default" class="btn">Save</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="deleteConfirmDialog" class="modal">
+      <form method="dialog" id="deleteConfirmForm">
+        <h3>Confirm deletion</h3>
+        <div id="deleteConfirmText">Are you sure?</div>
+        <div class="modal-actions">
+          <button type="submit" value="no" class="btn btn-secondary">No</button>
+          <button type="submit" value="yes" class="btn">Yes</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="bulkWorkingDaysDialog" class="modal">
+      <form method="dialog" id="bulkWorkingDaysForm">
+        <h3>Set Working days for all rows</h3>
+        <div id="bulkWorkingDaysText">
+          This change will overwrite Working days for all current rows in the selected quarter.
+        </div>
+        <label for="bulkWorkingDaysInput">Working days value</label>
+        <input id="bulkWorkingDaysInput" class="input" type="number" min="0" step="1" />
+        <div class="modal-actions">
+          <button type="submit" value="cancel" class="btn btn-secondary">Cancel</button>
+          <button type="submit" value="apply" class="btn">Apply</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="bulkRowEstimationDialog" class="modal">
+      <form method="dialog" id="bulkRowEstimationForm">
+        <h3>Set estimation per day for all rows</h3>
+        <div id="bulkRowEstimationText">
+          This action will overwrite estimation per day for all current rows in the selected quarter.
+        </div>
+        <div id="bulkRowEstimationModeWrap">
+          <label>
+            <input type="radio" name="bulkRowEstimationMode" value="average" checked />
+            Per team uses team average
+          </label>
+          <label>
+            <input type="radio" name="bulkRowEstimationMode" value="manual" />
+            Set Per team value
+          </label>
+        </div>
+        <div id="bulkRowEstimationManualWrap">
+          <label id="bulkRowEstimationInputLabel" for="bulkRowEstimationInput">Story point per day value</label>
+          <input id="bulkRowEstimationInput" class="input" type="number" min="0" step="0.1" />
+        </div>
+        <div class="modal-actions">
+          <button type="submit" value="cancel" class="btn btn-secondary">Cancel</button>
+          <button type="submit" value="apply" class="btn">Apply</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="bulkLoadDialog" class="modal">
+      <form method="dialog" id="bulkLoadForm">
+        <h3>Set Load (%) for all rows</h3>
+        <div id="bulkLoadText">
+          This action will overwrite Load (%) for all current rows.
+        </div>
+        <label for="bulkLoadPercentInput">Load (%) value</label>
+        <select id="bulkLoadPercentInput" class="input select">
+          <option value="10">10%</option>
+          <option value="20">20%</option>
+          <option value="30">30%</option>
+          <option value="40">40%</option>
+          <option value="50">50%</option>
+          <option value="60">60%</option>
+          <option value="70">70%</option>
+          <option value="80">80%</option>
+          <option value="90">90%</option>
+          <option value="100" selected>100%</option>
+        </select>
+        <div class="modal-actions">
+          <button type="submit" value="cancel" class="btn btn-secondary">Cancel</button>
+          <button type="submit" value="apply" class="btn">Apply</button>
+        </div>
+      </form>
+    </dialog>
+
+    <script type="module" src="./app.js?v=2"></script>
+  </body>
+</html>
