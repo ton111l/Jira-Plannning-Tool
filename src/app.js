@@ -36,9 +36,7 @@ import {
 
 let appState = null;
 let pendingDeleteAction = null;
-let pendingBulkWorkingDaysPeriodId = null;
 let pendingBulkRowEstimationPeriodId = null;
-const SYSTEM_ESTIMATION_FIELD_NAME = "timetracking";
 function cacheRefs() {
   cacheAppRefs(refs);
 }
@@ -203,25 +201,11 @@ function renderSettings() {
   renderSettingsView({ refs, plan: getActivePlan(), appState });
 }
 
-function getImportEstimationFieldMode() {
-  return refs.importEstimationFieldModeInputs.find((input) => input.checked)?.value || "custom";
-}
-
-function syncImportEstimationFieldModeUI() {
-  const customMode = getImportEstimationFieldMode() === "custom";
-  refs.importEstimationFieldCustomWrap.style.display = customMode ? "flex" : "none";
-  refs.importEstimationFieldInput.disabled = !customMode;
-  refs.importEstimationFieldInput.required = false;
-  if (!customMode) {
-    refs.importEstimationFieldInput.classList.remove("input-invalid");
+function getEstimationFieldNameForImport(plan) {
+  if (getPlanEstimationType(plan) === "person_days") {
+    return "timetracking";
   }
-}
-
-function getSelectedImportEstimationFieldName() {
-  if (getImportEstimationFieldMode() === "system") {
-    return SYSTEM_ESTIMATION_FIELD_NAME;
-  }
-  return refs.importEstimationFieldInput.value.trim();
+  return String(plan?.estimationFieldName || "").trim();
 }
 
 function normalizeJiraBaseUrlInput(raw) {
@@ -257,27 +241,45 @@ function normalizeJiraBaseUrlInput(raw) {
 }
 
 function syncImportButtonState() {
+  const plan = getActivePlan();
+  const isStoryPoints = getPlanEstimationType(plan) === "story_points";
   const hasJql = Boolean(refs.jqlInput.value.trim());
   const hasBaseUrl = Boolean(normalizeJiraBaseUrlInput(refs.importJiraBaseUrlInput.value));
-  const isSystemEstimationMode = getImportEstimationFieldMode() === "system";
-  const hasCustomFieldName = Boolean(refs.importEstimationFieldInput.value.trim());
-  const hasEstimationField = isSystemEstimationMode || hasCustomFieldName;
+  const hasEstimationField = !isStoryPoints || Boolean(String(plan?.estimationFieldName || "").trim());
   const canImport = hasJql && hasBaseUrl && hasEstimationField;
   refs.confirmImportBtn.classList.toggle("btn-disabled", !canImport);
   refs.confirmImportBtn.title = canImport
     ? "Import"
-    : "Enter Jira Base URL, JQL and Story Point field name (for Story Point mode) to enable import";
+    : "Enter Jira Base URL and JQL. For Story Points, set Story Point field name in Settings.";
 }
 
-function handleImportEstimationFieldModeChange() {
-  const mode = getImportEstimationFieldMode();
-  const plan = getActivePlan();
-  if (plan) {
-    plan.estimationType = mode === "custom" ? "story_points" : "person_days";
-    touchPlan(plan);
+function handleSettingsEstimationTypeChange() {
+  const nextType = refs.estimationTypeSelect.value || "story_points";
+  refs.settingsStoryPointFieldWrap.style.display = nextType === "story_points" ? "flex" : "none";
+  refs.settingsTeamEstimationWrap.style.display = nextType === "story_points" ? "flex" : "none";
+  if (nextType !== "story_points") {
+    refs.settingsTeamEstimationModeSelect.value = "average";
+    refs.settingsTeamEstimationValueWrap.style.display = "none";
+    refs.settingsTeamEstimationValueInput.value = "";
+    return;
   }
-  syncImportEstimationFieldModeUI();
-  syncImportButtonState();
+  const mode = refs.settingsTeamEstimationModeSelect.value || "average";
+  refs.settingsTeamEstimationValueWrap.style.display = mode === "manual" ? "flex" : "none";
+}
+
+function handleCreatePlanEstimationTypeChange() {
+  const nextType = refs.createPlanEstimationTypeSelect.value || "story_points";
+  refs.createPlanStoryPointFieldWrap.style.display = nextType === "story_points" ? "flex" : "none";
+  refs.createPlanTeamEstimationWrap.style.display = nextType === "story_points" ? "flex" : "none";
+  if (nextType !== "story_points") {
+    refs.createPlanTeamEstimationModeSelect.value = "average";
+    refs.createPlanTeamEstimationValueWrap.style.display = "none";
+    refs.createPlanTeamEstimationValueInput.value = "";
+    refs.createPlanStoryPointFieldInput.value = "";
+    return;
+  }
+  const mode = refs.createPlanTeamEstimationModeSelect.value || "average";
+  refs.createPlanTeamEstimationValueWrap.style.display = mode === "manual" ? "flex" : "none";
 }
 
 function handleImportJiraBaseUrlBlur() {
@@ -364,8 +366,16 @@ async function handleCreatePlan() {
   refs.planNameInput.value = "";
   refs.quarterInput.value = "Q1";
   refs.yearInput.value = String(new Date().getFullYear());
-  refs.createPlanEstimationTypeSelect.value = getPlanEstimationType(activePlan);
+  const estimationType = getPlanEstimationType(activePlan);
+  refs.createPlanEstimationTypeSelect.value = estimationType;
   refs.createPlanResourceGroupingTypeSelect.value = getPlanResourceGroupingType(activePlan);
+  refs.createPlanWorkingDaysInput.value = String(activePlan?.defaultWorkingDays ?? 0);
+  refs.createPlanStoryPointFieldInput.value = String(activePlan?.estimationFieldName || appState.estimationFieldName || "");
+  const firstPeriodId = activePlan?.periods?.[0]?.id || "";
+  const periodTeamSettings = firstPeriodId ? activePlan?.teamPeriodValues?.[firstPeriodId] : null;
+  refs.createPlanTeamEstimationModeSelect.value = periodTeamSettings?.teamEstimationMode || "average";
+  refs.createPlanTeamEstimationValueInput.value = String(periodTeamSettings?.teamEstimationPerDay ?? "");
+  handleCreatePlanEstimationTypeChange();
   refs.createPlanDialog.showModal();
 }
 
@@ -380,6 +390,10 @@ async function submitCreatePlan(event) {
   const year = Number(refs.yearInput.value);
   const estimationType = refs.createPlanEstimationTypeSelect.value || "story_points";
   const resourceGroupingType = refs.createPlanResourceGroupingTypeSelect.value || "by_roles";
+  const defaultWorkingDays = sanitizeNonNegative(refs.createPlanWorkingDaysInput.value || 0);
+  const estimationFieldName = String(refs.createPlanStoryPointFieldInput.value || "").trim();
+  const teamEstimationMode = refs.createPlanTeamEstimationModeSelect.value === "manual" ? "manual" : "average";
+  const teamEstimationPerDay = String(refs.createPlanTeamEstimationValueInput.value || "").trim();
 
   if (!name) {
     setMessage("Plan name is required.", "error");
@@ -389,14 +403,41 @@ async function submitCreatePlan(event) {
     setMessage("Year should be between 2000 and 2100.", "error");
     return;
   }
+  if (estimationType === "story_points" && !estimationFieldName) {
+    setMessage("Story Point field name is required for Story Points.", "error");
+    return;
+  }
+  if (estimationType === "story_points" && teamEstimationMode === "manual") {
+    const numericTeamValue = Number(teamEstimationPerDay);
+    if (!teamEstimationPerDay || !Number.isFinite(numericTeamValue) || numericTeamValue < 0) {
+      setMessage("Enter Team value or switch to Team average.", "error");
+      return;
+    }
+  }
 
   const plan = createPlan({
     name,
     quarter,
     year,
     estimationType,
-    resourceGroupingType
+    resourceGroupingType,
+    estimationFieldName: estimationType === "story_points" ? estimationFieldName : "",
+    defaultWorkingDays
   });
+  const firstPeriodId = plan.periods[0]?.id;
+  if (firstPeriodId) {
+    plan.capacityRows.forEach((row) => {
+      if (!row.periodValues[firstPeriodId]) {
+        row.periodValues[firstPeriodId] = createEmptyCapacityPeriodValues();
+      }
+      row.periodValues[firstPeriodId].workingDays = defaultWorkingDays;
+      recomputeCapacityRow(row, plan.periods, estimationType);
+    });
+    plan.teamPeriodValues[firstPeriodId].teamEstimationMode =
+      estimationType === "story_points" ? teamEstimationMode : "average";
+    plan.teamPeriodValues[firstPeriodId].teamEstimationPerDay =
+      estimationType === "story_points" && teamEstimationMode === "manual" ? teamEstimationPerDay : "";
+  }
   appState.plans.push(plan);
   appState.lastSelectedPlanId = plan.id;
   appState.activeTab = "capacity";
@@ -541,53 +582,6 @@ async function submitDeleteConfirm(event) {
   }
 }
 
-function openBulkWorkingDaysDialog(periodId, periodLabel) {
-  pendingBulkWorkingDaysPeriodId = periodId;
-  refs.bulkWorkingDaysText.textContent =
-    `This action will overwrite Working days for all current rows in ${periodLabel}.`;
-  refs.bulkWorkingDaysInput.value = "";
-  refs.bulkWorkingDaysDialog.showModal();
-}
-
-async function submitBulkWorkingDays(event) {
-  event.preventDefault();
-  const action = event.submitter?.value || "cancel";
-  refs.bulkWorkingDaysDialog.close();
-
-  if (action !== "apply") {
-    pendingBulkWorkingDaysPeriodId = null;
-    return;
-  }
-
-  const periodId = pendingBulkWorkingDaysPeriodId;
-  pendingBulkWorkingDaysPeriodId = null;
-  if (!periodId) {
-    return;
-  }
-
-  const plan = getActivePlan();
-  if (!plan) {
-    return;
-  }
-
-  const period = plan.periods.find((entry) => entry.id === periodId);
-  if (!period) {
-    return;
-  }
-
-  const value = sanitizeNonNegative(refs.bulkWorkingDaysInput.value);
-  plan.capacityRows.forEach((row) => {
-    if (!row.periodValues[periodId]) {
-      row.periodValues[periodId] = createEmptyCapacityPeriodValues();
-    }
-    row.periodValues[periodId].workingDays = value;
-    recomputeCapacityRow(row, plan.periods, getPlanEstimationType(plan));
-  });
-
-  touchPlan(plan);
-  await persistAndRender(`Working days updated for all rows in ${period.label}.`, "success");
-}
-
 function openBulkRowEstimationDialog(periodId, periodLabel) {
   const estimationTitle = getEstimationUnitLabel();
   pendingBulkRowEstimationPeriodId = periodId;
@@ -600,7 +594,7 @@ function openBulkRowEstimationDialog(periodId, periodLabel) {
 
   refs.bulkRowEstimationText.textContent = isStoryPoints
     ? `Choose how Per team ${estimationTitle} per day is calculated in ${periodLabel}.`
-    : `For Person-days, Per team is calculated as the sum of members in ${periodLabel}.`;
+    : `For Men-days, Per team is calculated as the sum of members in ${periodLabel}.`;
   refs.bulkRowEstimationModeWrap.style.display = isStoryPoints ? "flex" : "none";
   refs.bulkRowEstimationInputLabel.textContent = "Story point per day value";
   refs.bulkRowEstimationModeInputs.forEach((input) => {
@@ -702,17 +696,13 @@ async function handleCapacityTableClick(event) {
 
   const action = actionButton.dataset.action;
   if (action === "bulk-row-estimation-per-day") {
-    openBulkRowEstimationDialog(actionButton.dataset.periodId, actionButton.dataset.periodLabel);
+    openSettingsDialog();
+    setMessage("Team Story Points per day is configured in Settings.", "info");
     return;
   }
 
   if (action === "bulk-load-percent") {
     openBulkLoadDialog();
-    return;
-  }
-
-  if (action === "bulk-working-days") {
-    openBulkWorkingDaysDialog(actionButton.dataset.periodId, actionButton.dataset.periodLabel);
     return;
   }
 
@@ -843,7 +833,6 @@ function openImportDialog() {
     syncImportButtonState
   });
   handleImportJiraBaseUrlBlur();
-  syncImportEstimationFieldModeUI();
   syncImportButtonState();
 }
 
@@ -854,23 +843,12 @@ async function handleImportDialogClose() {
   }
   const draftJql = refs.jqlInput.value.trim();
   const draftBaseUrl = normalizeJiraBaseUrlInput(refs.importJiraBaseUrlInput.value);
-  const draftEstimationFieldName = getSelectedImportEstimationFieldName();
-  const draftEstimationType = getImportEstimationFieldMode() === "custom" ? "story_points" : "person_days";
   const baseUrlChanged = String(plan.jiraBaseUrl || "") !== draftBaseUrl;
-  const estimationFieldChanged = String(plan.estimationFieldName || "") !== draftEstimationFieldName;
-  const estimationTypeChanged = String(plan.estimationType || "story_points") !== draftEstimationType;
-  if (
-    String(plan.lastImportJql || "") === draftJql &&
-    !baseUrlChanged &&
-    !estimationFieldChanged &&
-    !estimationTypeChanged
-  ) {
+  if (String(plan.lastImportJql || "") === draftJql && !baseUrlChanged) {
     return;
   }
   plan.lastImportJql = draftJql;
   plan.jiraBaseUrl = draftBaseUrl;
-  plan.estimationFieldName = draftEstimationFieldName || plan.estimationFieldName || "";
-  plan.estimationType = draftEstimationType;
   touchPlan(plan);
   await saveState(appState);
 }
@@ -884,12 +862,6 @@ async function submitImport(event) {
       plan.lastImportJql = refs.jqlInput.value.trim();
       plan.jiraBaseUrl = normalizeJiraBaseUrlInput(refs.importJiraBaseUrlInput.value);
       touchPlan(plan);
-      const cancelEstimationFieldName = getSelectedImportEstimationFieldName();
-      const cancelEstimationType = getImportEstimationFieldMode() === "custom" ? "story_points" : "person_days";
-      if (cancelEstimationFieldName) {
-        plan.estimationFieldName = cancelEstimationFieldName;
-      }
-      plan.estimationType = cancelEstimationType;
     }
     await saveState(appState);
     refs.importDialog.close();
@@ -916,24 +888,32 @@ async function submitImport(event) {
     setMessage("Jira Base URL is required for import.", "error");
     return;
   }
-  const estimationFieldName = getSelectedImportEstimationFieldName();
-  const selectedEstimationType = getImportEstimationFieldMode() === "custom" ? "story_points" : "person_days";
+  const estimationFieldName = getEstimationFieldNameForImport(plan);
   plan.jiraBaseUrl = jiraBaseUrl;
-  plan.estimationFieldName = estimationFieldName || "";
-  plan.estimationType = selectedEstimationType;
   plan.lastImportJql = jql;
   touchPlan(plan);
   await saveState(appState);
 
+  const setImportProgress = (next) => {
+    const current = Number(refs.importProgress.value) || 0;
+    const numericNext = Math.max(0, Math.min(100, Number(next) || 0));
+    refs.importProgress.value = Math.max(current, numericNext);
+  };
+
   try {
-    refs.importProgress.value = 20;
+    setImportProgress(8);
     setMessage("Import started...", "info");
 
     const imported = await importIssuesFromJira({
       baseUrl: jiraBaseUrl,
       jql,
       maxResults: 200,
-      estimationFieldName: plan.estimationFieldName
+      estimationFieldName,
+      onProgress: (payload) => {
+        if (payload?.value !== undefined) {
+          setImportProgress(payload.value);
+        }
+      }
     });
 
     const importedRows = imported?.mappedRows || [];
@@ -947,13 +927,13 @@ async function submitImport(event) {
     console.info("[Jira Import Debug][app]", {
       jql,
       jiraBaseUrl,
-      estimationFieldName: plan.estimationFieldName,
+      estimationFieldName,
       searchMethod: imported?.meta?.searchMethod || "unknown",
       stats: importStats,
       sample: importedRows.slice(0, 5)
     });
 
-    refs.importProgress.value = 90;
+    setImportProgress(80);
     refs.issuesCount.textContent = String(importedRows.length);
 
     const byKey = new Map();
@@ -967,7 +947,7 @@ async function submitImport(event) {
       }
     });
 
-    importedRows.forEach((jiraRow) => {
+    importedRows.forEach((jiraRow, index) => {
       const normalizedImportedKey = normalizeBacklogIssueKey(jiraRow.key);
       const existing = normalizedImportedKey ? byKey.get(normalizedImportedKey) : null;
       if (existing) {
@@ -984,11 +964,15 @@ async function submitImport(event) {
           key: normalizedImportedKey
         }));
       }
+      if (importedRows.length > 0) {
+        const mergeProgress = 80 + Math.round(((index + 1) / importedRows.length) * 16);
+        setImportProgress(mergeProgress);
+      }
     });
 
     plan.backlogEntryMode = "import";
     touchPlan(plan);
-    refs.importProgress.value = 100;
+    setImportProgress(100);
     refs.importDialog.close();
     await persistAndRender(`Imported ${importedRows.length} issues.`, "success");
   } catch (error) {
@@ -1026,8 +1010,34 @@ function openSettingsDialog() {
 
 async function saveSettings(event) {
   event.preventDefault();
+  const action = event.submitter?.value || "default";
+  if (action === "cancel") {
+    refs.settingsDialog.close();
+    return;
+  }
   const activePlan = getActivePlan();
-  applySettingsChanges({ plan: activePlan, refs, regroupCapacityRowsByRole, touchPlan });
+  if (!activePlan) {
+    refs.settingsDialog.close();
+    return;
+  }
+  const defaultWorkingDays = sanitizeNonNegative(refs.settingsWorkingDaysInput.value || 0);
+  const result = applySettingsChanges({ plan: activePlan, refs, regroupCapacityRowsByRole, touchPlan });
+  if (!result?.ok) {
+    if (result?.error) {
+      setMessage(result.error, "error");
+    }
+    return;
+  }
+  activePlan.defaultWorkingDays = defaultWorkingDays;
+  activePlan.capacityRows.forEach((row) => {
+    activePlan.periods.forEach((period) => {
+      if (!row.periodValues[period.id]) {
+        row.periodValues[period.id] = createEmptyCapacityPeriodValues();
+      }
+      row.periodValues[period.id].workingDays = defaultWorkingDays;
+    });
+    recomputeCapacityRow(row, activePlan.periods, getPlanEstimationType(activePlan));
+  });
   refs.settingsDialog.close();
   await persistAndRender("Settings saved.", "success");
 }
@@ -1045,7 +1055,6 @@ function bindEvents() {
       openSettingsDialog,
       saveSettings,
       submitDeleteConfirm,
-      submitBulkWorkingDays,
       submitBulkRowEstimation,
       submitBulkLoad,
       handleAddCapacityRow,
@@ -1055,7 +1064,8 @@ function bindEvents() {
       submitImport,
       handleImportDialogClose,
       handleImportJiraBaseUrlBlur,
-      handleImportEstimationFieldModeChange,
+      handleSettingsEstimationTypeChange,
+      handleCreatePlanEstimationTypeChange,
       syncImportButtonState,
       handleTableInput,
       handleCapacityTableClick,
@@ -1091,6 +1101,13 @@ async function init() {
     }
     if (typeof plan.lastImportJql !== "string") {
       plan.lastImportJql = "";
+    }
+    if (typeof plan.defaultWorkingDays !== "number" || Number.isNaN(plan.defaultWorkingDays)) {
+      const firstPeriodId = plan.periods?.[0]?.id;
+      const inferredWorkingDays = firstPeriodId && plan.capacityRows?.[0]?.periodValues?.[firstPeriodId]
+        ? sanitizeNonNegative(plan.capacityRows[0].periodValues[firstPeriodId].workingDays)
+        : 0;
+      plan.defaultWorkingDays = inferredWorkingDays;
     }
     ensureTeamPeriodValues(plan);
     if (plan.resourceGroupingType === "by_roles" && regroupCapacityRowsByRole(plan)) {

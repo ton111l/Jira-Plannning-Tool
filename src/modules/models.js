@@ -63,7 +63,8 @@ export function createPlan({
   estimationType = "story_points",
   resourceGroupingType = "by_team",
   jiraBaseUrl = "",
-  estimationFieldName = ""
+  estimationFieldName = "",
+  defaultWorkingDays = 0
 }) {
   const firstPeriod = createPeriod(quarter, year);
   const nowIso = new Date().toISOString();
@@ -75,6 +76,7 @@ export function createPlan({
     resourceGroupingType: String(resourceGroupingType || "by_roles"),
     jiraBaseUrl: String(jiraBaseUrl || "").trim().replace(/\/+$/, ""),
     estimationFieldName: String(estimationFieldName || "").trim(),
+    defaultWorkingDays: Number(defaultWorkingDays) >= 0 ? Number(defaultWorkingDays) : 0,
     periods: [firstPeriod],
     teamPeriodValues: {
       [firstPeriod.id]: {

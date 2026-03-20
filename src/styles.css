@@ -88,6 +88,8 @@ body {
 .table-wrap {
   overflow: auto;
   max-width: 100%;
+  position: relative;
+  z-index: 1;
 }
 
 .table-wrap.table-wrap-blur {
@@ -105,6 +107,7 @@ body {
 
 .capacity-content {
   position: relative;
+  min-height: 120px;
 }
 
 .plan-overlay {
@@ -117,10 +120,13 @@ body {
   align-items: center;
   justify-content: center;
   background: rgba(255, 255, 255, 0.35);
+  z-index: 5;
+  pointer-events: none;
 }
 
 .plan-overlay.active {
   display: flex;
+  pointer-events: auto;
 }
 
 .overlay-btn {
@@ -582,13 +588,19 @@ body {
   gap: 10px;
 }
 
-#importEstimationFieldModeWrap {
+#settingsStoryPointFieldWrap {
   display: flex;
   flex-direction: column;
   gap: 6px;
 }
 
-#importEstimationFieldCustomWrap {
+#createPlanStoryPointFieldWrap,
+#createPlanWorkingDaysWrap,
+#settingsTeamEstimationWrap,
+#createPlanTeamEstimationWrap,
+#createPlanTeamEstimationValueWrap,
+#settingsTeamEstimationValueWrap,
+#settingsWorkingDaysWrap {
   display: flex;
   flex-direction: column;
   gap: 6px;
