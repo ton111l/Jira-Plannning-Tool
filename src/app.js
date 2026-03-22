@@ -33,6 +33,13 @@ import {
   sanitizeOptionalNonNegative as sanitizeOptionalNonNegativeState,
   touchPlan as touchPlanState
 } from "./modules/app/state.js";
+import {
+  assertPlanInvariants,
+  createDefaultVelocity,
+  getEffectiveEstimationType,
+  normalizePlanForMode
+} from "./modules/planning/index.js";
+import { PLANNING_TIME_MODE } from "./modules/planning/constants.js";
 
 let appState = null;
 let pendingDeleteAction = null;
@@ -50,7 +57,11 @@ function touchPlan(plan) {
 }
 
 function getPlanEstimationType(plan = getActivePlan()) {
-  return plan?.estimationType || appState.estimationType || "story_points";
+  const resolved = plan ?? getActivePlan();
+  if (resolved) {
+    return getEffectiveEstimationType(resolved);
+  }
+  return appState?.estimationType || "story_points";
 }
 
 function getPlanResourceGroupingType(plan = getActivePlan()) {
@@ -1087,6 +1098,51 @@ async function init() {
   }
   appState.plans.forEach((plan) => {
     plan.backlogEntryMode = "import";
+    if (!plan.planningTimeMode) {
+      plan.planningTimeMode = PLANNING_TIME_MODE.quarter;
+    }
+    const firstPeriodMeta = plan.periods?.[0];
+    if (typeof plan.anchorQuarter !== "string" || !plan.anchorQuarter) {
+      plan.anchorQuarter = firstPeriodMeta?.anchorQuarter || firstPeriodMeta?.quarter || "Q1";
+    }
+    if (typeof plan.anchorYear !== "number" || Number.isNaN(plan.anchorYear)) {
+      plan.anchorYear = Number(firstPeriodMeta?.anchorYear ?? firstPeriodMeta?.year) || new Date().getFullYear();
+    }
+    if (typeof plan.sprintDurationDays !== "number" || Number.isNaN(plan.sprintDurationDays)) {
+      plan.sprintDurationDays = 14;
+    } else {
+      plan.sprintDurationDays = Math.max(1, plan.sprintDurationDays);
+    }
+    if (typeof plan.sprintCount !== "number" || Number.isNaN(plan.sprintCount)) {
+      plan.sprintCount = 1;
+    } else {
+      plan.sprintCount = Math.max(1, Math.min(plan.sprintCount, 52));
+    }
+    if (!plan.velocity || typeof plan.velocity !== "object") {
+      plan.velocity = createDefaultVelocity();
+    }
+    if (typeof plan.velocity.mode !== "string") {
+      plan.velocity.mode = "none";
+    }
+    if (!plan.velocity.perPeriod || typeof plan.velocity.perPeriod !== "object") {
+      plan.velocity.perPeriod = {};
+    }
+    (plan.periods || []).forEach((period) => {
+      if (!period.kind) {
+        period.kind = "quarter";
+      }
+      if (!period.anchorQuarter) {
+        period.anchorQuarter = period.quarter;
+      }
+      if (period.anchorYear === undefined || period.anchorYear === null) {
+        period.anchorYear = Number(period.year);
+      }
+    });
+    (plan.backlogRows || []).forEach((row) => {
+      if (row.targetPeriodId === undefined || row.targetPeriodId === null) {
+        row.targetPeriodId = "";
+      }
+    });
     if (!plan.estimationType) {
       plan.estimationType = appState.estimationType || "story_points";
     }
@@ -1108,6 +1164,11 @@ async function init() {
         ? sanitizeNonNegative(plan.capacityRows[0].periodValues[firstPeriodId].workingDays)
         : 0;
       plan.defaultWorkingDays = inferredWorkingDays;
+    }
+    normalizePlanForMode(plan);
+    const invariantCheck = assertPlanInvariants(plan);
+    if (!invariantCheck.ok && invariantCheck.errors.length) {
+      console.warn("[Plan invariants]", plan.id, invariantCheck.errors);
     }
     ensureTeamPeriodValues(plan);
     if (plan.resourceGroupingType === "by_roles" && regroupCapacityRowsByRole(plan)) {
