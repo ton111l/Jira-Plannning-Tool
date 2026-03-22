@@ -1,0 +1,19 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+
+# Environment
+.env
+.env.*
+
+# OS / IDE
+.DS_Store
+Thumbs.db
+*.log
+
+# Локальная документация — не в репозитории (не мержить в main)
+/README.md
+/CURSOR_PROJECT_RULES.md
+/BRD_SRS_MVP.md

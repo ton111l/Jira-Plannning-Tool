@@ -30,7 +30,7 @@
   ],
   "web_accessible_resources": [
     {
-      "resources": ["src/*", "src/modules/*", "src/content/*"],
+      "resources": ["src/*", "src/**/*"],
       "matches": ["<all_urls>"]
     }
   ]

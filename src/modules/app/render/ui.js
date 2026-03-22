@@ -38,7 +38,20 @@ export function renderTeamName({ refs, plan }) {
 }
 
 export function renderSettings({ refs, plan, appState }) {
-  refs.estimationTypeSelect.value = plan?.estimationType || appState.estimationType || "story_points";
+  const estimationType = plan?.estimationType || appState.estimationType || "story_points";
+  refs.estimationTypeSelect.value = estimationType;
+  refs.settingsStoryPointFieldWrap.style.display = estimationType === "story_points" ? "flex" : "none";
+  refs.settingsStoryPointFieldInput.value = String(plan?.estimationFieldName || appState.estimationFieldName || "");
+  const firstPeriodId = plan?.periods?.[0]?.id || "";
+  const periodTeamSettings = firstPeriodId ? plan?.teamPeriodValues?.[firstPeriodId] : null;
+  const teamMode = periodTeamSettings?.teamEstimationMode || "average";
+  const teamValue = periodTeamSettings?.teamEstimationPerDay ?? "";
+  refs.settingsTeamEstimationWrap.style.display = estimationType === "story_points" ? "flex" : "none";
+  refs.settingsTeamEstimationModeSelect.value = teamMode;
+  refs.settingsTeamEstimationValueWrap.style.display =
+    estimationType === "story_points" && teamMode === "manual" ? "flex" : "none";
+  refs.settingsTeamEstimationValueInput.value = String(teamValue);
+  refs.settingsWorkingDaysInput.value = String(plan?.defaultWorkingDays ?? 0);
   refs.resourceGroupingTypeSelect.value = plan?.resourceGroupingType || appState.resourceGroupingType || "by_roles";
 }
 
@@ -94,6 +107,10 @@ export function renderBacklogOverlay({ refs, plan }) {
 }
 
 export function positionFabQuarter({ refs, capacityContentEl }) {
+  if (refs.addQuarterBtn.disabled) {
+    refs.addQuarterBtn.style.top = "54px";
+    return;
+  }
   const tbody = refs.capacityTable.tBodies[0];
   if (!tbody || !tbody.rows.length) {
     refs.addQuarterBtn.style.top = "";
@@ -101,6 +118,6 @@ export function positionFabQuarter({ refs, capacityContentEl }) {
   }
   const contentRect = capacityContentEl.getBoundingClientRect();
   const tbodyRect = tbody.getBoundingClientRect();
-  const topPx = tbodyRect.top - contentRect.top + tbodyRect.height / 2;
+  const topPx = tbodyRect.top - contentRect.top + tbodyRect.height / 2 - 30;
   refs.addQuarterBtn.style.top = `${topPx}px`;
 }

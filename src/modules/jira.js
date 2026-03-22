@@ -321,7 +321,13 @@ function parseIssueTableHtml(rawText) {
   return rows.filter((row) => row.key || row.summary);
 }
 
-async function importViaSearchApi(baseUrl, jql, maxResults, estimationField) {
+async function importViaSearchApi(baseUrl, jql, maxResults, estimationField, onProgress = null) {
+  const reportProgress = (payload) => {
+    if (typeof onProgress === "function") {
+      onProgress(payload);
+    }
+  };
+  reportProgress({ phase: "search_start", value: 25 });
   const optionalFields = [estimationField, ...FALLBACK_ESTIMATION_FIELDS].filter(Boolean);
   const requestFields = Array.from(new Set([...BASE_SEARCH_FIELDS, ...optionalFields]));
   const normalizedMaxResults = Math.min(Math.max(Number(maxResults) || 50, 1), 200);
@@ -353,6 +359,7 @@ async function importViaSearchApi(baseUrl, jql, maxResults, estimationField) {
     const methodLabels = ["GET:jql", "GET:Jql", "GET:Jql=jql"];
     for (let index = 0; index < urlVariants.length; index += 1) {
       const url = urlVariants[index];
+      reportProgress({ phase: "search_try", value: 30 + index * 8 });
       try {
         response = await request(url, {
           method: "GET",
@@ -362,6 +369,7 @@ async function importViaSearchApi(baseUrl, jql, maxResults, estimationField) {
           }
         });
         if (response.ok) {
+          reportProgress({ phase: "search_response", value: 55 });
           return { response, method: methodLabels[index] };
         }
       } catch {
@@ -375,6 +383,7 @@ async function importViaSearchApi(baseUrl, jql, maxResults, estimationField) {
       maxResults: normalizedMaxResults
     };
     try {
+      reportProgress({ phase: "search_try_post", value: 50 });
       response = await request(`${baseUrl}/rest/api/2/search`, {
         method: "POST",
         credentials: "include",
@@ -384,6 +393,9 @@ async function importViaSearchApi(baseUrl, jql, maxResults, estimationField) {
         },
         body: JSON.stringify(payload)
       });
+      if (response?.ok) {
+        reportProgress({ phase: "search_response", value: 55 });
+      }
       return { response, method: "POST:json" };
     } catch {
       throw new Error("Failed to fetch Search API via GET/POST variants.");
@@ -400,6 +412,7 @@ async function importViaSearchApi(baseUrl, jql, maxResults, estimationField) {
     const maybeInvalidField = status === 400 && /field|customfield|does not exist|cannot be viewed/i.test(snippet);
     if (maybeInvalidField) {
       const safeFields = [...BASE_SEARCH_FIELDS, "timeoriginalestimate"];
+      reportProgress({ phase: "search_safe_fields_retry", value: 60 });
       responseResult = await doSearch(safeFields);
       response = responseResult.response;
       searchMethod = `${responseResult.method}:safe_fields`;
@@ -424,6 +437,7 @@ async function importViaSearchApi(baseUrl, jql, maxResults, estimationField) {
 
   const data = await response.json();
   const issues = Array.isArray(data?.issues) ? data.issues : [];
+  reportProgress({ phase: "search_parsed", value: 75 });
   return {
     total: Number(data?.total || issues.length),
     mappedRows: issues.map((issue) => toIssueRow(issue, estimationField)),
@@ -433,7 +447,7 @@ async function importViaSearchApi(baseUrl, jql, maxResults, estimationField) {
   };
 }
 
-export async function importIssuesFromJira({ baseUrl, jql, maxResults = 200, estimationFieldName = "" }) {
+export async function importIssuesFromJira({ baseUrl, jql, maxResults = 200, estimationFieldName = "", onProgress = null }) {
   const normalizedBaseUrl = normalizeBaseUrl(baseUrl);
   if (!normalizedBaseUrl) {
     throw new Error("Jira Base URL is empty.");
@@ -448,21 +462,31 @@ export async function importIssuesFromJira({ baseUrl, jql, maxResults = 200, est
 
   if (isJiraBridgeAvailable()) {
     try {
-      return await importIssuesViaJiraTab({
+      if (typeof onProgress === "function") {
+        onProgress({ phase: "bridge_start", value: 20 });
+      }
+      const bridgeResult = await importIssuesViaJiraTab({
         baseUrl: normalizedBaseUrl,
         jql: normalizedJql,
         maxResults,
         estimationFieldName: estimationField
       });
+      if (typeof onProgress === "function") {
+        onProgress({ phase: "bridge_done", value: 75 });
+      }
+      return bridgeResult;
     } catch (bridgeError) {
       if (bridgeError?.code !== "BRIDGE_UNAVAILABLE") {
         throw bridgeError;
+      }
+      if (typeof onProgress === "function") {
+        onProgress({ phase: "bridge_unavailable", value: 22 });
       }
     }
   }
 
   try {
-    return await importViaSearchApi(normalizedBaseUrl, normalizedJql, maxResults, estimationField);
+    return await importViaSearchApi(normalizedBaseUrl, normalizedJql, maxResults, estimationField, onProgress);
   } catch (error) {
     const searchMessage = String(error?.message || error || "");
     const isFetchTransportError = searchMessage.toLowerCase().includes("failed to fetch");
