@@ -12,3 +12,8 @@ dist/
 .DS_Store
 Thumbs.db
 *.log
+
+# Локальная документация — не в репозитории (не мержить в main)
+/README.md
+/CURSOR_PROJECT_RULES.md
+/BRD_SRS_MVP.md
