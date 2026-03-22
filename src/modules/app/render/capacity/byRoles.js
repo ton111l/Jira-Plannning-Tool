@@ -15,7 +15,13 @@ export function renderCapacityByRoles({
 }) {
   ensureTeamPeriodValues(plan);
   const isPersonDays = estimationType === "person_days";
-  const periodColumnsCount = isPersonDays ? 9 : 10;
+  const getPeriodColumnsCount = (period) => {
+    if (isPersonDays) {
+      return 9;
+    }
+    const teamMode = plan.teamPeriodValues?.[period.id]?.teamEstimationMode || "average";
+    return teamMode === "manual" ? 9 : 10;
+  };
   const teamSubLabel = "Role total";
 
   const thead = document.createElement("thead");
@@ -45,7 +51,7 @@ export function renderCapacityByRoles({
 
   for (const period of plan.periods) {
     const periodHead = document.createElement("th");
-    periodHead.colSpan = periodColumnsCount;
+    periodHead.colSpan = getPeriodColumnsCount(period);
     const periodHeadWrap = document.createElement("div");
     periodHeadWrap.className = "period-head";
     const periodLabel = document.createElement("span");
@@ -68,6 +74,8 @@ export function renderCapacityByRoles({
   const metricSubHeadRow = document.createElement("tr");
   const estimationTitleForPlanned = estimationLabel ? estimationLabel.toLowerCase() : "estimation";
   for (const period of plan.periods) {
+    const teamMode = plan.teamPeriodValues?.[period.id]?.teamEstimationMode || "average";
+    const hasTeamFixedMode = !isPersonDays && teamMode === "manual";
     const dayOff = document.createElement("th");
     dayOff.className = "period-subcol period-subcol-short";
     dayOff.rowSpan = 2;
@@ -75,21 +83,7 @@ export function renderCapacityByRoles({
     const working = document.createElement("th");
     working.className = "period-subcol period-subcol-short";
     working.rowSpan = 2;
-    const workingHeadWrap = document.createElement("div");
-    workingHeadWrap.className = "head-inline-actions";
-    const workingLabel = document.createElement("span");
-    workingLabel.textContent = "Working days";
-    const editWorkingButton = document.createElement("button");
-    editWorkingButton.type = "button";
-    editWorkingButton.className = "working-days-edit-btn";
-    editWorkingButton.textContent = "✎";
-    editWorkingButton.title = `Set Working days for all rows in ${period.label}`;
-    editWorkingButton.setAttribute("aria-label", `Set Working days for all rows in ${period.label}`);
-    editWorkingButton.dataset.action = "bulk-working-days";
-    editWorkingButton.dataset.periodId = period.id;
-    editWorkingButton.dataset.periodLabel = period.label;
-    workingHeadWrap.append(workingLabel, editWorkingButton);
-    working.appendChild(workingHeadWrap);
+    working.textContent = "Working days";
 
     const available = document.createElement("th");
     available.className = "period-subcol period-subcol-wide";
@@ -98,13 +92,15 @@ export function renderCapacityByRoles({
 
     const estimationPerDay = document.createElement("th");
     estimationPerDay.className = "period-subcol period-subcol-wide";
-    estimationPerDay.colSpan = isPersonDays ? 1 : 2;
-    if (isPersonDays) {
+    estimationPerDay.colSpan = isPersonDays || hasTeamFixedMode ? 1 : 2;
+    if (isPersonDays || hasTeamFixedMode) {
       estimationPerDay.rowSpan = 2;
     }
     estimationPerDay.textContent = isPersonDays
-      ? "Person-days per day (Role total)"
-      : `${estimationLabel} per day`;
+      ? "Men-days per day (Role total)"
+      : hasTeamFixedMode
+        ? `${estimationLabel} per day (Team)`
+        : `${estimationLabel} per day`;
 
     const planned = document.createElement("th");
     planned.className = "period-subcol period-subcol-wide";
@@ -128,8 +124,7 @@ export function renderCapacityByRoles({
     availableTeamSub.textContent = teamSubLabel;
     metricSubHeadRow.appendChild(availableTeamSub);
 
-    if (!isPersonDays) {
-      const teamMode = plan.teamPeriodValues?.[period.id]?.teamEstimationMode || "average";
+    if (!isPersonDays && !hasTeamFixedMode) {
       const estimationMemberSub = document.createElement("th");
       estimationMemberSub.className = "period-subcol period-subcol-wide";
       const estimationMemberLabel = document.createElement("span");
@@ -142,24 +137,12 @@ export function renderCapacityByRoles({
 
       const estimationTeamSub = document.createElement("th");
       estimationTeamSub.className = "period-subcol period-subcol-wide";
-      const estimationTeamWrap = document.createElement("div");
-      estimationTeamWrap.className = "head-inline-actions";
       const estimationTeamLabel = document.createElement("span");
       estimationTeamLabel.textContent = teamSubLabel;
       if (teamMode === "manual") {
         estimationTeamLabel.className = "subcol-selected";
       }
-      const editEstimationButton = document.createElement("button");
-      editEstimationButton.type = "button";
-      editEstimationButton.className = "working-days-edit-btn";
-      editEstimationButton.textContent = "✎";
-      editEstimationButton.title = `Set ${estimationLabel} per day for Per team in ${period.label}`;
-      editEstimationButton.setAttribute("aria-label", `Set ${estimationLabel} per day for Per team in ${period.label}`);
-      editEstimationButton.dataset.action = "bulk-row-estimation-per-day";
-      editEstimationButton.dataset.periodId = period.id;
-      editEstimationButton.dataset.periodLabel = period.label;
-      estimationTeamWrap.append(estimationTeamLabel, editEstimationButton);
-      estimationTeamSub.appendChild(estimationTeamWrap);
+      estimationTeamSub.appendChild(estimationTeamLabel);
       metricSubHeadRow.appendChild(estimationTeamSub);
     }
 
@@ -191,7 +174,8 @@ export function renderCapacityByRoles({
   if (!plan.capacityRows.length) {
     const row = document.createElement("tr");
     const cell = document.createElement("td");
-    cell.colSpan = 6 + plan.periods.length * periodColumnsCount;
+    const totalPeriodColumns = plan.periods.reduce((sum, period) => sum + getPeriodColumnsCount(period), 0);
+    cell.colSpan = 6 + totalPeriodColumns;
     cell.textContent = "No team members yet. Use + Row.";
     row.appendChild(cell);
     tbody.appendChild(row);
@@ -341,16 +325,20 @@ export function renderCapacityByRoles({
           tr.appendChild(estimationPerDayTeamOnlyCell);
         }
       } else {
-        const estimationPerDayCell = document.createElement("td");
-        estimationPerDayCell.className = "period-value-cell period-value-cell-wide";
-        estimationPerDayCell.appendChild(
-          buildCellInput({
-            value: rowEstimationPerDay,
-            type: "number",
-            dataset: { section: "capacity", rowId: capacityRow.id, field: "rowEstimationPerDay", periodId: period.id }
-          })
-        );
-        tr.appendChild(estimationPerDayCell);
+        const teamMode = plan.teamPeriodValues?.[period.id]?.teamEstimationMode || "average";
+        const hasTeamFixedMode = teamMode === "manual";
+        if (!hasTeamFixedMode) {
+          const estimationPerDayCell = document.createElement("td");
+          estimationPerDayCell.className = "period-value-cell period-value-cell-wide";
+          estimationPerDayCell.appendChild(
+            buildCellInput({
+              value: rowEstimationPerDay,
+              type: "number",
+              dataset: { section: "capacity", rowId: capacityRow.id, field: "rowEstimationPerDay", periodId: period.id }
+            })
+          );
+          tr.appendChild(estimationPerDayCell);
+        }
 
         if (isGroupStart) {
           const groupedMetrics = periodRoleMetrics[period.id]?.[roleKey] || periodTeamMetrics[period.id];

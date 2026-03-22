@@ -22,18 +22,7 @@ export function openImportDialogAction({ refs, appState, getActivePlan, setMessa
   }
   refs.importJiraBaseUrlInput.value = String(plan.jiraBaseUrl || appState.jiraBaseUrl || "");
   refs.jqlInput.value = String(plan.lastImportJql || "");
-  const estimationFieldName = String(plan.estimationFieldName || appState.estimationFieldName || "").trim();
-  const settingsStoryPoints = String(plan.estimationType || appState.estimationType || "story_points") === "story_points";
-  const isSystemField = !settingsStoryPoints;
-  const normalizedCustomFieldValue = settingsStoryPoints
-    ? estimationFieldName
-    : "";
-  refs.importEstimationFieldModeInputs.forEach((input) => {
-    input.checked = input.value === (isSystemField ? "system" : "custom");
-  });
-  refs.importEstimationFieldInput.value = normalizedCustomFieldValue;
   refs.jqlInput.classList.remove("input-invalid");
-  refs.importEstimationFieldInput.classList.remove("input-invalid");
   refs.issuesCount.textContent = "0";
   refs.importProgress.value = 0;
   syncImportButtonState();

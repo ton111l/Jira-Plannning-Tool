@@ -92,6 +92,17 @@
           </select>
           <input id="yearInput" class="input" type="number" min="2000" max="2100" />
         </div>
+        <div id="createPlanWorkingDaysWrap">
+          <label for="createPlanWorkingDaysInput">Working days for all rows</label>
+          <input
+            id="createPlanWorkingDaysInput"
+            class="input"
+            type="number"
+            min="0"
+            step="1"
+            placeholder="0"
+          />
+        </div>
 
         <label for="createPlanEstimationTypeSelect" class="label-with-help">
           Estimation type
@@ -99,13 +110,47 @@
             class="help-tooltip"
             tabindex="0"
             aria-label="Help: Estimation type"
-            data-tooltip="Defines the unit used across planning metrics and backlog estimates. Story Points are relative effort, while Person-days are calendar capacity."
+            data-tooltip="Defines the unit used across planning metrics and backlog estimates. Story Points are relative effort, while Men-days are calendar capacity."
           >?</span>
         </label>
         <select id="createPlanEstimationTypeSelect" class="input select">
           <option value="story_points">Story Points</option>
-          <option value="person_days">Person-days</option>
+          <option value="person_days">Men-days</option>
         </select>
+        <div id="createPlanStoryPointFieldWrap">
+          <label for="createPlanStoryPointFieldInput">Story Point field name</label>
+          <input
+            id="createPlanStoryPointFieldInput"
+            class="input"
+            placeholder="customfield_10016"
+          />
+        </div>
+        <div id="createPlanTeamEstimationWrap">
+          <label for="createPlanTeamEstimationModeSelect" class="label-with-help">
+            Team Story Points per day
+            <span
+              class="help-tooltip"
+              tabindex="0"
+              aria-label="Help: Team Story Points per day"
+              data-tooltip="Choose how Team Story Points per day is calculated. Team average uses the mean of member values; Fixed value uses one shared number for the team."
+            >?</span>
+          </label>
+          <select id="createPlanTeamEstimationModeSelect" class="input select">
+            <option value="average">Use Team average</option>
+            <option value="manual">Use fixed Team value</option>
+          </select>
+          <div id="createPlanTeamEstimationValueWrap">
+            <label for="createPlanTeamEstimationValueInput">Team value</label>
+            <input
+              id="createPlanTeamEstimationValueInput"
+              class="input"
+              type="number"
+              min="0"
+              step="0.1"
+              placeholder="5.0"
+            />
+          </div>
+        </div>
 
         <label for="createPlanResourceGroupingTypeSelect" class="label-with-help">
           Resource grouping type
@@ -153,25 +198,6 @@
         <h3>Import candidate's backlog</h3>
         <label for="importJiraBaseUrlInput">Jira Base URL</label>
         <input id="importJiraBaseUrlInput" class="input" placeholder="https://jira.company.local" />
-        <label>Estimation field source</label>
-        <div id="importEstimationFieldModeWrap">
-          <label>
-            <input type="radio" name="importEstimationFieldMode" value="custom" checked />
-            Story Point
-          </label>
-          <label>
-            <input type="radio" name="importEstimationFieldMode" value="system" />
-            Original Estimate (timetracking)
-          </label>
-        </div>
-        <div id="importEstimationFieldCustomWrap">
-          <label for="importEstimationFieldInput">Story Point field name</label>
-          <input
-            id="importEstimationFieldInput"
-            class="input"
-            placeholder="customfield_10016"
-          />
-        </div>
         <label for="jqlInput">Input JQL request</label>
         <textarea
           id="jqlInput"
@@ -201,13 +227,58 @@
             class="help-tooltip"
             tabindex="0"
             aria-label="Help: Estimation type"
-            data-tooltip="Defines the unit used across planning metrics and backlog estimates. Story Points are relative effort, while Person-days are calendar capacity."
+            data-tooltip="Defines the unit used across planning metrics and backlog estimates. Story Points are relative effort, while Men-days are calendar capacity."
           >?</span>
         </label>
         <select id="estimationTypeSelect" class="input select">
           <option value="story_points">Story Points</option>
-          <option value="person_days">Person-days</option>
+          <option value="person_days">Men-days</option>
         </select>
+        <div id="settingsStoryPointFieldWrap">
+          <label for="settingsStoryPointFieldInput">Story Point field name</label>
+          <input
+            id="settingsStoryPointFieldInput"
+            class="input"
+            placeholder="customfield_10016"
+          />
+        </div>
+        <div id="settingsTeamEstimationWrap">
+          <label for="settingsTeamEstimationModeSelect" class="label-with-help">
+            Team Story Points per day
+            <span
+              class="help-tooltip"
+              tabindex="0"
+              aria-label="Help: Team Story Points per day"
+              data-tooltip="Choose how Team Story Points per day is calculated. Team average uses the mean of member values; Fixed value uses one shared number for the team."
+            >?</span>
+          </label>
+          <select id="settingsTeamEstimationModeSelect" class="input select">
+            <option value="average">Use Team average</option>
+            <option value="manual">Use fixed Team value</option>
+          </select>
+          <div id="settingsTeamEstimationValueWrap">
+            <label for="settingsTeamEstimationValueInput">Team value</label>
+            <input
+              id="settingsTeamEstimationValueInput"
+              class="input"
+              type="number"
+              min="0"
+              step="0.1"
+              placeholder="5.0"
+            />
+          </div>
+        </div>
+        <div id="settingsWorkingDaysWrap">
+          <label for="settingsWorkingDaysInput">Working days for all rows</label>
+          <input
+            id="settingsWorkingDaysInput"
+            class="input"
+            type="number"
+            min="0"
+            step="1"
+            placeholder="0"
+          />
+        </div>
 
         <label for="resourceGroupingTypeSelect" class="label-with-help">
           Resource grouping type
@@ -237,21 +308,6 @@
         <div class="modal-actions">
           <button type="submit" value="no" class="btn btn-secondary">No</button>
           <button type="submit" value="yes" class="btn">Yes</button>
-        </div>
-      </form>
-    </dialog>
-
-    <dialog id="bulkWorkingDaysDialog" class="modal">
-      <form method="dialog" id="bulkWorkingDaysForm">
-        <h3>Set Working days for all rows</h3>
-        <div id="bulkWorkingDaysText">
-          This change will overwrite Working days for all current rows in the selected quarter.
-        </div>
-        <label for="bulkWorkingDaysInput">Working days value</label>
-        <input id="bulkWorkingDaysInput" class="input" type="number" min="0" step="1" />
-        <div class="modal-actions">
-          <button type="submit" value="cancel" class="btn btn-secondary">Cancel</button>
-          <button type="submit" value="apply" class="btn">Apply</button>
         </div>
       </form>
     </dialog>
@@ -309,6 +365,6 @@
       </form>
     </dialog>
 
-    <script type="module" src="./app.js?v=2"></script>
+    <script type="module" src="./app.js"></script>
   </body>
 </html>

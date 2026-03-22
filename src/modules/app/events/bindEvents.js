@@ -11,7 +11,6 @@ export function bindEvents({
   refs.settingsBtn.addEventListener("click", handlers.openSettingsDialog);
   refs.settingsForm.addEventListener("submit", handlers.saveSettings);
   refs.deleteConfirmForm.addEventListener("submit", handlers.submitDeleteConfirm);
-  refs.bulkWorkingDaysForm.addEventListener("submit", handlers.submitBulkWorkingDays);
   refs.bulkRowEstimationForm.addEventListener("submit", handlers.submitBulkRowEstimation);
   refs.bulkLoadForm.addEventListener("submit", handlers.submitBulkLoad);
 
@@ -31,17 +30,16 @@ export function bindEvents({
   refs.importJiraBaseUrlInput.addEventListener("input", handlers.syncImportButtonState);
   refs.importJiraBaseUrlInput.addEventListener("blur", handlers.handleImportJiraBaseUrlBlur);
   refs.importJiraBaseUrlInput.addEventListener("change", handlers.handleImportJiraBaseUrlBlur);
-  refs.importEstimationFieldModeInputs.forEach((input) => {
-    input.addEventListener("change", handlers.handleImportEstimationFieldModeChange);
-  });
-  refs.importEstimationFieldInput.addEventListener("input", () => {
-    refs.importEstimationFieldInput.classList.remove("input-invalid");
-    handlers.syncImportButtonState();
-  });
   refs.jqlInput.addEventListener("input", () => {
     refs.jqlInput.classList.remove("input-invalid");
     handlers.syncImportButtonState();
   });
+  refs.estimationTypeSelect.addEventListener("change", handlers.handleSettingsEstimationTypeChange);
+  refs.createPlanEstimationTypeSelect.addEventListener("change", handlers.handleCreatePlanEstimationTypeChange);
+  refs.createPlanTeamEstimationModeSelect.addEventListener("change", handlers.handleCreatePlanEstimationTypeChange);
+  if (refs.settingsTeamEstimationModeSelect) {
+    refs.settingsTeamEstimationModeSelect.addEventListener("change", handlers.handleSettingsEstimationTypeChange);
+  }
 
   refs.bulkRowEstimationModeInputs.forEach((input) => {
     input.addEventListener("change", () => {
