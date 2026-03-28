@@ -6,7 +6,7 @@ export function roleToFieldSuffix(role) {
 }
 
 export function getEstimationUnitByType(estimationType) {
-  return estimationType === "person_days" ? "Men-day" : "Story Point";
+  return estimationType === "person_days" ? "Man-day" : "Story Point";
 }
 
 export function asNumber(value) {

@@ -41,7 +41,7 @@ src/modules/
 Stored in `chrome.storage.local` as part of app state. Key concepts:
 
 - **`periods[]`** — **single** timeline abstraction. All capacity and team metrics are keyed by `period.id`. Do not introduce a parallel “sprints array” beside `periods`.
-- **`capacityRows[]`** — each row has `periodValues[periodId]` (working days, estimation per day, balances, etc.).
+- **`capacityRows[]`** — each row has `periodValues[periodId]` (working days, estimation per day, balances, etc.). When a row is appended, **`workingDays`** for each period is initialized from the **previous last row** in `capacityRows` (then derived fields are recomputed); see `handleAddCapacityRow` in [`src/app.js`](src/app.js).
 - **`teamPeriodValues[periodId]`** — team-level overrides (e.g. team Story Points per day mode).
 - **`backlogRows[]`** — imported or manual issues; optional **`targetPeriodId`** for parking an issue in a period (used when sprint UI exists).
 
@@ -88,10 +88,10 @@ Implemented as **data + constraint layer** without mandatory UI (see [`src/modul
 
 ### 5.3 Estimation rules
 
-- **Quarter mode:** `estimationType` can be `story_points` or `person_days` (Men-days).
+- **Quarter mode:** `estimationType` can be `story_points` or `person_days` (Man-days).
 - **Sprint mode:** only Story Points are valid for calculations. [`getEffectiveEstimationType(plan)`](src/modules/planning/planConstraints.js) forces `story_points` when `planningTimeMode === sprint`.
 
-Use **`isPersonDaysAllowed(plan)`** before exposing Men-days in future UI.
+Use **`isPersonDaysAllowed(plan)`** before exposing Man-days in future UI.
 
 ### 5.4 Invariants and normalization
 
@@ -114,6 +114,7 @@ Switching `quarter` ↔ `sprint` may require rebuilding `periods` and remapping 
 
 - Primary path: Jira REST Search API and fallbacks — [`src/modules/jira.js`](src/modules/jira.js).
 - Progress feedback in the import dialog is staged in [`src/app.js`](src/app.js) (`submitImport`).
+- **Jira field for estimates** is configured in the **Import backlog from Jira** dialog (not in Settings): labels and placeholders follow **Estimation type** from plan settings — **Story Points** → custom field id (e.g. `customfield_…`, required before import); **Man-days** → field id for numeric/time estimate (e.g. `timeoriginalestimate`, optional; empty defaults to `timeoriginalestimate` at import). Stored per plan as `plan.estimationFieldName` (see `resolveImportEstimationFieldName` / `syncImportEstimationFieldUi` in [`src/app.js`](src/app.js)).
 
 ## 7. Persistence and migration
 

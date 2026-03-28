@@ -97,7 +97,7 @@ export function renderCapacityByTeam({
       estimationPerDay.rowSpan = 2;
     }
     estimationPerDay.textContent = isPersonDays
-      ? "Men-days per day (team total)"
+      ? "Man-days per day (team total)"
       : hasTeamFixedMode
         ? `${estimationLabel} per day (Team)`
         : `${estimationLabel} per day`;

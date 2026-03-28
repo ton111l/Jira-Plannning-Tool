@@ -212,11 +212,40 @@ function renderSettings() {
   renderSettingsView({ refs, plan: getActivePlan(), appState });
 }
 
-function getEstimationFieldNameForImport(plan) {
-  if (getPlanEstimationType(plan) === "person_days") {
-    return "timetracking";
+const DEFAULT_STORY_POINTS_JIRA_FIELD = "customfield_10016";
+
+function resolveImportEstimationFieldName(plan, rawTrimmed) {
+  const type = getPlanEstimationType(plan);
+  if (type === "person_days") {
+    return rawTrimmed || "timeoriginalestimate";
   }
-  return String(plan?.estimationFieldName || "").trim();
+  return rawTrimmed || DEFAULT_STORY_POINTS_JIRA_FIELD;
+}
+
+function syncImportEstimationFieldUi() {
+  const plan = getActivePlan();
+  const input = refs.importJiraEstimationFieldInput;
+  const label = refs.importJiraEstimationFieldLabel;
+  const help = refs.importJiraEstimationFieldHelp;
+  if (!input || !label || !help) {
+    return;
+  }
+  const type = plan ? getPlanEstimationType(plan) : "story_points";
+  if (type === "person_days") {
+    label.textContent = "Jira estimation field";
+    input.placeholder = "timeoriginalestimate";
+    help.setAttribute(
+      "data-tooltip",
+      "Jira field id for backlog estimate in Man-days mode (e.g. timeoriginalestimate for Original estimate in seconds, or a custom number field). Leave empty to use timeoriginalestimate."
+    );
+  } else {
+    label.textContent = "Jira Story Points field";
+    input.placeholder = "customfield_10016";
+    help.setAttribute(
+      "data-tooltip",
+      "Custom field id used for Story Points in your Jira (often customfield_…). Required when Estimation type is Story Points."
+    );
+  }
 }
 
 function normalizeJiraBaseUrlInput(raw) {
@@ -253,20 +282,20 @@ function normalizeJiraBaseUrlInput(raw) {
 
 function syncImportButtonState() {
   const plan = getActivePlan();
-  const isStoryPoints = getPlanEstimationType(plan) === "story_points";
   const hasJql = Boolean(refs.jqlInput.value.trim());
   const hasBaseUrl = Boolean(normalizeJiraBaseUrlInput(refs.importJiraBaseUrlInput.value));
-  const hasEstimationField = !isStoryPoints || Boolean(String(plan?.estimationFieldName || "").trim());
-  const canImport = hasJql && hasBaseUrl && hasEstimationField;
+  const fieldRaw = String(refs.importJiraEstimationFieldInput?.value || "").trim();
+  const needsStoryPointsField = plan && getPlanEstimationType(plan) === "story_points";
+  const hasEstimationField = !needsStoryPointsField || Boolean(fieldRaw);
+  const canImport = Boolean(plan) && hasJql && hasBaseUrl && hasEstimationField;
   refs.confirmImportBtn.classList.toggle("btn-disabled", !canImport);
   refs.confirmImportBtn.title = canImport
-    ? "Import"
-    : "Enter Jira Base URL and JQL. For Story Points, set Story Point field name in Settings.";
+    ? "Import backlog from Jira"
+    : "Enter Jira Base URL, JQL, and (for Story Points) Jira Story Points field id.";
 }
 
 function handleSettingsEstimationTypeChange() {
   const nextType = refs.estimationTypeSelect.value || "story_points";
-  refs.settingsStoryPointFieldWrap.style.display = nextType === "story_points" ? "flex" : "none";
   refs.settingsTeamEstimationWrap.style.display = nextType === "story_points" ? "flex" : "none";
   if (nextType !== "story_points") {
     refs.settingsTeamEstimationModeSelect.value = "average";
@@ -280,13 +309,11 @@ function handleSettingsEstimationTypeChange() {
 
 function handleCreatePlanEstimationTypeChange() {
   const nextType = refs.createPlanEstimationTypeSelect.value || "story_points";
-  refs.createPlanStoryPointFieldWrap.style.display = nextType === "story_points" ? "flex" : "none";
   refs.createPlanTeamEstimationWrap.style.display = nextType === "story_points" ? "flex" : "none";
   if (nextType !== "story_points") {
     refs.createPlanTeamEstimationModeSelect.value = "average";
     refs.createPlanTeamEstimationValueWrap.style.display = "none";
     refs.createPlanTeamEstimationValueInput.value = "";
-    refs.createPlanStoryPointFieldInput.value = "";
     return;
   }
   const mode = refs.createPlanTeamEstimationModeSelect.value || "average";
@@ -381,7 +408,6 @@ async function handleCreatePlan() {
   refs.createPlanEstimationTypeSelect.value = estimationType;
   refs.createPlanResourceGroupingTypeSelect.value = getPlanResourceGroupingType(activePlan);
   refs.createPlanWorkingDaysInput.value = String(activePlan?.defaultWorkingDays ?? 0);
-  refs.createPlanStoryPointFieldInput.value = String(activePlan?.estimationFieldName || appState.estimationFieldName || "");
   const firstPeriodId = activePlan?.periods?.[0]?.id || "";
   const periodTeamSettings = firstPeriodId ? activePlan?.teamPeriodValues?.[firstPeriodId] : null;
   refs.createPlanTeamEstimationModeSelect.value = periodTeamSettings?.teamEstimationMode || "average";
@@ -402,7 +428,6 @@ async function submitCreatePlan(event) {
   const estimationType = refs.createPlanEstimationTypeSelect.value || "story_points";
   const resourceGroupingType = refs.createPlanResourceGroupingTypeSelect.value || "by_roles";
   const defaultWorkingDays = sanitizeNonNegative(refs.createPlanWorkingDaysInput.value || 0);
-  const estimationFieldName = String(refs.createPlanStoryPointFieldInput.value || "").trim();
   const teamEstimationMode = refs.createPlanTeamEstimationModeSelect.value === "manual" ? "manual" : "average";
   const teamEstimationPerDay = String(refs.createPlanTeamEstimationValueInput.value || "").trim();
 
@@ -412,10 +437,6 @@ async function submitCreatePlan(event) {
   }
   if (!year || year < 2000 || year > 2100) {
     setMessage("Year should be between 2000 and 2100.", "error");
-    return;
-  }
-  if (estimationType === "story_points" && !estimationFieldName) {
-    setMessage("Story Point field name is required for Story Points.", "error");
     return;
   }
   if (estimationType === "story_points" && teamEstimationMode === "manual") {
@@ -432,7 +453,7 @@ async function submitCreatePlan(event) {
     year,
     estimationType,
     resourceGroupingType,
-    estimationFieldName: estimationType === "story_points" ? estimationFieldName : "",
+    estimationFieldName: "",
     defaultWorkingDays
   });
   const firstPeriodId = plan.periods[0]?.id;
@@ -471,7 +492,21 @@ async function handleAddCapacityRow() {
     setMessage("Create plan first.", "error");
     return;
   }
-  plan.capacityRows.push(createCapacityRow(plan.periods));
+  const estimationType = getPlanEstimationType(plan);
+  const prevRow =
+    plan.capacityRows.length > 0 ? plan.capacityRows[plan.capacityRows.length - 1] : null;
+  const newRow = createCapacityRow(plan.periods);
+  if (prevRow) {
+    for (const period of plan.periods) {
+      const from = prevRow.periodValues[period.id];
+      const to = newRow.periodValues[period.id];
+      if (from && to) {
+        to.workingDays = from.workingDays;
+      }
+    }
+    recomputeCapacityRow(newRow, plan.periods, estimationType);
+  }
+  plan.capacityRows.push(newRow);
   const regrouped = regroupCapacityRowsByRole(plan);
   if (regrouped) {
     touchPlan(plan);
@@ -605,7 +640,7 @@ function openBulkRowEstimationDialog(periodId, periodLabel) {
 
   refs.bulkRowEstimationText.textContent = isStoryPoints
     ? `Choose how Per team ${estimationTitle} per day is calculated in ${periodLabel}.`
-    : `For Men-days, Per team is calculated as the sum of members in ${periodLabel}.`;
+    : `For Man-days, Per team is calculated as the sum of members in ${periodLabel}.`;
   refs.bulkRowEstimationModeWrap.style.display = isStoryPoints ? "flex" : "none";
   refs.bulkRowEstimationInputLabel.textContent = "Story point per day value";
   refs.bulkRowEstimationModeInputs.forEach((input) => {
@@ -841,7 +876,8 @@ function openImportDialog() {
     appState,
     getActivePlan,
     setMessage,
-    syncImportButtonState
+    syncImportButtonState,
+    syncImportEstimationFieldUi
   });
   handleImportJiraBaseUrlBlur();
   syncImportButtonState();
@@ -854,12 +890,15 @@ async function handleImportDialogClose() {
   }
   const draftJql = refs.jqlInput.value.trim();
   const draftBaseUrl = normalizeJiraBaseUrlInput(refs.importJiraBaseUrlInput.value);
+  const draftField = String(refs.importJiraEstimationFieldInput?.value || "").trim();
   const baseUrlChanged = String(plan.jiraBaseUrl || "") !== draftBaseUrl;
-  if (String(plan.lastImportJql || "") === draftJql && !baseUrlChanged) {
+  const fieldChanged = String(plan.estimationFieldName || "") !== draftField;
+  if (String(plan.lastImportJql || "") === draftJql && !baseUrlChanged && !fieldChanged) {
     return;
   }
   plan.lastImportJql = draftJql;
   plan.jiraBaseUrl = draftBaseUrl;
+  plan.estimationFieldName = draftField;
   touchPlan(plan);
   await saveState(appState);
 }
@@ -872,6 +911,7 @@ async function submitImport(event) {
     if (plan) {
       plan.lastImportJql = refs.jqlInput.value.trim();
       plan.jiraBaseUrl = normalizeJiraBaseUrlInput(refs.importJiraBaseUrlInput.value);
+      plan.estimationFieldName = String(refs.importJiraEstimationFieldInput?.value || "").trim();
       touchPlan(plan);
     }
     await saveState(appState);
@@ -899,9 +939,21 @@ async function submitImport(event) {
     setMessage("Jira Base URL is required for import.", "error");
     return;
   }
-  const estimationFieldName = getEstimationFieldNameForImport(plan);
+
+  const rawField = String(refs.importJiraEstimationFieldInput?.value || "").trim();
+  if (getPlanEstimationType(plan) === "story_points" && !rawField) {
+    refs.importJiraEstimationFieldInput?.classList.add("input-invalid");
+    refs.importJiraEstimationFieldInput?.focus();
+    syncImportButtonState();
+    setMessage("Enter Jira Story Points field id for import.", "error");
+    return;
+  }
+  refs.importJiraEstimationFieldInput?.classList.remove("input-invalid");
+
+  const estimationFieldName = resolveImportEstimationFieldName(plan, rawField);
   plan.jiraBaseUrl = jiraBaseUrl;
   plan.lastImportJql = jql;
+  plan.estimationFieldName = rawField;
   touchPlan(plan);
   await saveState(appState);
 

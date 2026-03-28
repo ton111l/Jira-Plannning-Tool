@@ -588,13 +588,7 @@ body {
   gap: 10px;
 }
 
-#settingsStoryPointFieldWrap {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-#createPlanStoryPointFieldWrap,
+#importJiraEstimationFieldWrap,
 #createPlanWorkingDaysWrap,
 #settingsTeamEstimationWrap,
 #createPlanTeamEstimationWrap,

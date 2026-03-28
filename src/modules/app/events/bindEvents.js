@@ -34,6 +34,12 @@ export function bindEvents({
     refs.jqlInput.classList.remove("input-invalid");
     handlers.syncImportButtonState();
   });
+  if (refs.importJiraEstimationFieldInput) {
+    refs.importJiraEstimationFieldInput.addEventListener("input", () => {
+      refs.importJiraEstimationFieldInput.classList.remove("input-invalid");
+      handlers.syncImportButtonState();
+    });
+  }
   refs.estimationTypeSelect.addEventListener("change", handlers.handleSettingsEstimationTypeChange);
   refs.createPlanEstimationTypeSelect.addEventListener("change", handlers.handleCreatePlanEstimationTypeChange);
   refs.createPlanTeamEstimationModeSelect.addEventListener("change", handlers.handleCreatePlanEstimationTypeChange);
