@@ -9,7 +9,7 @@ export function renderCapacityByTeam({
   roleOptions,
   ensureTeamPeriodValues,
   buildCellInput,
-  buildCellSelect,
+  buildRoleSelect,
   buildPercentSelect,
   createEmptyCapacityPeriodValues
 }) {
@@ -26,7 +26,7 @@ export function renderCapacityByTeam({
 
   const thead = document.createElement("thead");
   const topHeadRow = document.createElement("tr");
-  ["#", "Member", "Role", "Specialization", "Act"].forEach((title) => {
+  ["#", "Member", "Role", "Act"].forEach((title) => {
     const th = document.createElement("th");
     th.textContent = title;
     th.rowSpan = 3;
@@ -175,7 +175,7 @@ export function renderCapacityByTeam({
     const row = document.createElement("tr");
     const cell = document.createElement("td");
     const totalPeriodColumns = plan.periods.reduce((sum, period) => sum + getPeriodColumnsCount(period), 0);
-    cell.colSpan = 6 + totalPeriodColumns;
+    cell.colSpan = 5 + totalPeriodColumns;
     cell.textContent = "No team members yet. Use + Row.";
     row.appendChild(cell);
     tbody.appendChild(row);
@@ -211,23 +211,13 @@ export function renderCapacityByTeam({
 
     const role = document.createElement("td");
     role.appendChild(
-      buildCellSelect({
-        value: capacityRow.role,
-        dataset: { section: "capacity", rowId: capacityRow.id, field: "role" },
-        options: roleOptions
+      buildRoleSelect({
+        value: capacityRow.roleId,
+        dataset: { section: "capacity", rowId: capacityRow.id, field: "roleId" },
+        roleOptions
       })
     );
     tr.appendChild(role);
-
-    const specialization = document.createElement("td");
-    specialization.appendChild(
-      buildCellInput({
-        value: capacityRow.specialization || "",
-        dataset: { section: "capacity", rowId: capacityRow.id, field: "specialization" },
-        placeholder: "e.g. Backend, QA Auto, BA"
-      })
-    );
-    tr.appendChild(specialization);
 
     const remove = document.createElement("td");
     remove.className = "capacity-action-cell";

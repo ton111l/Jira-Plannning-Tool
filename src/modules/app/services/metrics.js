@@ -1,10 +1,11 @@
 import { sanitizeLoadPercent, sanitizeNonNegative } from "../../calculations.js";
+import { getCapacityRoleKey } from "../roleCatalog.js";
 
 function safePeriodValues(row, periodId) {
   return row?.periodValues?.[periodId] || {};
 }
 
-export function buildRoleGroupMeta(capacityRows = [], isByRolesGrouping = false) {
+export function buildRoleGroupMeta(capacityRows = [], isByRolesGrouping = false, plan = null) {
   if (!isByRolesGrouping) {
     return { roleGroups: [], rowGroupMetaByRowId: {} };
   }
@@ -14,9 +15,12 @@ export function buildRoleGroupMeta(capacityRows = [], isByRolesGrouping = false)
   let groupStart = 0;
 
   while (groupStart < capacityRows.length) {
-    const startRole = String(capacityRows[groupStart].role || "");
+    const startRole = getCapacityRoleKey(plan, capacityRows[groupStart]);
     let groupEnd = groupStart;
-    while (groupEnd + 1 < capacityRows.length && String(capacityRows[groupEnd + 1].role || "") === startRole) {
+    while (
+      groupEnd + 1 < capacityRows.length &&
+      getCapacityRoleKey(plan, capacityRows[groupEnd + 1]) === startRole
+    ) {
       groupEnd += 1;
     }
     const group = {
@@ -70,7 +74,7 @@ export function buildPeriodMetrics({
         estimationCount += 1;
       }
 
-      const roleKey = String(row.role || "");
+      const roleKey = getCapacityRoleKey(plan, row);
       if (!roleMetrics[roleKey]) {
         roleMetrics[roleKey] = {
           availableCapacityTotal: 0,
