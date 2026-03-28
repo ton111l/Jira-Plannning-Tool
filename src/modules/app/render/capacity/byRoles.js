@@ -34,19 +34,7 @@ export function renderCapacityByRoles({
   });
   const loadHead = document.createElement("th");
   loadHead.rowSpan = 3;
-  const loadHeadWrap = document.createElement("div");
-  loadHeadWrap.className = "head-inline-actions";
-  const loadLabel = document.createElement("span");
-  loadLabel.textContent = "Load (%)";
-  const editLoadButton = document.createElement("button");
-  editLoadButton.type = "button";
-  editLoadButton.className = "working-days-edit-btn";
-  editLoadButton.textContent = "✎";
-  editLoadButton.title = "Set Load (%) for all rows";
-  editLoadButton.setAttribute("aria-label", "Set Load (%) for all rows");
-  editLoadButton.dataset.action = "bulk-load-percent";
-  loadHeadWrap.append(loadLabel, editLoadButton);
-  loadHead.appendChild(loadHeadWrap);
+  loadHead.textContent = "Load (%)";
   topHeadRow.appendChild(loadHead);
 
   for (const period of plan.periods) {

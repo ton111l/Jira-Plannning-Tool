@@ -1,6 +1,7 @@
 import {
   createBacklogRow,
   createCapacityRow,
+  createDefaultRoleOptions,
   createEmptyCapacityPeriodValues,
   createPeriod,
   createPlan,
@@ -46,6 +47,7 @@ import { PLANNING_TIME_MODE } from "./modules/planning/constants.js";
 let appState = null;
 let pendingDeleteAction = null;
 let pendingBulkRowEstimationPeriodId = null;
+let pendingAddRoleRowId = null;
 function cacheRefs() {
   cacheAppRefs(refs);
 }
@@ -388,6 +390,25 @@ function normalizeBacklogIssueKey(raw) {
     .trim();
 }
 
+/** Keeps the first backlog row per normalized issue key; drops later duplicates. Rows without a key are kept. */
+function dedupeBacklogRowsByKey(plan) {
+  if (!plan?.backlogRows?.length) {
+    return;
+  }
+  const seen = new Set();
+  plan.backlogRows = plan.backlogRows.filter((row) => {
+    const k = normalizeBacklogIssueKey(row.key);
+    if (!k) {
+      return true;
+    }
+    if (seen.has(k)) {
+      return false;
+    }
+    seen.add(k);
+    return true;
+  });
+}
+
 function render() {
   renderTabs();
   renderPlanSelect();
@@ -535,6 +556,7 @@ async function handleAddCapacityRow() {
   const prevRow =
     plan.capacityRows.length > 0 ? plan.capacityRows[plan.capacityRows.length - 1] : null;
   const newRow = createCapacityRow(plan.periods);
+  newRow.loadPercent = sanitizeLoadPercent(plan.defaultLoadPercent ?? 100);
   if (prevRow) {
     for (const period of plan.periods) {
       const from = prevRow.periodValues[period.id];
@@ -650,6 +672,62 @@ function openDeleteConfirmDialog(message, onConfirm) {
   refs.deleteConfirmDialog.showModal();
 }
 
+function openAddRoleDialog(rowId) {
+  pendingAddRoleRowId = rowId;
+  refs.addRoleNameInput.value = "";
+  refs.addRoleNameInput.classList.remove("input-invalid");
+  refs.addRoleDialog.showModal();
+  requestAnimationFrame(() => {
+    refs.addRoleNameInput.focus();
+  });
+}
+
+function handleAddRoleDialogClose() {
+  pendingAddRoleRowId = null;
+  refs.addRoleNameInput.value = "";
+  refs.addRoleNameInput.classList.remove("input-invalid");
+}
+
+async function submitAddRole(event) {
+  event.preventDefault();
+
+  const rowId = pendingAddRoleRowId;
+  const trimmed = String(refs.addRoleNameInput.value || "").trim();
+  if (!trimmed) {
+    refs.addRoleNameInput.classList.add("input-invalid");
+    return;
+  }
+  refs.addRoleNameInput.classList.remove("input-invalid");
+
+  const plan = getActivePlan();
+  if (!plan || !rowId) {
+    refs.addRoleDialog.close();
+    return;
+  }
+  const row = plan.capacityRows.find((entry) => entry.id === rowId);
+  if (!row) {
+    refs.addRoleDialog.close();
+    return;
+  }
+
+  if (!Array.isArray(plan.roleOptions)) {
+    plan.roleOptions = [];
+  }
+  let opt = plan.roleOptions.find((o) => o.label === trimmed);
+  if (!opt) {
+    opt = { id: generateId("role_opt"), label: trimmed };
+    plan.roleOptions.push(opt);
+  }
+  row.roleId = opt.id;
+  touchPlan(plan);
+  recomputeCapacityRow(row, plan.periods, getPlanEstimationType(plan));
+  if (regroupCapacityRowsByRole(plan)) {
+    touchPlan(plan);
+  }
+  refs.addRoleDialog.close();
+  await persistAndRender("Role added.", "success");
+}
+
 async function submitDeleteConfirm(event) {
   event.preventDefault();
   const decision = event.submitter?.value || "no";
@@ -741,33 +819,6 @@ async function submitBulkRowEstimation(event) {
   await persistAndRender(`${getEstimationUnitLabel()} per day updated for Per team in ${period.label}.`, "success");
 }
 
-function openBulkLoadDialog() {
-  refs.bulkLoadPercentInput.value = "100";
-  refs.bulkLoadDialog.showModal();
-}
-
-async function submitBulkLoad(event) {
-  event.preventDefault();
-  const action = event.submitter?.value || "cancel";
-  refs.bulkLoadDialog.close();
-  if (action !== "apply") {
-    return;
-  }
-
-  const plan = getActivePlan();
-  if (!plan) {
-    return;
-  }
-
-  const loadPercent = sanitizeLoadPercent(refs.bulkLoadPercentInput.value);
-  plan.capacityRows.forEach((row) => {
-    row.loadPercent = loadPercent;
-    recomputeCapacityRow(row, plan.periods, getPlanEstimationType(plan));
-  });
-  touchPlan(plan);
-  await persistAndRender("Load (%) updated for all rows.", "success");
-}
-
 async function handleCapacityTableClick(event) {
   const actionButton = event.target.closest("button[data-action]");
   if (!actionButton) {
@@ -783,11 +834,6 @@ async function handleCapacityTableClick(event) {
   if (action === "bulk-row-estimation-per-day") {
     openSettingsDialog();
     setMessage("Team Story Points per day is configured in Settings.", "info");
-    return;
-  }
-
-  if (action === "bulk-load-percent") {
-    openBulkLoadDialog();
     return;
   }
 
@@ -867,27 +913,9 @@ async function handleTableInput(event) {
       row.memberName = target.value;
     } else if (field === "roleId") {
       if (target.value === "__add_role__") {
-        const label = window.prompt("New role name");
-        if (!label || !String(label).trim()) {
-          target.value = plan.roleOptions?.some((o) => o.id === row.roleId) ? row.roleId : "";
-          return;
-        }
-        const trimmed = String(label).trim();
-        if (!Array.isArray(plan.roleOptions)) {
-          plan.roleOptions = [];
-        }
-        let opt = plan.roleOptions.find((o) => o.label === trimmed);
-        if (!opt) {
-          opt = { id: generateId("role_opt"), label: trimmed };
-          plan.roleOptions.push(opt);
-        }
-        row.roleId = opt.id;
-        touchPlan(plan);
-        recomputeCapacityRow(row, plan.periods, getPlanEstimationType(plan));
-        if (regroupCapacityRowsByRole(plan)) {
-          touchPlan(plan);
-        }
-        await persistAndRender("Role added.", "success");
+        const previousValue = plan.roleOptions?.some((o) => o.id === row.roleId) ? row.roleId : "";
+        target.value = previousValue;
+        openAddRoleDialog(rowId);
         return;
       }
       row.roleId = target.value;
@@ -1065,6 +1093,8 @@ async function submitImport(event) {
     setImportProgress(80);
     refs.issuesCount.textContent = String(importedRows.length);
 
+    dedupeBacklogRowsByKey(plan);
+
     const byKey = new Map();
     plan.backlogRows.forEach((row) => {
       const normalizedExistingKey = normalizeBacklogIssueKey(row.key);
@@ -1072,14 +1102,19 @@ async function submitImport(event) {
         if (row.key !== normalizedExistingKey) {
           row.key = normalizedExistingKey;
         }
-        byKey.set(normalizedExistingKey, row);
+        if (!byKey.has(normalizedExistingKey)) {
+          byKey.set(normalizedExistingKey, row);
+        }
       }
     });
 
+    let updatedCount = 0;
+    let addedCount = 0;
     importedRows.forEach((jiraRow, index) => {
       const normalizedImportedKey = normalizeBacklogIssueKey(jiraRow.key);
       const existing = normalizedImportedKey ? byKey.get(normalizedImportedKey) : null;
       if (existing) {
+        updatedCount += 1;
         existing.key = normalizedImportedKey;
         existing.summary = jiraRow.summary;
         existing.status = jiraRow.status;
@@ -1088,10 +1123,15 @@ async function submitImport(event) {
         existing.estimation = jiraRow.estimation;
         existing.source = "jira";
       } else {
-        plan.backlogRows.push(createBacklogRow({
+        addedCount += 1;
+        const newRow = createBacklogRow({
           ...jiraRow,
           key: normalizedImportedKey
-        }));
+        });
+        plan.backlogRows.push(newRow);
+        if (normalizedImportedKey) {
+          byKey.set(normalizedImportedKey, newRow);
+        }
       }
       if (importedRows.length > 0) {
         const mergeProgress = 80 + Math.round(((index + 1) / importedRows.length) * 16);
@@ -1103,7 +1143,18 @@ async function submitImport(event) {
     touchPlan(plan);
     setImportProgress(100);
     refs.importDialog.close();
-    await persistAndRender(`Imported ${importedRows.length} issues.`, "success");
+    const summaryParts = [];
+    if (addedCount) {
+      summaryParts.push(`${addedCount} new`);
+    }
+    if (updatedCount) {
+      summaryParts.push(`${updatedCount} updated`);
+    }
+    const summary =
+      summaryParts.length > 0
+        ? `Import complete: ${summaryParts.join(", ")} (${importedRows.length} in result).`
+        : `Import complete (${importedRows.length} in result).`;
+    await persistAndRender(summary, "success");
   } catch (error) {
     refs.importProgress.value = 0;
     const message = String(error?.message || "");
@@ -1133,8 +1184,54 @@ async function submitImport(event) {
 }
 
 function openSettingsDialog() {
+  const plan = getActivePlan();
+  if (plan && (!Array.isArray(plan.roleOptions) || plan.roleOptions.length === 0)) {
+    plan.roleOptions = createDefaultRoleOptions();
+    touchPlan(plan);
+  }
   renderSettings();
   refs.settingsDialog.showModal();
+}
+
+function handleSettingsAddRoleRow() {
+  if (!refs.settingsRolesList) {
+    return;
+  }
+  const row = document.createElement("div");
+  row.className = "settings-role-row";
+  row.dataset.roleId = generateId("role_opt");
+  const input = document.createElement("input");
+  input.type = "text";
+  input.className = "input settings-role-label";
+  input.maxLength = 120;
+  input.setAttribute("aria-label", "Role name");
+  input.placeholder = "Role name";
+  const del = document.createElement("button");
+  del.type = "button";
+  del.className = "row-delete-btn settings-role-delete";
+  del.textContent = "\u00d7";
+  del.setAttribute("aria-label", "Remove role");
+  row.appendChild(input);
+  row.appendChild(del);
+  refs.settingsRolesList.appendChild(row);
+  input.focus();
+}
+
+function handleSettingsRolesListClick(event) {
+  const btn = event.target.closest(".settings-role-delete");
+  if (!btn) {
+    return;
+  }
+  const row = btn.closest(".settings-role-row");
+  if (!row || !refs.settingsRolesList?.contains(row)) {
+    return;
+  }
+  const rows = refs.settingsRolesList.querySelectorAll(".settings-role-row");
+  if (rows.length <= 1) {
+    setMessage("At least one role is required.", "error");
+    return;
+  }
+  row.remove();
 }
 
 async function saveSettings(event) {
@@ -1150,6 +1247,7 @@ async function saveSettings(event) {
     return;
   }
   const defaultWorkingDays = sanitizeNonNegative(refs.settingsWorkingDaysInput.value || 0);
+  const defaultLoadPercent = sanitizeLoadPercent(refs.settingsDefaultLoadPercentSelect?.value ?? 100);
   const result = applySettingsChanges({ plan: activePlan, refs, regroupCapacityRowsByRole, touchPlan });
   if (!result?.ok) {
     if (result?.error) {
@@ -1158,7 +1256,9 @@ async function saveSettings(event) {
     return;
   }
   activePlan.defaultWorkingDays = defaultWorkingDays;
+  activePlan.defaultLoadPercent = defaultLoadPercent;
   activePlan.capacityRows.forEach((row) => {
+    row.loadPercent = defaultLoadPercent;
     activePlan.periods.forEach((period) => {
       if (!row.periodValues[period.id]) {
         row.periodValues[period.id] = createEmptyCapacityPeriodValues();
@@ -1183,9 +1283,12 @@ function bindEvents() {
       handlePlanSelect,
       openSettingsDialog,
       saveSettings,
+      handleSettingsAddRoleRow,
+      handleSettingsRolesListClick,
       submitDeleteConfirm,
+      submitAddRole,
+      handleAddRoleDialogClose,
       submitBulkRowEstimation,
-      submitBulkLoad,
       handleAddCapacityRow,
       handleAddQuarter,
       openImportDialog,
@@ -1283,6 +1386,15 @@ async function init() {
         ? sanitizeNonNegative(plan.capacityRows[0].periodValues[firstPeriodId].workingDays)
         : 0;
       plan.defaultWorkingDays = inferredWorkingDays;
+    }
+    if (typeof plan.defaultLoadPercent !== "number" || Number.isNaN(plan.defaultLoadPercent)) {
+      const inferred = plan.capacityRows?.[0]?.loadPercent;
+      plan.defaultLoadPercent =
+        typeof inferred === "number" && !Number.isNaN(inferred)
+          ? sanitizeLoadPercent(inferred)
+          : 100;
+    } else {
+      plan.defaultLoadPercent = sanitizeLoadPercent(plan.defaultLoadPercent);
     }
     normalizePlanForMode(plan);
     const invariantCheck = assertPlanInvariants(plan);

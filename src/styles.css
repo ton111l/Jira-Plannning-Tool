@@ -205,6 +205,15 @@ body {
   min-width: max-content;
 }
 
+#backlogTable.backlog-import-table th.backlog-effective-header {
+  min-width: 130px;
+  white-space: nowrap;
+}
+
+#backlogTable.backlog-import-table th.backlog-effective-header .label-with-help {
+  gap: 4px;
+}
+
 #backlogTable.backlog-import-table th.backlog-col-key,
 #backlogTable.backlog-import-table td.backlog-col-key {
   min-width: 100px;
@@ -513,6 +522,10 @@ body {
   padding: 14px;
 }
 
+#settingsForm label {
+  font-weight: 600;
+}
+
 .label-with-help {
   display: inline-flex;
   align-items: center;
@@ -594,10 +607,46 @@ body {
 #createPlanTeamEstimationWrap,
 #createPlanTeamEstimationValueWrap,
 #settingsTeamEstimationValueWrap,
-#settingsWorkingDaysWrap {
+#settingsWorkingDaysWrap,
+#settingsDefaultLoadPercentWrap {
   display: flex;
   flex-direction: column;
   gap: 6px;
+}
+
+.settings-roles-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.settings-roles-heading {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.settings-roles-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.settings-role-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.settings-role-row .settings-role-label {
+  flex: 1;
+  min-width: 0;
+}
+
+.settings-add-role-btn {
+  align-self: flex-start;
 }
 
 progress {

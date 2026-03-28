@@ -50,7 +50,51 @@ export function renderSettings({ refs, plan, appState }) {
     estimationType === "story_points" && teamMode === "manual" ? "flex" : "none";
   refs.settingsTeamEstimationValueInput.value = String(teamValue);
   refs.settingsWorkingDaysInput.value = String(plan?.defaultWorkingDays ?? 0);
+  if (refs.settingsDefaultLoadPercentSelect) {
+    const raw = plan?.defaultLoadPercent ?? 100;
+    const n = Number(raw);
+    refs.settingsDefaultLoadPercentSelect.value =
+      Number.isFinite(n) && n >= 10 && n <= 100 ? String(Math.round(n / 10) * 10) : "100";
+  }
   refs.resourceGroupingTypeSelect.value = plan?.resourceGroupingType || appState.resourceGroupingType || "by_roles";
+
+  if (refs.settingsRolesSection) {
+    refs.settingsRolesSection.hidden = !plan;
+    if (plan) {
+      renderSettingsRolesList({ refs, plan });
+    }
+  }
+}
+
+export function renderSettingsRolesList({ refs, plan }) {
+  const list = refs.settingsRolesList;
+  if (!list || !plan) {
+    return;
+  }
+  list.innerHTML = "";
+  const raw = Array.isArray(plan.roleOptions) ? plan.roleOptions : [];
+  for (const opt of raw) {
+    if (!opt?.id) {
+      continue;
+    }
+    const row = document.createElement("div");
+    row.className = "settings-role-row";
+    row.dataset.roleId = opt.id;
+    const input = document.createElement("input");
+    input.type = "text";
+    input.className = "input settings-role-label";
+    input.value = opt.label || "";
+    input.maxLength = 120;
+    input.setAttribute("aria-label", "Role name");
+    const del = document.createElement("button");
+    del.type = "button";
+    del.className = "row-delete-btn settings-role-delete";
+    del.textContent = "\u00d7";
+    del.setAttribute("aria-label", "Remove role");
+    row.appendChild(input);
+    row.appendChild(del);
+    list.appendChild(row);
+  }
 }
 
 export function renderCapacityOverlay({ refs, plan }) {

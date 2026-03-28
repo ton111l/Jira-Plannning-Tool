@@ -14,9 +14,27 @@ export function renderImportBacklogByTeam({
   const thead = document.createElement("thead");
   const tbody = document.createElement("tbody");
   const singleHeader = document.createElement("tr");
-  [...baseHeaders, "Team allocation (%)", `Effective ${estimationUnit}`].forEach((label) => {
+  const effectiveTitle = `Effective ${estimationUnit}`;
+  const headerLabels = [...baseHeaders, "Team allocation (%)", effectiveTitle];
+  headerLabels.forEach((label) => {
     const th = document.createElement("th");
-    th.textContent = label;
+    if (label === effectiveTitle) {
+      th.className = "backlog-effective-header";
+      const wrap = document.createElement("span");
+      wrap.className = "label-with-help";
+      wrap.appendChild(document.createTextNode(effectiveTitle));
+      const help = document.createElement("span");
+      help.className = "help-tooltip";
+      help.tabIndex = 0;
+      help.setAttribute("aria-label", `Help: ${effectiveTitle}`);
+      const unitWord = estimationType === "person_days" ? "Man-days" : "Story Points";
+      help.dataset.tooltip = `Read-only. Formula: Estimation × (Team allocation % ÷ 100). Example: 8 ${unitWord} with 50% team allocation → 4 effective.`;
+      help.textContent = "?";
+      wrap.appendChild(help);
+      th.appendChild(wrap);
+    } else {
+      th.textContent = label;
+    }
     singleHeader.appendChild(th);
   });
   thead.appendChild(singleHeader);

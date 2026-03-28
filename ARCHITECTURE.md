@@ -42,11 +42,11 @@ Stored in `chrome.storage.local` as part of app state. Key concepts:
 
 - **`periods[]`** — **single** timeline abstraction. All capacity and team metrics are keyed by `period.id`. Do not introduce a parallel “sprints array” beside `periods`.
 - **`capacityRows[]`** — each row has `periodValues[periodId]` (working days, estimation per day, balances, etc.). **`roleId`** references an entry in **`plan.roleOptions[]`** (`{ id, label }`). Legacy `role` / `specialization` strings are migrated on load via [`migrateLegacyRolesToCatalog`](src/modules/app/roleCatalog.js). When a row is appended, **`workingDays`** for each period is initialized from the **previous last row** in `capacityRows` (then derived fields are recomputed); see `handleAddCapacityRow` in [`src/app.js`](src/app.js).
-- **`roleOptions[]`** — per-plan list of roles for the capacity Role column (user can add entries via **+ Add role…** in the row select). Default seed matches former fixed options (Developer, QA Engineer, Analyst); see [`createDefaultRoleOptions`](src/modules/models.js).
+- **`roleOptions[]`** — per-plan list of roles for the capacity Role column. Users can add or edit roles via **+ Add role…** in the capacity row select and manage the full list in **Settings** (create / rename / delete; deleting a role clears `roleId` on rows that used it). Default seed for new plans: Developer, Analyst, QA; see [`createDefaultRoleOptions`](src/modules/models.js).
 - **`teamPeriodValues[periodId]`** — team-level overrides (e.g. team Story Points per day mode).
 - **`backlogRows[]`** — imported or manual issues; optional **`targetPeriodId`** for parking an issue in a period (used when sprint UI exists).
 
-Per-plan settings include: `estimationType`, `resourceGroupingType`, `jiraBaseUrl`, `estimationFieldName`, `lastImportJql`, `defaultWorkingDays`, and planning-mode fields below.
+Per-plan settings include: `estimationType`, `resourceGroupingType`, `jiraBaseUrl`, `estimationFieldName`, `lastImportJql`, `defaultWorkingDays`, **`defaultLoadPercent`** (Load % for all capacity rows, default 100; applied to every row on Settings Save), and planning-mode fields below.
 
 ### 3.2 Period object
 
@@ -115,6 +115,7 @@ Switching `quarter` ↔ `sprint` may require rebuilding `periods` and remapping 
 
 - Primary path: Jira REST Search API and fallbacks — [`src/modules/jira.js`](src/modules/jira.js).
 - Progress feedback in the import dialog is staged in [`src/app.js`](src/app.js) (`submitImport`).
+- **Re-import / merge:** rows match on normalized **issue key** (`normalizeBacklogIssueKey`). Existing keys get Jira-sourced fields updated; new keys are **appended**. Duplicate keys in stored backlog are deduped (first row wins) before merge; new rows from one import batch are registered so the same key cannot appear twice in that batch.
 - **Jira field for estimates** is configured in the **Import backlog from Jira** dialog (not in Settings): labels and placeholders follow **Estimation type** from plan settings — **Story Points** → custom field id (e.g. `customfield_…`, required before import); **Man-days** → field id for numeric/time estimate (e.g. `timeoriginalestimate`, optional; empty defaults to `timeoriginalestimate` at import). Stored per plan as `plan.estimationFieldName` (see `resolveImportEstimationFieldName` / `syncImportEstimationFieldUi` in [`src/app.js`](src/app.js)).
 
 ## 7. Persistence and migration
