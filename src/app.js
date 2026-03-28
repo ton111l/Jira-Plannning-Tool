@@ -3,8 +3,10 @@ import {
   createCapacityRow,
   createEmptyCapacityPeriodValues,
   createPeriod,
-  createPlan
+  createPlan,
+  generateId
 } from "./modules/models.js";
+import { migrateLegacyRolesToCatalog } from "./modules/app/roleCatalog.js";
 import { calculatePlannedCapacity, sanitizeLoadPercent, sanitizeNonNegative } from "./modules/calculations.js";
 import { loadState, saveState } from "./modules/storage.js";
 import { importIssuesFromJira } from "./modules/jira.js";
@@ -85,7 +87,14 @@ function sanitizeOptionalNonNegative(value) {
 }
 
 function regroupCapacityRowsByRole(plan) {
-  return regroupCapacityRowsByRoleState(plan, getPlanResourceGroupingType(plan), ROLE_OPTIONS);
+  return regroupCapacityRowsByRoleState(plan, getPlanResourceGroupingType(plan));
+}
+
+function getBacklogRoleColumnLabels(plan) {
+  if (plan?.roleOptions?.length) {
+    return plan.roleOptions.map((o) => o.label);
+  }
+  return ROLE_OPTIONS;
 }
 
 function setMessage(message, kind = "info") {
@@ -151,6 +160,36 @@ function buildCellSelect({ value, dataset = {}, options = [] }) {
   return select;
 }
 
+function buildRoleSelect({ value, dataset = {}, roleOptions = [] }) {
+  const select = document.createElement("select");
+  select.className = "cell-select";
+
+  const placeholder = document.createElement("option");
+  placeholder.value = "";
+  placeholder.textContent = "Select role";
+  select.appendChild(placeholder);
+
+  for (const opt of roleOptions) {
+    const option = document.createElement("option");
+    option.value = opt.id;
+    option.textContent = opt.label;
+    select.appendChild(option);
+  }
+
+  const addOpt = document.createElement("option");
+  addOpt.value = "__add_role__";
+  addOpt.textContent = "+ Add role…";
+  select.appendChild(addOpt);
+
+  const validIds = new Set(roleOptions.map((o) => o.id));
+  select.value = validIds.has(value) ? value : "";
+
+  for (const [key, datasetValue] of Object.entries(dataset)) {
+    select.dataset[key] = datasetValue;
+  }
+  return select;
+}
+
 function buildPercentSelect({ value, dataset = {} }) {
   const select = document.createElement("select");
   select.className = "cell-select";
@@ -181,10 +220,10 @@ function renderCapacityTable() {
     estimationType: getPlanEstimationType(activePlan),
     resourceGroupingType: getPlanResourceGroupingType(activePlan),
     estimationLabel: getEstimationUnitLabel(activePlan),
-    roleOptions: ROLE_OPTIONS,
+    roleOptions: activePlan?.roleOptions?.length ? activePlan.roleOptions : [],
     ensureTeamPeriodValues,
     buildCellInput,
-    buildCellSelect,
+    buildRoleSelect,
     buildPercentSelect,
     createEmptyCapacityPeriodValues
   });
@@ -200,7 +239,7 @@ function renderBacklogTable() {
     buildCellSelect,
     estimationType: getPlanEstimationType(activePlan),
     resourceGroupingType: getPlanResourceGroupingType(activePlan),
-    roleOptions: ROLE_OPTIONS
+    roleOptions: getBacklogRoleColumnLabels(activePlan)
   });
 }
 
@@ -824,8 +863,34 @@ async function handleTableInput(event) {
       return;
     }
 
-    if (field === "memberName" || field === "role" || field === "specialization") {
-      row[field] = target.value;
+    if (field === "memberName") {
+      row.memberName = target.value;
+    } else if (field === "roleId") {
+      if (target.value === "__add_role__") {
+        const label = window.prompt("New role name");
+        if (!label || !String(label).trim()) {
+          target.value = plan.roleOptions?.some((o) => o.id === row.roleId) ? row.roleId : "";
+          return;
+        }
+        const trimmed = String(label).trim();
+        if (!Array.isArray(plan.roleOptions)) {
+          plan.roleOptions = [];
+        }
+        let opt = plan.roleOptions.find((o) => o.label === trimmed);
+        if (!opt) {
+          opt = { id: generateId("role_opt"), label: trimmed };
+          plan.roleOptions.push(opt);
+        }
+        row.roleId = opt.id;
+        touchPlan(plan);
+        recomputeCapacityRow(row, plan.periods, getPlanEstimationType(plan));
+        if (regroupCapacityRowsByRole(plan)) {
+          touchPlan(plan);
+        }
+        await persistAndRender("Role added.", "success");
+        return;
+      }
+      row.roleId = target.value;
     } else if (field === "loadPercent") {
       row.loadPercent = sanitizeLoadPercent(target.value);
     } else if (periodId && (field === "daysOff" || field === "workingDays" || field === "rowEstimationPerDay")) {
@@ -834,7 +899,7 @@ async function handleTableInput(event) {
     }
 
     recomputeCapacityRow(row, plan.periods, getPlanEstimationType(plan));
-    if (field === "role" && regroupCapacityRowsByRole(plan)) {
+    if (field === "roleId" && regroupCapacityRowsByRole(plan)) {
       touchPlan(plan);
     }
   }
@@ -850,7 +915,8 @@ async function handleTableInput(event) {
   touchPlan(plan);
   const isTextInput = target instanceof HTMLInputElement && target.type === "text";
   const isSelectInput = target instanceof HTMLSelectElement;
-  const shouldRenderForRoleGrouping = field === "role" && getPlanResourceGroupingType(plan) === "by_roles";
+  const shouldRenderForRoleGrouping =
+    field === "roleId" && getPlanResourceGroupingType(plan) === "by_roles";
 
   if (isTextInput || (isSelectInput && field !== "loadPercent" && !shouldRenderForRoleGrouping)) {
     await saveState(appState);
@@ -1210,6 +1276,7 @@ async function init() {
     if (typeof plan.lastImportJql !== "string") {
       plan.lastImportJql = "";
     }
+    migrateLegacyRolesToCatalog(plan);
     if (typeof plan.defaultWorkingDays !== "number" || Number.isNaN(plan.defaultWorkingDays)) {
       const firstPeriodId = plan.periods?.[0]?.id;
       const inferredWorkingDays = firstPeriodId && plan.capacityRows?.[0]?.periodValues?.[firstPeriodId]

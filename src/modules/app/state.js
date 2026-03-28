@@ -1,4 +1,5 @@
 import { sanitizeNonNegative } from "../calculations.js";
+import { getRoleOrderIndex } from "./roleCatalog.js";
 
 export function getActivePlan(appState) {
   if (!appState.plans.length) {
@@ -51,19 +52,14 @@ export function sanitizeOptionalNonNegative(value) {
   return sanitizeNonNegative(value);
 }
 
-export function getRoleOrder(role, roleOptions) {
-  const index = roleOptions.indexOf(String(role || ""));
-  return index === -1 ? roleOptions.length : index;
-}
-
-export function regroupCapacityRowsByRole(plan, resourceGroupingType, roleOptions) {
+export function regroupCapacityRowsByRole(plan, resourceGroupingType) {
   if (!plan || resourceGroupingType !== "by_roles" || !Array.isArray(plan.capacityRows)) {
     return false;
   }
 
   const withIndex = plan.capacityRows.map((row, index) => ({ row, index }));
   const sorted = [...withIndex].sort(
-    (a, b) => getRoleOrder(a.row.role, roleOptions) - getRoleOrder(b.row.role, roleOptions) || a.index - b.index
+    (a, b) => getRoleOrderIndex(plan, a.row) - getRoleOrderIndex(plan, b.row) || a.index - b.index
   );
   const hasChanges = sorted.some((entry, index) => entry.row.id !== plan.capacityRows[index]?.id);
   if (!hasChanges) {

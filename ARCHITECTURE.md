@@ -41,7 +41,8 @@ src/modules/
 Stored in `chrome.storage.local` as part of app state. Key concepts:
 
 - **`periods[]`** — **single** timeline abstraction. All capacity and team metrics are keyed by `period.id`. Do not introduce a parallel “sprints array” beside `periods`.
-- **`capacityRows[]`** — each row has `periodValues[periodId]` (working days, estimation per day, balances, etc.). When a row is appended, **`workingDays`** for each period is initialized from the **previous last row** in `capacityRows` (then derived fields are recomputed); see `handleAddCapacityRow` in [`src/app.js`](src/app.js).
+- **`capacityRows[]`** — each row has `periodValues[periodId]` (working days, estimation per day, balances, etc.). **`roleId`** references an entry in **`plan.roleOptions[]`** (`{ id, label }`). Legacy `role` / `specialization` strings are migrated on load via [`migrateLegacyRolesToCatalog`](src/modules/app/roleCatalog.js). When a row is appended, **`workingDays`** for each period is initialized from the **previous last row** in `capacityRows` (then derived fields are recomputed); see `handleAddCapacityRow` in [`src/app.js`](src/app.js).
+- **`roleOptions[]`** — per-plan list of roles for the capacity Role column (user can add entries via **+ Add role…** in the row select). Default seed matches former fixed options (Developer, QA Engineer, Analyst); see [`createDefaultRoleOptions`](src/modules/models.js).
 - **`teamPeriodValues[periodId]`** — team-level overrides (e.g. team Story Points per day mode).
 - **`backlogRows[]`** — imported or manual issues; optional **`targetPeriodId`** for parking an issue in a period (used when sprint UI exists).
 

@@ -36,6 +36,13 @@ export function createEmptyCapacityPeriodValues() {
   };
 }
 
+export function createDefaultRoleOptions() {
+  return ["Developer", "QA Engineer", "Analyst"].map((label) => ({
+    id: generateId("role_opt"),
+    label
+  }));
+}
+
 export function createCapacityRow(periods = []) {
   const periodValues = {};
   for (const period of periods) {
@@ -45,7 +52,7 @@ export function createCapacityRow(periods = []) {
   return {
     id: generateId("capacity_row"),
     memberName: "",
-    role: "",
+    roleId: "",
     loadPercent: 100,
     periodValues
   };
@@ -111,6 +118,7 @@ export function createPlan({
     },
     backlogEntryMode: "import",
     lastImportJql: "",
+    roleOptions: createDefaultRoleOptions(),
     capacityRows: [createCapacityRow([firstPeriod])],
     backlogRows: [],
     createdAt: nowIso,
