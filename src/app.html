@@ -285,6 +285,30 @@
           />
         </div>
 
+        <div id="settingsDefaultLoadPercentWrap">
+          <label for="settingsDefaultLoadPercentSelect" class="label-with-help">
+            Load (%) for all rows
+            <span
+              class="help-tooltip"
+              tabindex="0"
+              aria-label="Help: Load percent"
+              data-tooltip="Allocation of working time (default 100%). Applies to every capacity row when you save. Per-row overrides are not kept after Save."
+            >?</span>
+          </label>
+          <select id="settingsDefaultLoadPercentSelect" class="input select">
+            <option value="10">10%</option>
+            <option value="20">20%</option>
+            <option value="30">30%</option>
+            <option value="40">40%</option>
+            <option value="50">50%</option>
+            <option value="60">60%</option>
+            <option value="70">70%</option>
+            <option value="80">80%</option>
+            <option value="90">90%</option>
+            <option value="100" selected>100%</option>
+          </select>
+        </div>
+
         <label for="resourceGroupingTypeSelect" class="label-with-help">
           Resource grouping type
           <span
@@ -298,6 +322,22 @@
           <option value="by_team">By team</option>
           <option value="by_roles">By roles</option>
         </select>
+
+        <div id="settingsRolesSection" class="settings-roles-section" hidden>
+          <span class="label-with-help settings-roles-heading">
+            Roles for this plan
+            <span
+              class="help-tooltip"
+              tabindex="0"
+              aria-label="Help: Roles"
+              data-tooltip="Catalog for the Role column and backlog grouping. New plans start with Developer, Analyst, and QA. Changes apply when you click Save."
+            >?</span>
+          </span>
+          <div id="settingsRolesList" class="settings-roles-list"></div>
+          <button type="button" id="settingsAddRoleBtn" class="btn btn-secondary settings-add-role-btn">
+            Add role
+          </button>
+        </div>
 
         <div class="modal-actions">
           <button type="submit" value="cancel" class="btn btn-secondary">Close</button>
@@ -344,28 +384,21 @@
       </form>
     </dialog>
 
-    <dialog id="bulkLoadDialog" class="modal">
-      <form method="dialog" id="bulkLoadForm">
-        <h3>Set Load (%) for all rows</h3>
-        <div id="bulkLoadText">
-          This action will overwrite Load (%) for all current rows.
-        </div>
-        <label for="bulkLoadPercentInput">Load (%) value</label>
-        <select id="bulkLoadPercentInput" class="input select">
-          <option value="10">10%</option>
-          <option value="20">20%</option>
-          <option value="30">30%</option>
-          <option value="40">40%</option>
-          <option value="50">50%</option>
-          <option value="60">60%</option>
-          <option value="70">70%</option>
-          <option value="80">80%</option>
-          <option value="90">90%</option>
-          <option value="100" selected>100%</option>
-        </select>
+    <dialog id="addRoleDialog" class="modal">
+      <form method="dialog" id="addRoleForm">
+        <h3>Add role</h3>
+        <label for="addRoleNameInput">Role name</label>
+        <input
+          id="addRoleNameInput"
+          class="input"
+          type="text"
+          autocomplete="off"
+          maxlength="120"
+          placeholder="e.g. UX Designer"
+        />
         <div class="modal-actions">
-          <button type="submit" value="cancel" class="btn btn-secondary">Cancel</button>
-          <button type="submit" value="apply" class="btn">Apply</button>
+          <button type="button" id="addRoleCancelBtn" class="btn btn-secondary">Cancel</button>
+          <button type="submit" id="confirmAddRoleBtn" value="add" class="btn">Add role</button>
         </div>
       </form>
     </dialog>

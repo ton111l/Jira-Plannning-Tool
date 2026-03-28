@@ -37,7 +37,7 @@ export function createEmptyCapacityPeriodValues() {
 }
 
 export function createDefaultRoleOptions() {
-  return ["Developer", "QA Engineer", "Analyst"].map((label) => ({
+  return ["Developer", "Analyst", "QA"].map((label) => ({
     id: generateId("role_opt"),
     label
   }));
@@ -109,6 +109,8 @@ export function createPlan({
     jiraBaseUrl: String(jiraBaseUrl || "").trim().replace(/\/+$/, ""),
     estimationFieldName: String(estimationFieldName || "").trim(),
     defaultWorkingDays: Number(defaultWorkingDays) >= 0 ? Number(defaultWorkingDays) : 0,
+    /** Default Load (%) for capacity rows; Settings applies to all rows on Save. */
+    defaultLoadPercent: 100,
     periods: [firstPeriod],
     teamPeriodValues: {
       [firstPeriod.id]: {

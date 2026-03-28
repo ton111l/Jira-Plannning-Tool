@@ -10,9 +10,20 @@ export function bindEvents({
   refs.planSelect.addEventListener("change", handlers.handlePlanSelect);
   refs.settingsBtn.addEventListener("click", handlers.openSettingsDialog);
   refs.settingsForm.addEventListener("submit", handlers.saveSettings);
+  if (refs.settingsAddRoleBtn) {
+    refs.settingsAddRoleBtn.addEventListener("click", handlers.handleSettingsAddRoleRow);
+  }
+  if (refs.settingsRolesList) {
+    refs.settingsRolesList.addEventListener("click", handlers.handleSettingsRolesListClick);
+  }
   refs.deleteConfirmForm.addEventListener("submit", handlers.submitDeleteConfirm);
+  refs.addRoleForm.addEventListener("submit", handlers.submitAddRole);
+  refs.addRoleCancelBtn.addEventListener("click", () => refs.addRoleDialog.close());
+  refs.addRoleNameInput.addEventListener("input", () => {
+    refs.addRoleNameInput.classList.remove("input-invalid");
+  });
+  refs.addRoleDialog.addEventListener("close", handlers.handleAddRoleDialogClose);
   refs.bulkRowEstimationForm.addEventListener("submit", handlers.submitBulkRowEstimation);
-  refs.bulkLoadForm.addEventListener("submit", handlers.submitBulkLoad);
 
   refs.tabButtons.forEach((button) => {
     button.addEventListener("click", async () => {

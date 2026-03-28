@@ -60,7 +60,11 @@ export function cacheRefs(refs) {
   refs.settingsTeamEstimationValueInput = document.getElementById("settingsTeamEstimationValueInput");
   refs.settingsWorkingDaysWrap = document.getElementById("settingsWorkingDaysWrap");
   refs.settingsWorkingDaysInput = document.getElementById("settingsWorkingDaysInput");
+  refs.settingsDefaultLoadPercentSelect = document.getElementById("settingsDefaultLoadPercentSelect");
   refs.resourceGroupingTypeSelect = document.getElementById("resourceGroupingTypeSelect");
+  refs.settingsRolesSection = document.getElementById("settingsRolesSection");
+  refs.settingsRolesList = document.getElementById("settingsRolesList");
+  refs.settingsAddRoleBtn = document.getElementById("settingsAddRoleBtn");
   refs.deleteConfirmDialog = document.getElementById("deleteConfirmDialog");
   refs.deleteConfirmForm = document.getElementById("deleteConfirmForm");
   refs.deleteConfirmText = document.getElementById("deleteConfirmText");
@@ -72,7 +76,8 @@ export function cacheRefs(refs) {
   refs.bulkRowEstimationInputLabel = document.getElementById("bulkRowEstimationInputLabel");
   refs.bulkRowEstimationModeInputs = Array.from(document.querySelectorAll("input[name='bulkRowEstimationMode']"));
   refs.bulkRowEstimationInput = document.getElementById("bulkRowEstimationInput");
-  refs.bulkLoadDialog = document.getElementById("bulkLoadDialog");
-  refs.bulkLoadForm = document.getElementById("bulkLoadForm");
-  refs.bulkLoadPercentInput = document.getElementById("bulkLoadPercentInput");
+  refs.addRoleDialog = document.getElementById("addRoleDialog");
+  refs.addRoleForm = document.getElementById("addRoleForm");
+  refs.addRoleNameInput = document.getElementById("addRoleNameInput");
+  refs.addRoleCancelBtn = document.getElementById("addRoleCancelBtn");
 }
