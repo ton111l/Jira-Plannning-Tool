@@ -15,7 +15,7 @@ export function getEffectiveEstimationType(plan) {
 }
 
 /**
- * Whether Men-days estimation is allowed for this plan.
+ * Whether Man-days estimation is allowed for this plan.
  */
 export function isPersonDaysAllowed(plan) {
   const mode = plan?.planningTimeMode || PLANNING_TIME_MODE.quarter;

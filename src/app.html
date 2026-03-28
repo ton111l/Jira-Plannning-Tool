@@ -60,7 +60,7 @@
         <div class="panel-header">
           <h2>Backlog for planning</h2>
           <div class="panel-actions">
-            <button id="openImportModalBtn" class="btn">Import</button>
+            <button id="openImportModalBtn" class="btn">Import backlog from Jira</button>
           </div>
         </div>
         <div id="backlogContent" class="capacity-content">
@@ -69,7 +69,7 @@
           </div>
           <div id="backlogOverlay" class="plan-overlay">
             <div class="overlay-actions">
-              <button id="importOverlayBtn" class="btn overlay-btn">Import</button>
+              <button id="importOverlayBtn" class="btn overlay-btn">Import backlog from Jira</button>
             </div>
           </div>
         </div>
@@ -110,21 +110,13 @@
             class="help-tooltip"
             tabindex="0"
             aria-label="Help: Estimation type"
-            data-tooltip="Defines the unit used across planning metrics and backlog estimates. Story Points are relative effort, while Men-days are calendar capacity."
+            data-tooltip="Defines the unit used across planning metrics and backlog estimates. Story Points are relative effort, while Man-days are calendar capacity."
           >?</span>
         </label>
         <select id="createPlanEstimationTypeSelect" class="input select">
           <option value="story_points">Story Points</option>
-          <option value="person_days">Men-days</option>
+          <option value="person_days">Man-days</option>
         </select>
-        <div id="createPlanStoryPointFieldWrap">
-          <label for="createPlanStoryPointFieldInput">Story Point field name</label>
-          <input
-            id="createPlanStoryPointFieldInput"
-            class="input"
-            placeholder="customfield_10016"
-          />
-        </div>
         <div id="createPlanTeamEstimationWrap">
           <label for="createPlanTeamEstimationModeSelect" class="label-with-help">
             Team Story Points per day
@@ -195,7 +187,7 @@
 
     <dialog id="importDialog" class="modal">
       <form method="dialog" id="importForm">
-        <h3>Import candidate's backlog</h3>
+        <h3>Import backlog from Jira</h3>
         <label for="importJiraBaseUrlInput">Jira Base URL</label>
         <input id="importJiraBaseUrlInput" class="input" placeholder="https://jira.company.local" />
         <label for="jqlInput">Input JQL request</label>
@@ -206,6 +198,27 @@
           placeholder="project = ABC AND issuetype in (Story, Bug) ORDER BY priority DESC"
         ></textarea>
 
+        <div id="importJiraEstimationFieldWrap">
+          <label for="importJiraEstimationFieldInput" class="label-with-help">
+            <span id="importJiraEstimationFieldLabel">Jira Story Points field</span>
+            <span
+              id="importJiraEstimationFieldHelp"
+              class="help-tooltip"
+              tabindex="0"
+              aria-label="Help: Jira field for backlog estimate"
+              data-tooltip=""
+            >?</span>
+          </label>
+          <input
+            id="importJiraEstimationFieldInput"
+            class="input"
+            type="text"
+            autocomplete="off"
+            spellcheck="false"
+            placeholder="customfield_10016"
+          />
+        </div>
+
         <div class="import-meta">
           <div>Issues count: <span id="issuesCount">0</span></div>
           <progress id="importProgress" max="100" value="0"></progress>
@@ -213,7 +226,7 @@
 
         <div class="modal-actions">
           <button type="submit" value="cancel" formnovalidate class="btn">Close</button>
-          <button type="submit" id="confirmImportBtn" value="default" class="btn">Import</button>
+          <button type="submit" id="confirmImportBtn" value="default" class="btn">Import backlog from Jira</button>
         </div>
       </form>
     </dialog>
@@ -227,21 +240,13 @@
             class="help-tooltip"
             tabindex="0"
             aria-label="Help: Estimation type"
-            data-tooltip="Defines the unit used across planning metrics and backlog estimates. Story Points are relative effort, while Men-days are calendar capacity."
+            data-tooltip="Defines the unit used across planning metrics and backlog estimates. Story Points are relative effort, while Man-days are calendar capacity."
           >?</span>
         </label>
         <select id="estimationTypeSelect" class="input select">
           <option value="story_points">Story Points</option>
-          <option value="person_days">Men-days</option>
+          <option value="person_days">Man-days</option>
         </select>
-        <div id="settingsStoryPointFieldWrap">
-          <label for="settingsStoryPointFieldInput">Story Point field name</label>
-          <input
-            id="settingsStoryPointFieldInput"
-            class="input"
-            placeholder="customfield_10016"
-          />
-        </div>
         <div id="settingsTeamEstimationWrap">
           <label for="settingsTeamEstimationModeSelect" class="label-with-help">
             Team Story Points per day

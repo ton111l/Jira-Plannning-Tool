@@ -40,8 +40,6 @@ export function renderTeamName({ refs, plan }) {
 export function renderSettings({ refs, plan, appState }) {
   const estimationType = plan?.estimationType || appState.estimationType || "story_points";
   refs.estimationTypeSelect.value = estimationType;
-  refs.settingsStoryPointFieldWrap.style.display = estimationType === "story_points" ? "flex" : "none";
-  refs.settingsStoryPointFieldInput.value = String(plan?.estimationFieldName || appState.estimationFieldName || "");
   const firstPeriodId = plan?.periods?.[0]?.id || "";
   const periodTeamSettings = firstPeriodId ? plan?.teamPeriodValues?.[firstPeriodId] : null;
   const teamMode = periodTeamSettings?.teamEstimationMode || "average";
@@ -101,8 +99,8 @@ export function renderBacklogOverlay({ refs, plan }) {
     refs.importOverlayBtn.dataset.action = "create-plan";
     return;
   }
-  refs.importOverlayBtn.textContent = "Import";
-  refs.importOverlayBtn.title = "Import";
+  refs.importOverlayBtn.textContent = "Import backlog from Jira";
+  refs.importOverlayBtn.title = "Import backlog from Jira";
   refs.importOverlayBtn.dataset.action = "import";
 }
 

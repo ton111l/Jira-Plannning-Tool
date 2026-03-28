@@ -29,8 +29,6 @@ export function cacheRefs(refs) {
   refs.createPlanWorkingDaysWrap = document.getElementById("createPlanWorkingDaysWrap");
   refs.createPlanWorkingDaysInput = document.getElementById("createPlanWorkingDaysInput");
   refs.createPlanEstimationTypeSelect = document.getElementById("createPlanEstimationTypeSelect");
-  refs.createPlanStoryPointFieldWrap = document.getElementById("createPlanStoryPointFieldWrap");
-  refs.createPlanStoryPointFieldInput = document.getElementById("createPlanStoryPointFieldInput");
   refs.createPlanTeamEstimationWrap = document.getElementById("createPlanTeamEstimationWrap");
   refs.createPlanTeamEstimationModeSelect = document.getElementById("createPlanTeamEstimationModeSelect");
   refs.createPlanTeamEstimationValueWrap = document.getElementById("createPlanTeamEstimationValueWrap");
@@ -48,12 +46,14 @@ export function cacheRefs(refs) {
   refs.confirmImportBtn = document.getElementById("confirmImportBtn");
   refs.issuesCount = document.getElementById("issuesCount");
   refs.importProgress = document.getElementById("importProgress");
+  refs.importJiraEstimationFieldWrap = document.getElementById("importJiraEstimationFieldWrap");
+  refs.importJiraEstimationFieldLabel = document.getElementById("importJiraEstimationFieldLabel");
+  refs.importJiraEstimationFieldHelp = document.getElementById("importJiraEstimationFieldHelp");
+  refs.importJiraEstimationFieldInput = document.getElementById("importJiraEstimationFieldInput");
 
   refs.settingsDialog = document.getElementById("settingsDialog");
   refs.settingsForm = document.getElementById("settingsForm");
   refs.estimationTypeSelect = document.getElementById("estimationTypeSelect");
-  refs.settingsStoryPointFieldWrap = document.getElementById("settingsStoryPointFieldWrap");
-  refs.settingsStoryPointFieldInput = document.getElementById("settingsStoryPointFieldInput");
   refs.settingsTeamEstimationWrap = document.getElementById("settingsTeamEstimationWrap");
   refs.settingsTeamEstimationModeSelect = document.getElementById("settingsTeamEstimationModeSelect");
   refs.settingsTeamEstimationValueWrap = document.getElementById("settingsTeamEstimationValueWrap");

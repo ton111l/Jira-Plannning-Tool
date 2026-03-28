@@ -11,7 +11,6 @@ export function applySettingsChanges({
   plan.estimationType = refs.estimationTypeSelect.value || "story_points";
   plan.resourceGroupingType = refs.resourceGroupingTypeSelect.value || "by_roles";
   if (plan.estimationType === "story_points") {
-    plan.estimationFieldName = String(refs.settingsStoryPointFieldInput.value || "").trim();
     const selectedMode = refs.settingsTeamEstimationModeSelect.value === "manual" ? "manual" : "average";
     const rawValue = String(refs.settingsTeamEstimationValueInput.value || "").trim();
     if (selectedMode === "manual") {
