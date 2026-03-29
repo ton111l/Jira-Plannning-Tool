@@ -7,6 +7,7 @@ This document describes the technical architecture of the browser extension so t
 | Layer | Location |
 |-------|----------|
 | UI shell | [`src/app.html`](src/app.html), [`src/styles.css`](src/styles.css) |
+| User help (static page) | [`public/help.html`](public/help.html) → copied to `dist/help.html` at build (see §8.1) |
 | Application orchestration | [`src/app.js`](src/app.js) — tabs, modals, persistence, render pipeline |
 | Extension background | [`src/background.js`](src/background.js) |
 | Jira page bridge | [`src/content/jira-content.js`](src/content/jira-content.js), [`src/content/jira-page-bridge.js`](src/content/jira-page-bridge.js) |
@@ -135,6 +136,13 @@ Switching `quarter` ↔ `sprint` may require rebuilding `periods` and remapping 
 - Load unpacked extension from **`dist/`** after `npm run build`.
 - [`manifest.json`](manifest.json) must list web-accessible resources so nested modules under `src/**` resolve in the packaged extension.
 
+### 8.1 Static help page (`public/help.html`)
+
+- Vite copies everything under [`public/`](public/) to the **root** of `dist/`, so [`public/help.html`](public/help.html) becomes **`dist/help.html`** (alongside `dist/src/…`).
+- The page is plain HTML with a small **inline script** (not bundled as a module): bilingual body copy in **`#help-content-en`** (English, **default**) and **`#help-content-ru`** (Russian). Toolbar buttons **Eng** / **Ru** toggle visibility and update `<html lang>`, `document.title`, and `aria-pressed`. Language choice is persisted in **`localStorage`** under **`helpPageLang`** (`en` | `ru`).
+- Styling: `<link href="src/styles.css">` resolves from `dist/help.html` to `dist/src/styles.css`; help-only layout rules live in a `<style>` block in the same file.
+- Entry point from the app: [`src/app.html`](src/app.html) top bar — link with **ℹ️** (left of Settings) uses `href="../help.html"` and `target="_blank"` so the guide opens in a new tab (`chrome-extension://…/help.html`).
+
 ## 9. Documentation map
 
 | Doc | Scope |
@@ -142,7 +150,8 @@ Switching `quarter` ↔ `sprint` may require rebuilding `periods` and remapping 
 | This file | Architecture and planning modes |
 | [`CURSOR_PROJECT_RULES.md`](CURSOR_PROJECT_RULES.md) | IDE/agent conventions and project rules |
 | [`README.md`](README.md) | Run and build instructions |
+| [`public/help.html`](public/help.html) | End-user instructions (EN/RU); not a duplicate of this architecture doc |
 
 ---
 
-*Last updated: backlog row selection / bulk delete (UI + CSS), capacity compact table width, re-import after local delete; planning module and quarter/sprint layer.*
+*Last updated: static bilingual help page (`public/help.html`, `helpPageLang`), toolbar ℹ️ link; backlog bulk UI; capacity compact width; planning module and quarter/sprint layer.*
