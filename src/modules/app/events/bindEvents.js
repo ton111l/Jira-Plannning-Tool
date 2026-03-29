@@ -10,9 +10,20 @@ export function bindEvents({
   refs.planSelect.addEventListener("change", handlers.handlePlanSelect);
   refs.settingsBtn.addEventListener("click", handlers.openSettingsDialog);
   refs.settingsForm.addEventListener("submit", handlers.saveSettings);
+  if (refs.settingsAddRoleBtn) {
+    refs.settingsAddRoleBtn.addEventListener("click", handlers.handleSettingsAddRoleRow);
+  }
+  if (refs.settingsRolesList) {
+    refs.settingsRolesList.addEventListener("click", handlers.handleSettingsRolesListClick);
+  }
   refs.deleteConfirmForm.addEventListener("submit", handlers.submitDeleteConfirm);
+  refs.addRoleForm.addEventListener("submit", handlers.submitAddRole);
+  refs.addRoleCancelBtn.addEventListener("click", () => refs.addRoleDialog.close());
+  refs.addRoleNameInput.addEventListener("input", () => {
+    refs.addRoleNameInput.classList.remove("input-invalid");
+  });
+  refs.addRoleDialog.addEventListener("close", handlers.handleAddRoleDialogClose);
   refs.bulkRowEstimationForm.addEventListener("submit", handlers.submitBulkRowEstimation);
-  refs.bulkLoadForm.addEventListener("submit", handlers.submitBulkLoad);
 
   refs.tabButtons.forEach((button) => {
     button.addEventListener("click", async () => {
@@ -22,6 +33,9 @@ export function bindEvents({
   });
 
   refs.addCapacityRowBtn.addEventListener("click", handlers.handleAddCapacityRow);
+  if (refs.capacityTableViewModeSelect) {
+    refs.capacityTableViewModeSelect.addEventListener("change", handlers.handleCapacityTableViewModeChange);
+  }
   refs.addQuarterBtn.addEventListener("click", handlers.handleAddQuarter);
   refs.openImportModalBtn.addEventListener("click", handlers.openImportDialog);
   refs.importOverlayBtn.addEventListener("click", handlers.handleBacklogOverlayAction);
@@ -34,6 +48,12 @@ export function bindEvents({
     refs.jqlInput.classList.remove("input-invalid");
     handlers.syncImportButtonState();
   });
+  if (refs.importJiraEstimationFieldInput) {
+    refs.importJiraEstimationFieldInput.addEventListener("input", () => {
+      refs.importJiraEstimationFieldInput.classList.remove("input-invalid");
+      handlers.syncImportButtonState();
+    });
+  }
   refs.estimationTypeSelect.addEventListener("change", handlers.handleSettingsEstimationTypeChange);
   refs.createPlanEstimationTypeSelect.addEventListener("change", handlers.handleCreatePlanEstimationTypeChange);
   refs.createPlanTeamEstimationModeSelect.addEventListener("change", handlers.handleCreatePlanEstimationTypeChange);
@@ -60,6 +80,10 @@ export function bindEvents({
   refs.capacityTable.addEventListener("click", handlers.handleCapacityTableClick);
   refs.backlogTable.addEventListener("input", handlers.handleTableInput);
   refs.backlogTable.addEventListener("change", handlers.handleTableInput);
+  refs.backlogTable.addEventListener("change", handlers.handleBacklogSelectionChange);
+  if (refs.backlogDeleteSelectedBtn) {
+    refs.backlogDeleteSelectedBtn.addEventListener("click", handlers.handleDeleteSelectedBacklogRows);
+  }
   if (refs.teamNameInput) {
     refs.teamNameInput.addEventListener("input", handlers.handleTeamNameInput);
   }

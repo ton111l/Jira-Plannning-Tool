@@ -5,18 +5,51 @@ export function renderImportBacklogByTeam({
   plan,
   estimationHeader,
   estimationType,
-  buildCellInput
+  buildCellInput,
+  buildBacklogPeriodSelect
 }) {
   const estimationUnit = getEstimationUnitByType(estimationType);
-  const baseHeaders = ["Key", "Summary", "Status", "Priority", "IssueType", estimationHeader];
-  const totalColumns = baseHeaders.length + 2;
+  const baseHeaders = ["Key", "Summary", "Status", "Priority", "IssueType", estimationHeader, "Period"];
+  const totalColumns = baseHeaders.length + 2 + 1;
 
   const thead = document.createElement("thead");
   const tbody = document.createElement("tbody");
   const singleHeader = document.createElement("tr");
-  [...baseHeaders, "Team allocation (%)", `Effective ${estimationUnit}`].forEach((label) => {
+
+  const selectAllTh = document.createElement("th");
+  selectAllTh.className = "backlog-col-select";
+  const selectAllInput = document.createElement("input");
+  selectAllInput.type = "checkbox";
+  selectAllInput.setAttribute("aria-label", "Select all rows");
+  selectAllInput.title = "Select all";
+  selectAllInput.dataset.backlogSelect = "all";
+  selectAllTh.appendChild(selectAllInput);
+  singleHeader.appendChild(selectAllTh);
+
+  const effectiveTitle = `Effective ${estimationUnit}`;
+  const headerLabels = [...baseHeaders, "Team allocation (%)", effectiveTitle];
+  headerLabels.forEach((label) => {
     const th = document.createElement("th");
-    th.textContent = label;
+    if (label === effectiveTitle) {
+      th.className = "backlog-effective-header";
+      const wrap = document.createElement("span");
+      wrap.className = "label-with-help";
+      wrap.appendChild(document.createTextNode(effectiveTitle));
+      const help = document.createElement("span");
+      help.className = "help-tooltip";
+      help.tabIndex = 0;
+      help.setAttribute("aria-label", `Help: ${effectiveTitle}`);
+      const unitWord = estimationType === "person_days" ? "Man-days" : "Story Points";
+      help.appendChild(document.createTextNode("?"));
+      const bubble = document.createElement("span");
+      bubble.className = "help-tooltip-bubble";
+      bubble.textContent = `Read-only. Formula: Estimation × (Team allocation % ÷ 100). Example: 8 ${unitWord} with 50% team allocation → 4 effective.`;
+      help.appendChild(bubble);
+      wrap.appendChild(help);
+      th.appendChild(wrap);
+    } else {
+      th.textContent = label;
+    }
     singleHeader.appendChild(th);
   });
   thead.appendChild(singleHeader);
@@ -37,6 +70,16 @@ export function renderImportBacklogByTeam({
     const tr = document.createElement("tr");
     const baseEstimation = asNumber(backlogRow.estimation);
 
+    const selectTd = document.createElement("td");
+    selectTd.className = "backlog-col-select";
+    const rowCb = document.createElement("input");
+    rowCb.type = "checkbox";
+    rowCb.setAttribute("aria-label", "Select row");
+    rowCb.dataset.backlogSelect = "row";
+    rowCb.dataset.rowId = backlogRow.id;
+    selectTd.appendChild(rowCb);
+    tr.appendChild(selectTd);
+
     ["key", "summary", "status", "priority", "issueType", "estimation"].forEach((field) => {
       const td = document.createElement("td");
       td.classList.add(`backlog-col-${field.toLowerCase()}`);
@@ -48,6 +91,17 @@ export function renderImportBacklogByTeam({
       );
       tr.appendChild(td);
     });
+
+    const periodTd = document.createElement("td");
+    periodTd.className = "backlog-col-period";
+    periodTd.appendChild(
+      buildBacklogPeriodSelect({
+        row: backlogRow,
+        plan,
+        dataset: { section: "backlog", rowId: backlogRow.id, field: "targetPeriodId" }
+      })
+    );
+    tr.appendChild(periodTd);
 
     const teamAllocationPercent = backlogRow.teamAllocationPercent === "" || backlogRow.teamAllocationPercent === undefined
       ? 100

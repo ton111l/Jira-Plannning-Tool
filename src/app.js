@@ -1,10 +1,14 @@
 import {
   createBacklogRow,
   createCapacityRow,
+  createDefaultRoleOptions,
   createEmptyCapacityPeriodValues,
   createPeriod,
-  createPlan
+  createPlan,
+  generateId
 } from "./modules/models.js";
+import { migrateLegacyRolesToCatalog } from "./modules/app/roleCatalog.js";
+import { resolveBacklogPeriodSelectValue } from "./modules/app/render/shared/backlogHelpers.js";
 import { calculatePlannedCapacity, sanitizeLoadPercent, sanitizeNonNegative } from "./modules/calculations.js";
 import { loadState, saveState } from "./modules/storage.js";
 import { importIssuesFromJira } from "./modules/jira.js";
@@ -15,6 +19,7 @@ import {
   positionFabQuarter as positionFabQuarterView,
   renderBacklogOverlay as renderBacklogOverlayView,
   renderCapacityOverlay as renderCapacityOverlayView,
+  renderCapacityViewMode as renderCapacityViewModeView,
   renderPlanSelect as renderPlanSelectView,
   renderSettings as renderSettingsView,
   renderTabs as renderTabsView,
@@ -23,6 +28,7 @@ import {
 import { bindEvents as bindAppEvents } from "./modules/app/events/bindEvents.js";
 import { openImportDialogAction } from "./modules/app/actions/backlog.js";
 import { applySettingsChanges } from "./modules/app/actions/settings.js";
+import { applyPlannedFromBacklog } from "./modules/app/services/backlogDemand.js";
 import { renderBacklogTable as renderBacklogTableView } from "./modules/app/render/backlog/index.js";
 import { renderCapacityTable as renderCapacityTableView } from "./modules/app/render/capacity/index.js";
 import {
@@ -44,6 +50,7 @@ import { PLANNING_TIME_MODE } from "./modules/planning/constants.js";
 let appState = null;
 let pendingDeleteAction = null;
 let pendingBulkRowEstimationPeriodId = null;
+let pendingAddRoleRowId = null;
 function cacheRefs() {
   cacheAppRefs(refs);
 }
@@ -85,7 +92,14 @@ function sanitizeOptionalNonNegative(value) {
 }
 
 function regroupCapacityRowsByRole(plan) {
-  return regroupCapacityRowsByRoleState(plan, getPlanResourceGroupingType(plan), ROLE_OPTIONS);
+  return regroupCapacityRowsByRoleState(plan, getPlanResourceGroupingType(plan));
+}
+
+function getBacklogRoleColumnLabels(plan) {
+  if (plan?.roleOptions?.length) {
+    return plan.roleOptions.map((o) => o.label);
+  }
+  return ROLE_OPTIONS;
 }
 
 function setMessage(message, kind = "info") {
@@ -151,6 +165,65 @@ function buildCellSelect({ value, dataset = {}, options = [] }) {
   return select;
 }
 
+function buildRoleSelect({ value, dataset = {}, roleOptions = [] }) {
+  const select = document.createElement("select");
+  select.className = "cell-select";
+
+  const placeholder = document.createElement("option");
+  placeholder.value = "";
+  placeholder.textContent = "Select role";
+  select.appendChild(placeholder);
+
+  for (const opt of roleOptions) {
+    const option = document.createElement("option");
+    option.value = opt.id;
+    option.textContent = opt.label;
+    select.appendChild(option);
+  }
+
+  const addOpt = document.createElement("option");
+  addOpt.value = "__add_role__";
+  addOpt.textContent = "+ Add role…";
+  select.appendChild(addOpt);
+
+  const validIds = new Set(roleOptions.map((o) => o.id));
+  select.value = validIds.has(value) ? value : "";
+
+  for (const [key, datasetValue] of Object.entries(dataset)) {
+    select.dataset[key] = datasetValue;
+  }
+  return select;
+}
+
+function buildBacklogPeriodSelect({ row, plan, dataset = {} }) {
+  const select = document.createElement("select");
+  select.className = "cell-select";
+  const periods = plan?.periods || [];
+  if (periods.length === 0) {
+    const opt = document.createElement("option");
+    opt.value = "";
+    opt.textContent = "No period";
+    select.appendChild(opt);
+    select.disabled = true;
+  } else {
+    const ph = document.createElement("option");
+    ph.value = "";
+    ph.textContent = "Select period";
+    select.appendChild(ph);
+    for (const p of periods) {
+      const opt = document.createElement("option");
+      opt.value = p.id;
+      opt.textContent = p.label;
+      select.appendChild(opt);
+    }
+    select.value = resolveBacklogPeriodSelectValue(row, plan);
+  }
+  for (const [key, datasetValue] of Object.entries(dataset)) {
+    select.dataset[key] = datasetValue;
+  }
+  return select;
+}
+
 function buildPercentSelect({ value, dataset = {} }) {
   const select = document.createElement("select");
   select.className = "cell-select";
@@ -181,10 +254,10 @@ function renderCapacityTable() {
     estimationType: getPlanEstimationType(activePlan),
     resourceGroupingType: getPlanResourceGroupingType(activePlan),
     estimationLabel: getEstimationUnitLabel(activePlan),
-    roleOptions: ROLE_OPTIONS,
+    roleOptions: activePlan?.roleOptions?.length ? activePlan.roleOptions : [],
     ensureTeamPeriodValues,
     buildCellInput,
-    buildCellSelect,
+    buildRoleSelect,
     buildPercentSelect,
     createEmptyCapacityPeriodValues
   });
@@ -198,9 +271,10 @@ function renderBacklogTable() {
     estimationHeader: getEstimationUnitLabel(),
     buildCellInput,
     buildCellSelect,
+    buildBacklogPeriodSelect,
     estimationType: getPlanEstimationType(activePlan),
     resourceGroupingType: getPlanResourceGroupingType(activePlan),
-    roleOptions: ROLE_OPTIONS
+    roleOptions: getBacklogRoleColumnLabels(activePlan)
   });
 }
 
@@ -212,11 +286,40 @@ function renderSettings() {
   renderSettingsView({ refs, plan: getActivePlan(), appState });
 }
 
-function getEstimationFieldNameForImport(plan) {
-  if (getPlanEstimationType(plan) === "person_days") {
-    return "timetracking";
+const DEFAULT_STORY_POINTS_JIRA_FIELD = "customfield_10016";
+
+function resolveImportEstimationFieldName(plan, rawTrimmed) {
+  const type = getPlanEstimationType(plan);
+  if (type === "person_days") {
+    return rawTrimmed || "timeoriginalestimate";
   }
-  return String(plan?.estimationFieldName || "").trim();
+  return rawTrimmed || DEFAULT_STORY_POINTS_JIRA_FIELD;
+}
+
+function syncImportEstimationFieldUi() {
+  const plan = getActivePlan();
+  const input = refs.importJiraEstimationFieldInput;
+  const label = refs.importJiraEstimationFieldLabel;
+  const help = refs.importJiraEstimationFieldHelp;
+  if (!input || !label || !help) {
+    return;
+  }
+  const type = plan ? getPlanEstimationType(plan) : "story_points";
+  if (type === "person_days") {
+    label.textContent = "Jira estimation field";
+    input.placeholder = "timeoriginalestimate";
+    help.setAttribute(
+      "data-tooltip",
+      "Jira field id for backlog estimate in Man-days mode (e.g. timeoriginalestimate for Original estimate in seconds, or a custom number field). Leave empty to use timeoriginalestimate."
+    );
+  } else {
+    label.textContent = "Jira Story Points field";
+    input.placeholder = "customfield_10016";
+    help.setAttribute(
+      "data-tooltip",
+      "Custom field id used for Story Points in your Jira (often customfield_…). Required when Estimation type is Story Points."
+    );
+  }
 }
 
 function normalizeJiraBaseUrlInput(raw) {
@@ -253,20 +356,20 @@ function normalizeJiraBaseUrlInput(raw) {
 
 function syncImportButtonState() {
   const plan = getActivePlan();
-  const isStoryPoints = getPlanEstimationType(plan) === "story_points";
   const hasJql = Boolean(refs.jqlInput.value.trim());
   const hasBaseUrl = Boolean(normalizeJiraBaseUrlInput(refs.importJiraBaseUrlInput.value));
-  const hasEstimationField = !isStoryPoints || Boolean(String(plan?.estimationFieldName || "").trim());
-  const canImport = hasJql && hasBaseUrl && hasEstimationField;
+  const fieldRaw = String(refs.importJiraEstimationFieldInput?.value || "").trim();
+  const needsStoryPointsField = plan && getPlanEstimationType(plan) === "story_points";
+  const hasEstimationField = !needsStoryPointsField || Boolean(fieldRaw);
+  const canImport = Boolean(plan) && hasJql && hasBaseUrl && hasEstimationField;
   refs.confirmImportBtn.classList.toggle("btn-disabled", !canImport);
   refs.confirmImportBtn.title = canImport
-    ? "Import"
-    : "Enter Jira Base URL and JQL. For Story Points, set Story Point field name in Settings.";
+    ? "Import backlog from Jira"
+    : "Enter Jira Base URL, JQL, and (for Story Points) Jira Story Points field id.";
 }
 
 function handleSettingsEstimationTypeChange() {
   const nextType = refs.estimationTypeSelect.value || "story_points";
-  refs.settingsStoryPointFieldWrap.style.display = nextType === "story_points" ? "flex" : "none";
   refs.settingsTeamEstimationWrap.style.display = nextType === "story_points" ? "flex" : "none";
   if (nextType !== "story_points") {
     refs.settingsTeamEstimationModeSelect.value = "average";
@@ -280,13 +383,11 @@ function handleSettingsEstimationTypeChange() {
 
 function handleCreatePlanEstimationTypeChange() {
   const nextType = refs.createPlanEstimationTypeSelect.value || "story_points";
-  refs.createPlanStoryPointFieldWrap.style.display = nextType === "story_points" ? "flex" : "none";
   refs.createPlanTeamEstimationWrap.style.display = nextType === "story_points" ? "flex" : "none";
   if (nextType !== "story_points") {
     refs.createPlanTeamEstimationModeSelect.value = "average";
     refs.createPlanTeamEstimationValueWrap.style.display = "none";
     refs.createPlanTeamEstimationValueInput.value = "";
-    refs.createPlanStoryPointFieldInput.value = "";
     return;
   }
   const mode = refs.createPlanTeamEstimationModeSelect.value || "average";
@@ -322,14 +423,39 @@ function normalizeBacklogIssueKey(raw) {
     .trim();
 }
 
+/** Keeps the first backlog row per normalized issue key; drops later duplicates. Rows without a key are kept. */
+function dedupeBacklogRowsByKey(plan) {
+  if (!plan?.backlogRows?.length) {
+    return;
+  }
+  const seen = new Set();
+  plan.backlogRows = plan.backlogRows.filter((row) => {
+    const k = normalizeBacklogIssueKey(row.key);
+    if (!k) {
+      return true;
+    }
+    if (seen.has(k)) {
+      return false;
+    }
+    seen.add(k);
+    return true;
+  });
+}
+
 function render() {
   renderTabs();
   renderPlanSelect();
   renderTeamName();
+  const activePlanForDemand = getActivePlan();
+  if (activePlanForDemand?.periods?.length && activePlanForDemand.capacityRows?.length) {
+    applyPlannedFromBacklog(activePlanForDemand, getPlanResourceGroupingType(activePlanForDemand));
+  }
   renderCapacityTable();
+  renderCapacityViewModeView({ refs, plan: getActivePlan() });
   renderCapacityOverlay();
   renderBacklogTable();
   renderBacklogOverlay();
+  updateBacklogBulkActionsState();
   positionFabQuarter();
 }
 
@@ -381,7 +507,6 @@ async function handleCreatePlan() {
   refs.createPlanEstimationTypeSelect.value = estimationType;
   refs.createPlanResourceGroupingTypeSelect.value = getPlanResourceGroupingType(activePlan);
   refs.createPlanWorkingDaysInput.value = String(activePlan?.defaultWorkingDays ?? 0);
-  refs.createPlanStoryPointFieldInput.value = String(activePlan?.estimationFieldName || appState.estimationFieldName || "");
   const firstPeriodId = activePlan?.periods?.[0]?.id || "";
   const periodTeamSettings = firstPeriodId ? activePlan?.teamPeriodValues?.[firstPeriodId] : null;
   refs.createPlanTeamEstimationModeSelect.value = periodTeamSettings?.teamEstimationMode || "average";
@@ -402,7 +527,6 @@ async function submitCreatePlan(event) {
   const estimationType = refs.createPlanEstimationTypeSelect.value || "story_points";
   const resourceGroupingType = refs.createPlanResourceGroupingTypeSelect.value || "by_roles";
   const defaultWorkingDays = sanitizeNonNegative(refs.createPlanWorkingDaysInput.value || 0);
-  const estimationFieldName = String(refs.createPlanStoryPointFieldInput.value || "").trim();
   const teamEstimationMode = refs.createPlanTeamEstimationModeSelect.value === "manual" ? "manual" : "average";
   const teamEstimationPerDay = String(refs.createPlanTeamEstimationValueInput.value || "").trim();
 
@@ -412,10 +536,6 @@ async function submitCreatePlan(event) {
   }
   if (!year || year < 2000 || year > 2100) {
     setMessage("Year should be between 2000 and 2100.", "error");
-    return;
-  }
-  if (estimationType === "story_points" && !estimationFieldName) {
-    setMessage("Story Point field name is required for Story Points.", "error");
     return;
   }
   if (estimationType === "story_points" && teamEstimationMode === "manual") {
@@ -432,7 +552,7 @@ async function submitCreatePlan(event) {
     year,
     estimationType,
     resourceGroupingType,
-    estimationFieldName: estimationType === "story_points" ? estimationFieldName : "",
+    estimationFieldName: "",
     defaultWorkingDays
   });
   const firstPeriodId = plan.periods[0]?.id;
@@ -456,6 +576,17 @@ async function submitCreatePlan(event) {
   await persistAndRender("Plan created.", "success");
 }
 
+async function handleCapacityTableViewModeChange(event) {
+  const plan = getActivePlan();
+  if (!plan?.periods?.length) {
+    return;
+  }
+  const value = event.target.value === "compact" ? "compact" : "full";
+  plan.capacityTableViewMode = value;
+  touchPlan(plan);
+  await persistAndRender();
+}
+
 async function handlePlanSelect(event) {
   const selectedPlanId = event.target.value;
   if (!selectedPlanId) {
@@ -471,7 +602,18 @@ async function handleAddCapacityRow() {
     setMessage("Create plan first.", "error");
     return;
   }
-  plan.capacityRows.push(createCapacityRow(plan.periods));
+  const estimationType = getPlanEstimationType(plan);
+  const newRow = createCapacityRow(plan.periods);
+  newRow.loadPercent = sanitizeLoadPercent(plan.defaultLoadPercent ?? 100);
+  const defaultWorkingDays = sanitizeNonNegative(plan.defaultWorkingDays ?? 0);
+  for (const period of plan.periods) {
+    const to = newRow.periodValues[period.id];
+    if (to) {
+      to.workingDays = defaultWorkingDays;
+    }
+  }
+  recomputeCapacityRow(newRow, plan.periods, estimationType);
+  plan.capacityRows.push(newRow);
   const regrouped = regroupCapacityRowsByRole(plan);
   if (regrouped) {
     touchPlan(plan);
@@ -570,10 +712,131 @@ async function handleBacklogOverlayAction() {
   openImportDialog();
 }
 
+function syncBacklogSelectAllState() {
+  const table = refs.backlogTable;
+  const selectAll = table.querySelector('[data-backlog-select="all"]');
+  if (!selectAll) {
+    return;
+  }
+  const boxes = [...table.querySelectorAll('tbody input[data-backlog-select="row"]')];
+  const n = boxes.length;
+  const checked = boxes.filter((b) => b.checked).length;
+  selectAll.checked = n > 0 && checked === n;
+  selectAll.indeterminate = checked > 0 && checked < n;
+}
+
+function updateBacklogBulkActionsState() {
+  if (!refs.backlogDeleteSelectedBtn) {
+    return;
+  }
+  const n = refs.backlogTable.querySelectorAll('input[data-backlog-select="row"]:checked').length;
+  refs.backlogDeleteSelectedBtn.disabled = n === 0;
+}
+
+function handleBacklogSelectionChange(event) {
+  const t = event.target;
+  if (!(t instanceof HTMLInputElement) || t.type !== "checkbox") {
+    return;
+  }
+  if (t.dataset.backlogSelect === "all") {
+    const checked = t.checked;
+    refs.backlogTable.querySelectorAll('input[data-backlog-select="row"]').forEach((cb) => {
+      cb.checked = checked;
+    });
+    t.indeterminate = false;
+    updateBacklogBulkActionsState();
+    return;
+  }
+  if (t.dataset.backlogSelect === "row") {
+    syncBacklogSelectAllState();
+    updateBacklogBulkActionsState();
+  }
+}
+
+function handleDeleteSelectedBacklogRows() {
+  const plan = getActivePlan();
+  if (!plan?.backlogRows?.length) {
+    return;
+  }
+  const selectedIds = new Set(
+    [...refs.backlogTable.querySelectorAll('input[data-backlog-select="row"]:checked')].map(
+      (cb) => cb.dataset.rowId
+    )
+  );
+  if (!selectedIds.size) {
+    return;
+  }
+  const n = selectedIds.size;
+  openDeleteConfirmDialog(
+    n === 1 ? "Remove this issue from the backlog?" : `Remove ${n} issues from the backlog?`,
+    async () => {
+      plan.backlogRows = plan.backlogRows.filter((r) => !selectedIds.has(r.id));
+      touchPlan(plan);
+      await persistAndRender("Removed from backlog.", "success");
+    }
+  );
+}
+
 function openDeleteConfirmDialog(message, onConfirm) {
   refs.deleteConfirmText.textContent = message;
   pendingDeleteAction = onConfirm;
   refs.deleteConfirmDialog.showModal();
+}
+
+function openAddRoleDialog(rowId) {
+  pendingAddRoleRowId = rowId;
+  refs.addRoleNameInput.value = "";
+  refs.addRoleNameInput.classList.remove("input-invalid");
+  refs.addRoleDialog.showModal();
+  requestAnimationFrame(() => {
+    refs.addRoleNameInput.focus();
+  });
+}
+
+function handleAddRoleDialogClose() {
+  pendingAddRoleRowId = null;
+  refs.addRoleNameInput.value = "";
+  refs.addRoleNameInput.classList.remove("input-invalid");
+}
+
+async function submitAddRole(event) {
+  event.preventDefault();
+
+  const rowId = pendingAddRoleRowId;
+  const trimmed = String(refs.addRoleNameInput.value || "").trim();
+  if (!trimmed) {
+    refs.addRoleNameInput.classList.add("input-invalid");
+    return;
+  }
+  refs.addRoleNameInput.classList.remove("input-invalid");
+
+  const plan = getActivePlan();
+  if (!plan || !rowId) {
+    refs.addRoleDialog.close();
+    return;
+  }
+  const row = plan.capacityRows.find((entry) => entry.id === rowId);
+  if (!row) {
+    refs.addRoleDialog.close();
+    return;
+  }
+
+  if (!Array.isArray(plan.roleOptions)) {
+    plan.roleOptions = [];
+  }
+  let opt = plan.roleOptions.find((o) => o.label === trimmed);
+  if (!opt) {
+    opt = { id: generateId("role_opt"), label: trimmed };
+    plan.roleOptions.push(opt);
+  }
+  row.roleId = opt.id;
+  touchPlan(plan);
+  recomputeCapacityRow(row, plan.periods, getPlanEstimationType(plan));
+  if (regroupCapacityRowsByRole(plan)) {
+    touchPlan(plan);
+  }
+  refs.addRoleDialog.close();
+  await persistAndRender("Role added.", "success");
 }
 
 async function submitDeleteConfirm(event) {
@@ -605,7 +868,7 @@ function openBulkRowEstimationDialog(periodId, periodLabel) {
 
   refs.bulkRowEstimationText.textContent = isStoryPoints
     ? `Choose how Per team ${estimationTitle} per day is calculated in ${periodLabel}.`
-    : `For Men-days, Per team is calculated as the sum of members in ${periodLabel}.`;
+    : `For Man-days, Per team is calculated as the sum of members in ${periodLabel}.`;
   refs.bulkRowEstimationModeWrap.style.display = isStoryPoints ? "flex" : "none";
   refs.bulkRowEstimationInputLabel.textContent = "Story point per day value";
   refs.bulkRowEstimationModeInputs.forEach((input) => {
@@ -667,33 +930,6 @@ async function submitBulkRowEstimation(event) {
   await persistAndRender(`${getEstimationUnitLabel()} per day updated for Per team in ${period.label}.`, "success");
 }
 
-function openBulkLoadDialog() {
-  refs.bulkLoadPercentInput.value = "100";
-  refs.bulkLoadDialog.showModal();
-}
-
-async function submitBulkLoad(event) {
-  event.preventDefault();
-  const action = event.submitter?.value || "cancel";
-  refs.bulkLoadDialog.close();
-  if (action !== "apply") {
-    return;
-  }
-
-  const plan = getActivePlan();
-  if (!plan) {
-    return;
-  }
-
-  const loadPercent = sanitizeLoadPercent(refs.bulkLoadPercentInput.value);
-  plan.capacityRows.forEach((row) => {
-    row.loadPercent = loadPercent;
-    recomputeCapacityRow(row, plan.periods, getPlanEstimationType(plan));
-  });
-  touchPlan(plan);
-  await persistAndRender("Load (%) updated for all rows.", "success");
-}
-
 async function handleCapacityTableClick(event) {
   const actionButton = event.target.closest("button[data-action]");
   if (!actionButton) {
@@ -709,11 +945,6 @@ async function handleCapacityTableClick(event) {
   if (action === "bulk-row-estimation-per-day") {
     openSettingsDialog();
     setMessage("Team Story Points per day is configured in Settings.", "info");
-    return;
-  }
-
-  if (action === "bulk-load-percent") {
-    openBulkLoadDialog();
     return;
   }
 
@@ -762,6 +993,11 @@ async function handleCapacityTableClick(event) {
         delete row.periodValues[periodId];
         recomputeCapacityRow(row, activePlan.periods, getPlanEstimationType(activePlan));
       });
+      (activePlan.backlogRows || []).forEach((brow) => {
+        if (brow.targetPeriodId === periodId) {
+          brow.targetPeriodId = "";
+        }
+      });
       touchPlan(activePlan);
       await persistAndRender(`Quarter ${removedPeriod.label} removed.`, "success");
     });
@@ -789,8 +1025,16 @@ async function handleTableInput(event) {
       return;
     }
 
-    if (field === "memberName" || field === "role" || field === "specialization") {
-      row[field] = target.value;
+    if (field === "memberName") {
+      row.memberName = target.value;
+    } else if (field === "roleId") {
+      if (target.value === "__add_role__") {
+        const previousValue = plan.roleOptions?.some((o) => o.id === row.roleId) ? row.roleId : "";
+        target.value = previousValue;
+        openAddRoleDialog(rowId);
+        return;
+      }
+      row.roleId = target.value;
     } else if (field === "loadPercent") {
       row.loadPercent = sanitizeLoadPercent(target.value);
     } else if (periodId && (field === "daysOff" || field === "workingDays" || field === "rowEstimationPerDay")) {
@@ -799,7 +1043,7 @@ async function handleTableInput(event) {
     }
 
     recomputeCapacityRow(row, plan.periods, getPlanEstimationType(plan));
-    if (field === "role" && regroupCapacityRowsByRole(plan)) {
+    if (field === "roleId" && regroupCapacityRowsByRole(plan)) {
       touchPlan(plan);
     }
   }
@@ -813,9 +1057,14 @@ async function handleTableInput(event) {
   }
 
   touchPlan(plan);
+  if (section === "backlog" && field === "targetPeriodId") {
+    await persistAndRender();
+    return;
+  }
   const isTextInput = target instanceof HTMLInputElement && target.type === "text";
   const isSelectInput = target instanceof HTMLSelectElement;
-  const shouldRenderForRoleGrouping = field === "role" && getPlanResourceGroupingType(plan) === "by_roles";
+  const shouldRenderForRoleGrouping =
+    field === "roleId" && getPlanResourceGroupingType(plan) === "by_roles";
 
   if (isTextInput || (isSelectInput && field !== "loadPercent" && !shouldRenderForRoleGrouping)) {
     await saveState(appState);
@@ -841,7 +1090,8 @@ function openImportDialog() {
     appState,
     getActivePlan,
     setMessage,
-    syncImportButtonState
+    syncImportButtonState,
+    syncImportEstimationFieldUi
   });
   handleImportJiraBaseUrlBlur();
   syncImportButtonState();
@@ -854,12 +1104,15 @@ async function handleImportDialogClose() {
   }
   const draftJql = refs.jqlInput.value.trim();
   const draftBaseUrl = normalizeJiraBaseUrlInput(refs.importJiraBaseUrlInput.value);
+  const draftField = String(refs.importJiraEstimationFieldInput?.value || "").trim();
   const baseUrlChanged = String(plan.jiraBaseUrl || "") !== draftBaseUrl;
-  if (String(plan.lastImportJql || "") === draftJql && !baseUrlChanged) {
+  const fieldChanged = String(plan.estimationFieldName || "") !== draftField;
+  if (String(plan.lastImportJql || "") === draftJql && !baseUrlChanged && !fieldChanged) {
     return;
   }
   plan.lastImportJql = draftJql;
   plan.jiraBaseUrl = draftBaseUrl;
+  plan.estimationFieldName = draftField;
   touchPlan(plan);
   await saveState(appState);
 }
@@ -872,6 +1125,7 @@ async function submitImport(event) {
     if (plan) {
       plan.lastImportJql = refs.jqlInput.value.trim();
       plan.jiraBaseUrl = normalizeJiraBaseUrlInput(refs.importJiraBaseUrlInput.value);
+      plan.estimationFieldName = String(refs.importJiraEstimationFieldInput?.value || "").trim();
       touchPlan(plan);
     }
     await saveState(appState);
@@ -899,9 +1153,21 @@ async function submitImport(event) {
     setMessage("Jira Base URL is required for import.", "error");
     return;
   }
-  const estimationFieldName = getEstimationFieldNameForImport(plan);
+
+  const rawField = String(refs.importJiraEstimationFieldInput?.value || "").trim();
+  if (getPlanEstimationType(plan) === "story_points" && !rawField) {
+    refs.importJiraEstimationFieldInput?.classList.add("input-invalid");
+    refs.importJiraEstimationFieldInput?.focus();
+    syncImportButtonState();
+    setMessage("Enter Jira Story Points field id for import.", "error");
+    return;
+  }
+  refs.importJiraEstimationFieldInput?.classList.remove("input-invalid");
+
+  const estimationFieldName = resolveImportEstimationFieldName(plan, rawField);
   plan.jiraBaseUrl = jiraBaseUrl;
   plan.lastImportJql = jql;
+  plan.estimationFieldName = rawField;
   touchPlan(plan);
   await saveState(appState);
 
@@ -947,6 +1213,8 @@ async function submitImport(event) {
     setImportProgress(80);
     refs.issuesCount.textContent = String(importedRows.length);
 
+    dedupeBacklogRowsByKey(plan);
+
     const byKey = new Map();
     plan.backlogRows.forEach((row) => {
       const normalizedExistingKey = normalizeBacklogIssueKey(row.key);
@@ -954,14 +1222,19 @@ async function submitImport(event) {
         if (row.key !== normalizedExistingKey) {
           row.key = normalizedExistingKey;
         }
-        byKey.set(normalizedExistingKey, row);
+        if (!byKey.has(normalizedExistingKey)) {
+          byKey.set(normalizedExistingKey, row);
+        }
       }
     });
 
+    let updatedCount = 0;
+    let addedCount = 0;
     importedRows.forEach((jiraRow, index) => {
       const normalizedImportedKey = normalizeBacklogIssueKey(jiraRow.key);
       const existing = normalizedImportedKey ? byKey.get(normalizedImportedKey) : null;
       if (existing) {
+        updatedCount += 1;
         existing.key = normalizedImportedKey;
         existing.summary = jiraRow.summary;
         existing.status = jiraRow.status;
@@ -970,10 +1243,16 @@ async function submitImport(event) {
         existing.estimation = jiraRow.estimation;
         existing.source = "jira";
       } else {
-        plan.backlogRows.push(createBacklogRow({
+        addedCount += 1;
+        const newRow = createBacklogRow({
           ...jiraRow,
-          key: normalizedImportedKey
-        }));
+          key: normalizedImportedKey,
+          targetPeriodId: ""
+        });
+        plan.backlogRows.push(newRow);
+        if (normalizedImportedKey) {
+          byKey.set(normalizedImportedKey, newRow);
+        }
       }
       if (importedRows.length > 0) {
         const mergeProgress = 80 + Math.round(((index + 1) / importedRows.length) * 16);
@@ -985,7 +1264,18 @@ async function submitImport(event) {
     touchPlan(plan);
     setImportProgress(100);
     refs.importDialog.close();
-    await persistAndRender(`Imported ${importedRows.length} issues.`, "success");
+    const summaryParts = [];
+    if (addedCount) {
+      summaryParts.push(`${addedCount} new`);
+    }
+    if (updatedCount) {
+      summaryParts.push(`${updatedCount} updated`);
+    }
+    const summary =
+      summaryParts.length > 0
+        ? `Import complete: ${summaryParts.join(", ")} (${importedRows.length} in result).`
+        : `Import complete (${importedRows.length} in result).`;
+    await persistAndRender(summary, "success");
   } catch (error) {
     refs.importProgress.value = 0;
     const message = String(error?.message || "");
@@ -1015,8 +1305,54 @@ async function submitImport(event) {
 }
 
 function openSettingsDialog() {
+  const plan = getActivePlan();
+  if (plan && (!Array.isArray(plan.roleOptions) || plan.roleOptions.length === 0)) {
+    plan.roleOptions = createDefaultRoleOptions();
+    touchPlan(plan);
+  }
   renderSettings();
   refs.settingsDialog.showModal();
+}
+
+function handleSettingsAddRoleRow() {
+  if (!refs.settingsRolesList) {
+    return;
+  }
+  const row = document.createElement("div");
+  row.className = "settings-role-row";
+  row.dataset.roleId = generateId("role_opt");
+  const input = document.createElement("input");
+  input.type = "text";
+  input.className = "input settings-role-label";
+  input.maxLength = 120;
+  input.setAttribute("aria-label", "Role name");
+  input.placeholder = "Role name";
+  const del = document.createElement("button");
+  del.type = "button";
+  del.className = "row-delete-btn settings-role-delete";
+  del.textContent = "\u00d7";
+  del.setAttribute("aria-label", "Remove role");
+  row.appendChild(input);
+  row.appendChild(del);
+  refs.settingsRolesList.appendChild(row);
+  input.focus();
+}
+
+function handleSettingsRolesListClick(event) {
+  const btn = event.target.closest(".settings-role-delete");
+  if (!btn) {
+    return;
+  }
+  const row = btn.closest(".settings-role-row");
+  if (!row || !refs.settingsRolesList?.contains(row)) {
+    return;
+  }
+  const rows = refs.settingsRolesList.querySelectorAll(".settings-role-row");
+  if (rows.length <= 1) {
+    setMessage("At least one role is required.", "error");
+    return;
+  }
+  row.remove();
 }
 
 async function saveSettings(event) {
@@ -1032,6 +1368,7 @@ async function saveSettings(event) {
     return;
   }
   const defaultWorkingDays = sanitizeNonNegative(refs.settingsWorkingDaysInput.value || 0);
+  const defaultLoadPercent = sanitizeLoadPercent(refs.settingsDefaultLoadPercentSelect?.value ?? 100);
   const result = applySettingsChanges({ plan: activePlan, refs, regroupCapacityRowsByRole, touchPlan });
   if (!result?.ok) {
     if (result?.error) {
@@ -1040,7 +1377,9 @@ async function saveSettings(event) {
     return;
   }
   activePlan.defaultWorkingDays = defaultWorkingDays;
+  activePlan.defaultLoadPercent = defaultLoadPercent;
   activePlan.capacityRows.forEach((row) => {
+    row.loadPercent = defaultLoadPercent;
     activePlan.periods.forEach((period) => {
       if (!row.periodValues[period.id]) {
         row.periodValues[period.id] = createEmptyCapacityPeriodValues();
@@ -1065,9 +1404,12 @@ function bindEvents() {
       handlePlanSelect,
       openSettingsDialog,
       saveSettings,
+      handleSettingsAddRoleRow,
+      handleSettingsRolesListClick,
       submitDeleteConfirm,
+      submitAddRole,
+      handleAddRoleDialogClose,
       submitBulkRowEstimation,
-      submitBulkLoad,
       handleAddCapacityRow,
       handleAddQuarter,
       openImportDialog,
@@ -1081,6 +1423,9 @@ function bindEvents() {
       handleTableInput,
       handleCapacityTableClick,
       handleTeamNameInput,
+      handleCapacityTableViewModeChange,
+      handleBacklogSelectionChange,
+      handleDeleteSelectedBacklogRows,
       persistAndRender
     }
   });
@@ -1158,12 +1503,25 @@ async function init() {
     if (typeof plan.lastImportJql !== "string") {
       plan.lastImportJql = "";
     }
+    migrateLegacyRolesToCatalog(plan);
     if (typeof plan.defaultWorkingDays !== "number" || Number.isNaN(plan.defaultWorkingDays)) {
       const firstPeriodId = plan.periods?.[0]?.id;
       const inferredWorkingDays = firstPeriodId && plan.capacityRows?.[0]?.periodValues?.[firstPeriodId]
         ? sanitizeNonNegative(plan.capacityRows[0].periodValues[firstPeriodId].workingDays)
         : 0;
       plan.defaultWorkingDays = inferredWorkingDays;
+    }
+    if (plan.capacityTableViewMode !== "compact" && plan.capacityTableViewMode !== "full") {
+      plan.capacityTableViewMode = "full";
+    }
+    if (typeof plan.defaultLoadPercent !== "number" || Number.isNaN(plan.defaultLoadPercent)) {
+      const inferred = plan.capacityRows?.[0]?.loadPercent;
+      plan.defaultLoadPercent =
+        typeof inferred === "number" && !Number.isNaN(inferred)
+          ? sanitizeLoadPercent(inferred)
+          : 100;
+    } else {
+      plan.defaultLoadPercent = sanitizeLoadPercent(plan.defaultLoadPercent);
     }
     normalizePlanForMode(plan);
     const invariantCheck = assertPlanInvariants(plan);

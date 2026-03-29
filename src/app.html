@@ -11,9 +11,15 @@
       <div class="brand">Jira Planning Tool</div>
       <div class="toolbar">
         <button id="createPlanBtn" class="btn">Create Plan</button>
-        <select id="planSelect" class="input select" aria-label="Select Plan">
-          <option value="">Select Plan</option>
-        </select>
+        <select id="planSelect" class="input select" aria-label="Plan" hidden></select>
+        <a
+          class="toolbar-glyph-btn toolbar-help-link"
+          href="../help.html"
+          target="_blank"
+          rel="noopener noreferrer"
+          title="Instructions"
+          aria-label="Instructions"
+        >ℹ️</a>
         <button id="settingsBtn" class="toolbar-glyph-btn" title="Settings" aria-label="Settings">⚙️</button>
       </div>
     </header>
@@ -30,6 +36,13 @@
         <section id="capacityPanel" class="panel panel-active">
           <div class="panel-header">
             <h2>Capacity</h2>
+            <div class="panel-actions capacity-view-actions">
+              <label for="capacityTableViewModeSelect" class="capacity-view-label">View</label>
+              <select id="capacityTableViewModeSelect" class="input select capacity-view-select" aria-label="Capacity table view">
+                <option value="full">Full</option>
+                <option value="compact">Compact</option>
+              </select>
+            </div>
           </div>
           <div id="capacityContent" class="capacity-content">
             <div id="capacityTableWrap" class="table-wrap">
@@ -60,7 +73,12 @@
         <div class="panel-header">
           <h2>Backlog for planning</h2>
           <div class="panel-actions">
-            <button id="openImportModalBtn" class="btn">Import</button>
+            <div id="backlogBulkActions" class="backlog-bulk-actions" hidden>
+              <button type="button" id="backlogDeleteSelectedBtn" class="btn btn-danger" disabled>
+                Delete selected
+              </button>
+            </div>
+            <button id="openImportModalBtn" class="btn">Import backlog from Jira</button>
           </div>
         </div>
         <div id="backlogContent" class="capacity-content">
@@ -69,7 +87,7 @@
           </div>
           <div id="backlogOverlay" class="plan-overlay">
             <div class="overlay-actions">
-              <button id="importOverlayBtn" class="btn overlay-btn">Import</button>
+              <button id="importOverlayBtn" class="btn overlay-btn">Import backlog from Jira</button>
             </div>
           </div>
         </div>
@@ -110,21 +128,13 @@
             class="help-tooltip"
             tabindex="0"
             aria-label="Help: Estimation type"
-            data-tooltip="Defines the unit used across planning metrics and backlog estimates. Story Points are relative effort, while Men-days are calendar capacity."
+            data-tooltip="Defines the unit used across planning metrics and backlog estimates. Story Points are relative effort, while Man-days are calendar capacity."
           >?</span>
         </label>
         <select id="createPlanEstimationTypeSelect" class="input select">
           <option value="story_points">Story Points</option>
-          <option value="person_days">Men-days</option>
+          <option value="person_days">Man-days</option>
         </select>
-        <div id="createPlanStoryPointFieldWrap">
-          <label for="createPlanStoryPointFieldInput">Story Point field name</label>
-          <input
-            id="createPlanStoryPointFieldInput"
-            class="input"
-            placeholder="customfield_10016"
-          />
-        </div>
         <div id="createPlanTeamEstimationWrap">
           <label for="createPlanTeamEstimationModeSelect" class="label-with-help">
             Team Story Points per day
@@ -195,7 +205,7 @@
 
     <dialog id="importDialog" class="modal">
       <form method="dialog" id="importForm">
-        <h3>Import candidate's backlog</h3>
+        <h3>Import backlog from Jira</h3>
         <label for="importJiraBaseUrlInput">Jira Base URL</label>
         <input id="importJiraBaseUrlInput" class="input" placeholder="https://jira.company.local" />
         <label for="jqlInput">Input JQL request</label>
@@ -206,6 +216,27 @@
           placeholder="project = ABC AND issuetype in (Story, Bug) ORDER BY priority DESC"
         ></textarea>
 
+        <div id="importJiraEstimationFieldWrap">
+          <label for="importJiraEstimationFieldInput" class="label-with-help">
+            <span id="importJiraEstimationFieldLabel">Jira Story Points field</span>
+            <span
+              id="importJiraEstimationFieldHelp"
+              class="help-tooltip"
+              tabindex="0"
+              aria-label="Help: Jira field for backlog estimate"
+              data-tooltip=""
+            >?</span>
+          </label>
+          <input
+            id="importJiraEstimationFieldInput"
+            class="input"
+            type="text"
+            autocomplete="off"
+            spellcheck="false"
+            placeholder="customfield_10016"
+          />
+        </div>
+
         <div class="import-meta">
           <div>Issues count: <span id="issuesCount">0</span></div>
           <progress id="importProgress" max="100" value="0"></progress>
@@ -213,7 +244,7 @@
 
         <div class="modal-actions">
           <button type="submit" value="cancel" formnovalidate class="btn">Close</button>
-          <button type="submit" id="confirmImportBtn" value="default" class="btn">Import</button>
+          <button type="submit" id="confirmImportBtn" value="default" class="btn">Import backlog from Jira</button>
         </div>
       </form>
     </dialog>
@@ -227,21 +258,13 @@
             class="help-tooltip"
             tabindex="0"
             aria-label="Help: Estimation type"
-            data-tooltip="Defines the unit used across planning metrics and backlog estimates. Story Points are relative effort, while Men-days are calendar capacity."
+            data-tooltip="Defines the unit used across planning metrics and backlog estimates. Story Points are relative effort, while Man-days are calendar capacity."
           >?</span>
         </label>
         <select id="estimationTypeSelect" class="input select">
           <option value="story_points">Story Points</option>
-          <option value="person_days">Men-days</option>
+          <option value="person_days">Man-days</option>
         </select>
-        <div id="settingsStoryPointFieldWrap">
-          <label for="settingsStoryPointFieldInput">Story Point field name</label>
-          <input
-            id="settingsStoryPointFieldInput"
-            class="input"
-            placeholder="customfield_10016"
-          />
-        </div>
         <div id="settingsTeamEstimationWrap">
           <label for="settingsTeamEstimationModeSelect" class="label-with-help">
             Team Story Points per day
@@ -280,6 +303,30 @@
           />
         </div>
 
+        <div id="settingsDefaultLoadPercentWrap">
+          <label for="settingsDefaultLoadPercentSelect" class="label-with-help">
+            Load (%) for all rows
+            <span
+              class="help-tooltip"
+              tabindex="0"
+              aria-label="Help: Load percent"
+              data-tooltip="Allocation of working time (default 100%). Applies to every capacity row when you save. Per-row overrides are not kept after Save."
+            >?</span>
+          </label>
+          <select id="settingsDefaultLoadPercentSelect" class="input select">
+            <option value="10">10%</option>
+            <option value="20">20%</option>
+            <option value="30">30%</option>
+            <option value="40">40%</option>
+            <option value="50">50%</option>
+            <option value="60">60%</option>
+            <option value="70">70%</option>
+            <option value="80">80%</option>
+            <option value="90">90%</option>
+            <option value="100" selected>100%</option>
+          </select>
+        </div>
+
         <label for="resourceGroupingTypeSelect" class="label-with-help">
           Resource grouping type
           <span
@@ -293,6 +340,22 @@
           <option value="by_team">By team</option>
           <option value="by_roles">By roles</option>
         </select>
+
+        <div id="settingsRolesSection" class="settings-roles-section" hidden>
+          <span class="label-with-help settings-roles-heading">
+            Roles for this plan
+            <span
+              class="help-tooltip"
+              tabindex="0"
+              aria-label="Help: Roles"
+              data-tooltip="Catalog for the Role column and backlog grouping. New plans start with Developer, Analyst, and QA. Changes apply when you click Save."
+            >?</span>
+          </span>
+          <div id="settingsRolesList" class="settings-roles-list"></div>
+          <button type="button" id="settingsAddRoleBtn" class="btn btn-secondary settings-add-role-btn">
+            Add role
+          </button>
+        </div>
 
         <div class="modal-actions">
           <button type="submit" value="cancel" class="btn btn-secondary">Close</button>
@@ -339,28 +402,21 @@
       </form>
     </dialog>
 
-    <dialog id="bulkLoadDialog" class="modal">
-      <form method="dialog" id="bulkLoadForm">
-        <h3>Set Load (%) for all rows</h3>
-        <div id="bulkLoadText">
-          This action will overwrite Load (%) for all current rows.
-        </div>
-        <label for="bulkLoadPercentInput">Load (%) value</label>
-        <select id="bulkLoadPercentInput" class="input select">
-          <option value="10">10%</option>
-          <option value="20">20%</option>
-          <option value="30">30%</option>
-          <option value="40">40%</option>
-          <option value="50">50%</option>
-          <option value="60">60%</option>
-          <option value="70">70%</option>
-          <option value="80">80%</option>
-          <option value="90">90%</option>
-          <option value="100" selected>100%</option>
-        </select>
+    <dialog id="addRoleDialog" class="modal">
+      <form method="dialog" id="addRoleForm">
+        <h3>Add role</h3>
+        <label for="addRoleNameInput">Role name</label>
+        <input
+          id="addRoleNameInput"
+          class="input"
+          type="text"
+          autocomplete="off"
+          maxlength="120"
+          placeholder="e.g. UX Designer"
+        />
         <div class="modal-actions">
-          <button type="submit" value="cancel" class="btn btn-secondary">Cancel</button>
-          <button type="submit" value="apply" class="btn">Apply</button>
+          <button type="button" id="addRoleCancelBtn" class="btn btn-secondary">Cancel</button>
+          <button type="submit" id="confirmAddRoleBtn" value="add" class="btn">Add role</button>
         </div>
       </form>
     </dialog>

@@ -85,6 +85,20 @@ body {
   gap: 8px;
 }
 
+.capacity-view-actions {
+  align-items: center;
+}
+
+.capacity-view-label {
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.capacity-view-select {
+  min-width: 118px;
+}
+
 .table-wrap {
   overflow: auto;
   max-width: 100%;
@@ -193,6 +207,12 @@ body {
   padding: 5px 6px;
 }
 
+/* Compact view: width follows columns; no stretch to fill the panel */
+#capacityTable.grid-table.capacity-view-compact {
+  width: max-content;
+  min-width: max-content;
+}
+
 #backlogTable.backlog-import-table th,
 #backlogTable.backlog-import-table td {
   min-width: 74px;
@@ -200,21 +220,42 @@ body {
   font-size: 12px;
 }
 
-#backlogTable.backlog-import-table.backlog-import-by-team {
+#backlogTable.backlog-import-table.backlog-import-by-team,
+#backlogTable.backlog-import-table.backlog-import-by-roles {
   width: max-content;
   min-width: max-content;
 }
 
+#backlogTable.backlog-import-table th.backlog-col-select,
+#backlogTable.backlog-import-table td.backlog-col-select {
+  width: 32px;
+  min-width: 32px;
+  max-width: 36px;
+  padding: 4px 2px;
+  text-align: center;
+  vertical-align: middle;
+  box-sizing: border-box;
+}
+
+#backlogTable.backlog-import-table th.backlog-effective-header {
+  min-width: 130px;
+  white-space: nowrap;
+}
+
+#backlogTable.backlog-import-table th.backlog-effective-header .label-with-help {
+  gap: 4px;
+}
+
 #backlogTable.backlog-import-table th.backlog-col-key,
 #backlogTable.backlog-import-table td.backlog-col-key {
-  min-width: 100px;
-  width: 100px;
+  min-width: 152px;
+  width: 152px;
 }
 
 #backlogTable.backlog-import-table th.backlog-col-summary,
 #backlogTable.backlog-import-table td.backlog-col-summary {
-  min-width: 220px;
-  width: 220px;
+  min-width: 300px;
+  width: 300px;
 }
 
 #backlogTable.backlog-import-table th.backlog-col-issuetype,
@@ -231,6 +272,12 @@ body {
 #backlogTable.backlog-import-table td.backlog-col-estimation {
   min-width: 72px;
   width: 72px;
+}
+
+#backlogTable.backlog-import-table th.backlog-col-period,
+#backlogTable.backlog-import-table td.backlog-col-period {
+  min-width: 120px;
+  width: 120px;
 }
 
 #backlogTable.backlog-import-table th.backlog-role-group {
@@ -421,6 +468,15 @@ body {
   color: #565663;
 }
 
+.btn-danger {
+  border-color: #b83232;
+  color: #a02828;
+}
+
+.btn-danger:hover:not(:disabled) {
+  background: #fff5f5;
+}
+
 .btn-disabled {
   opacity: 0.45;
   cursor: not-allowed;
@@ -452,6 +508,13 @@ body {
 .toolbar-glyph-btn:focus-visible {
   outline: 1px solid #7d7db6;
   border-radius: 4px;
+}
+
+a.toolbar-help-link {
+  text-decoration: none;
+  color: inherit;
+  font-size: 20px;
+  line-height: 1;
 }
 
 .toolbar-glyph-btn svg {
@@ -513,6 +576,10 @@ body {
   padding: 14px;
 }
 
+#settingsForm label {
+  font-weight: 600;
+}
+
 .label-with-help {
   display: inline-flex;
   align-items: center;
@@ -540,6 +607,40 @@ body {
 
 .help-tooltip:focus-visible {
   outline: 1px solid #7d7db6;
+}
+
+/* Real DOM bubble: `content: attr(data-tooltip)` is unreliable on JS-created nodes in Chromium. */
+.help-tooltip-bubble {
+  position: absolute;
+  left: 0;
+  top: calc(100% + 8px);
+  bottom: auto;
+  width: 280px;
+  max-width: min(280px, 80vw);
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: #2a2a38;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.35;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.2);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease;
+  z-index: 1000;
+  text-align: left;
+  white-space: normal;
+}
+
+.help-tooltip:hover .help-tooltip-bubble,
+.help-tooltip:focus-visible .help-tooltip-bubble {
+  opacity: 1;
+}
+
+.help-tooltip:has(.help-tooltip-bubble)::after {
+  content: none;
+  display: none;
 }
 
 .help-tooltip::after {
@@ -588,22 +689,52 @@ body {
   gap: 10px;
 }
 
-#settingsStoryPointFieldWrap {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-#createPlanStoryPointFieldWrap,
+#importJiraEstimationFieldWrap,
 #createPlanWorkingDaysWrap,
 #settingsTeamEstimationWrap,
 #createPlanTeamEstimationWrap,
 #createPlanTeamEstimationValueWrap,
 #settingsTeamEstimationValueWrap,
-#settingsWorkingDaysWrap {
+#settingsWorkingDaysWrap,
+#settingsDefaultLoadPercentWrap {
   display: flex;
   flex-direction: column;
   gap: 6px;
+}
+
+.settings-roles-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.settings-roles-heading {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.settings-roles-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.settings-role-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.settings-role-row .settings-role-label {
+  flex: 1;
+  min-width: 0;
+}
+
+.settings-add-role-btn {
+  align-self: flex-start;
 }
 
 progress {

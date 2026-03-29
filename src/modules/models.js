@@ -36,6 +36,13 @@ export function createEmptyCapacityPeriodValues() {
   };
 }
 
+export function createDefaultRoleOptions() {
+  return ["Developer", "Analyst", "QA"].map((label) => ({
+    id: generateId("role_opt"),
+    label
+  }));
+}
+
 export function createCapacityRow(periods = []) {
   const periodValues = {};
   for (const period of periods) {
@@ -45,7 +52,7 @@ export function createCapacityRow(periods = []) {
   return {
     id: generateId("capacity_row"),
     memberName: "",
-    role: "",
+    roleId: "",
     loadPercent: 100,
     periodValues
   };
@@ -102,6 +109,10 @@ export function createPlan({
     jiraBaseUrl: String(jiraBaseUrl || "").trim().replace(/\/+$/, ""),
     estimationFieldName: String(estimationFieldName || "").trim(),
     defaultWorkingDays: Number(defaultWorkingDays) >= 0 ? Number(defaultWorkingDays) : 0,
+    /** Default Load (%) for capacity rows; Settings applies to all rows on Save. */
+    defaultLoadPercent: 100,
+    /** Capacity table UI: Full (all columns) or Compact (hide Days off and Per member). */
+    capacityTableViewMode: "full",
     periods: [firstPeriod],
     teamPeriodValues: {
       [firstPeriod.id]: {
@@ -111,6 +122,7 @@ export function createPlan({
     },
     backlogEntryMode: "import",
     lastImportJql: "",
+    roleOptions: createDefaultRoleOptions(),
     capacityRows: [createCapacityRow([firstPeriod])],
     backlogRows: [],
     createdAt: nowIso,

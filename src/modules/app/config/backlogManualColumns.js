@@ -16,7 +16,8 @@ export const MANUAL_BACKLOG_COLUMN_WIDTHS = {
   estimationDefault: 13.33,
   estimationByRole: {
     Developer: 13.33,
-    "QA Engineer": 13.33,
-    Analyst: 13.34
+    Analyst: 13.33,
+    QA: 13.34,
+    "QA Engineer": 13.34
   }
 };

@@ -13,10 +13,12 @@ export function renderTabs({ refs, appState }) {
 export function renderPlanSelect({ refs, appState, activePlan }) {
   refs.planSelect.innerHTML = "";
 
-  const placeholder = document.createElement("option");
-  placeholder.value = "";
-  placeholder.textContent = "Select Plan";
-  refs.planSelect.appendChild(placeholder);
+  if (!appState.plans.length) {
+    refs.planSelect.hidden = true;
+    return;
+  }
+
+  refs.planSelect.hidden = false;
 
   for (const plan of appState.plans) {
     const option = document.createElement("option");
@@ -26,6 +28,10 @@ export function renderPlanSelect({ refs, appState, activePlan }) {
       option.selected = true;
     }
     refs.planSelect.appendChild(option);
+  }
+
+  if (activePlan) {
+    refs.planSelect.value = activePlan.id;
   }
 }
 
@@ -40,8 +46,6 @@ export function renderTeamName({ refs, plan }) {
 export function renderSettings({ refs, plan, appState }) {
   const estimationType = plan?.estimationType || appState.estimationType || "story_points";
   refs.estimationTypeSelect.value = estimationType;
-  refs.settingsStoryPointFieldWrap.style.display = estimationType === "story_points" ? "flex" : "none";
-  refs.settingsStoryPointFieldInput.value = String(plan?.estimationFieldName || appState.estimationFieldName || "");
   const firstPeriodId = plan?.periods?.[0]?.id || "";
   const periodTeamSettings = firstPeriodId ? plan?.teamPeriodValues?.[firstPeriodId] : null;
   const teamMode = periodTeamSettings?.teamEstimationMode || "average";
@@ -52,7 +56,60 @@ export function renderSettings({ refs, plan, appState }) {
     estimationType === "story_points" && teamMode === "manual" ? "flex" : "none";
   refs.settingsTeamEstimationValueInput.value = String(teamValue);
   refs.settingsWorkingDaysInput.value = String(plan?.defaultWorkingDays ?? 0);
+  if (refs.settingsDefaultLoadPercentSelect) {
+    const raw = plan?.defaultLoadPercent ?? 100;
+    const n = Number(raw);
+    refs.settingsDefaultLoadPercentSelect.value =
+      Number.isFinite(n) && n >= 10 && n <= 100 ? String(Math.round(n / 10) * 10) : "100";
+  }
   refs.resourceGroupingTypeSelect.value = plan?.resourceGroupingType || appState.resourceGroupingType || "by_roles";
+
+  if (refs.settingsRolesSection) {
+    refs.settingsRolesSection.hidden = !plan;
+    if (plan) {
+      renderSettingsRolesList({ refs, plan });
+    }
+  }
+}
+
+export function renderSettingsRolesList({ refs, plan }) {
+  const list = refs.settingsRolesList;
+  if (!list || !plan) {
+    return;
+  }
+  list.innerHTML = "";
+  const raw = Array.isArray(plan.roleOptions) ? plan.roleOptions : [];
+  for (const opt of raw) {
+    if (!opt?.id) {
+      continue;
+    }
+    const row = document.createElement("div");
+    row.className = "settings-role-row";
+    row.dataset.roleId = opt.id;
+    const input = document.createElement("input");
+    input.type = "text";
+    input.className = "input settings-role-label";
+    input.value = opt.label || "";
+    input.maxLength = 120;
+    input.setAttribute("aria-label", "Role name");
+    const del = document.createElement("button");
+    del.type = "button";
+    del.className = "row-delete-btn settings-role-delete";
+    del.textContent = "\u00d7";
+    del.setAttribute("aria-label", "Remove role");
+    row.appendChild(input);
+    row.appendChild(del);
+    list.appendChild(row);
+  }
+}
+
+export function renderCapacityViewMode({ refs, plan }) {
+  if (!refs.capacityTableViewModeSelect) {
+    return;
+  }
+  const hasPeriods = Boolean(plan?.periods?.length);
+  refs.capacityTableViewModeSelect.disabled = !hasPeriods;
+  refs.capacityTableViewModeSelect.value = plan?.capacityTableViewMode === "compact" ? "compact" : "full";
 }
 
 export function renderCapacityOverlay({ refs, plan }) {
@@ -91,6 +148,9 @@ export function renderBacklogOverlay({ refs, plan }) {
   refs.backlogOverlay.classList.toggle("active", showOverlay);
   refs.backlogTableWrap.classList.toggle("table-wrap-blur", showOverlay);
   refs.openImportModalBtn.style.display = showOverlay ? "none" : "inline-block";
+  if (refs.backlogBulkActions) {
+    refs.backlogBulkActions.hidden = showOverlay;
+  }
 
   if (!showOverlay) {
     return;
@@ -101,8 +161,8 @@ export function renderBacklogOverlay({ refs, plan }) {
     refs.importOverlayBtn.dataset.action = "create-plan";
     return;
   }
-  refs.importOverlayBtn.textContent = "Import";
-  refs.importOverlayBtn.title = "Import";
+  refs.importOverlayBtn.textContent = "Import backlog from Jira";
+  refs.importOverlayBtn.title = "Import backlog from Jira";
   refs.importOverlayBtn.dataset.action = "import";
 }
 

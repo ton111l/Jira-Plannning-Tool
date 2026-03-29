@@ -16,8 +16,11 @@ export function cacheRefs(refs) {
   refs.backlogTableWrap = document.getElementById("backlogTableWrap");
   refs.backlogOverlay = document.getElementById("backlogOverlay");
   refs.addCapacityRowBtn = document.getElementById("addCapacityRowBtn");
+  refs.capacityTableViewModeSelect = document.getElementById("capacityTableViewModeSelect");
   refs.addQuarterBtn = document.getElementById("addQuarterBtn");
   refs.openImportModalBtn = document.getElementById("openImportModalBtn");
+  refs.backlogBulkActions = document.getElementById("backlogBulkActions");
+  refs.backlogDeleteSelectedBtn = document.getElementById("backlogDeleteSelectedBtn");
   refs.importOverlayBtn = document.getElementById("importOverlayBtn");
   refs.manualOverlayBtn = null;
 
@@ -29,8 +32,6 @@ export function cacheRefs(refs) {
   refs.createPlanWorkingDaysWrap = document.getElementById("createPlanWorkingDaysWrap");
   refs.createPlanWorkingDaysInput = document.getElementById("createPlanWorkingDaysInput");
   refs.createPlanEstimationTypeSelect = document.getElementById("createPlanEstimationTypeSelect");
-  refs.createPlanStoryPointFieldWrap = document.getElementById("createPlanStoryPointFieldWrap");
-  refs.createPlanStoryPointFieldInput = document.getElementById("createPlanStoryPointFieldInput");
   refs.createPlanTeamEstimationWrap = document.getElementById("createPlanTeamEstimationWrap");
   refs.createPlanTeamEstimationModeSelect = document.getElementById("createPlanTeamEstimationModeSelect");
   refs.createPlanTeamEstimationValueWrap = document.getElementById("createPlanTeamEstimationValueWrap");
@@ -48,19 +49,25 @@ export function cacheRefs(refs) {
   refs.confirmImportBtn = document.getElementById("confirmImportBtn");
   refs.issuesCount = document.getElementById("issuesCount");
   refs.importProgress = document.getElementById("importProgress");
+  refs.importJiraEstimationFieldWrap = document.getElementById("importJiraEstimationFieldWrap");
+  refs.importJiraEstimationFieldLabel = document.getElementById("importJiraEstimationFieldLabel");
+  refs.importJiraEstimationFieldHelp = document.getElementById("importJiraEstimationFieldHelp");
+  refs.importJiraEstimationFieldInput = document.getElementById("importJiraEstimationFieldInput");
 
   refs.settingsDialog = document.getElementById("settingsDialog");
   refs.settingsForm = document.getElementById("settingsForm");
   refs.estimationTypeSelect = document.getElementById("estimationTypeSelect");
-  refs.settingsStoryPointFieldWrap = document.getElementById("settingsStoryPointFieldWrap");
-  refs.settingsStoryPointFieldInput = document.getElementById("settingsStoryPointFieldInput");
   refs.settingsTeamEstimationWrap = document.getElementById("settingsTeamEstimationWrap");
   refs.settingsTeamEstimationModeSelect = document.getElementById("settingsTeamEstimationModeSelect");
   refs.settingsTeamEstimationValueWrap = document.getElementById("settingsTeamEstimationValueWrap");
   refs.settingsTeamEstimationValueInput = document.getElementById("settingsTeamEstimationValueInput");
   refs.settingsWorkingDaysWrap = document.getElementById("settingsWorkingDaysWrap");
   refs.settingsWorkingDaysInput = document.getElementById("settingsWorkingDaysInput");
+  refs.settingsDefaultLoadPercentSelect = document.getElementById("settingsDefaultLoadPercentSelect");
   refs.resourceGroupingTypeSelect = document.getElementById("resourceGroupingTypeSelect");
+  refs.settingsRolesSection = document.getElementById("settingsRolesSection");
+  refs.settingsRolesList = document.getElementById("settingsRolesList");
+  refs.settingsAddRoleBtn = document.getElementById("settingsAddRoleBtn");
   refs.deleteConfirmDialog = document.getElementById("deleteConfirmDialog");
   refs.deleteConfirmForm = document.getElementById("deleteConfirmForm");
   refs.deleteConfirmText = document.getElementById("deleteConfirmText");
@@ -72,7 +79,8 @@ export function cacheRefs(refs) {
   refs.bulkRowEstimationInputLabel = document.getElementById("bulkRowEstimationInputLabel");
   refs.bulkRowEstimationModeInputs = Array.from(document.querySelectorAll("input[name='bulkRowEstimationMode']"));
   refs.bulkRowEstimationInput = document.getElementById("bulkRowEstimationInput");
-  refs.bulkLoadDialog = document.getElementById("bulkLoadDialog");
-  refs.bulkLoadForm = document.getElementById("bulkLoadForm");
-  refs.bulkLoadPercentInput = document.getElementById("bulkLoadPercentInput");
+  refs.addRoleDialog = document.getElementById("addRoleDialog");
+  refs.addRoleForm = document.getElementById("addRoleForm");
+  refs.addRoleNameInput = document.getElementById("addRoleNameInput");
+  refs.addRoleCancelBtn = document.getElementById("addRoleCancelBtn");
 }

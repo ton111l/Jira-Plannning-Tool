@@ -6,6 +6,7 @@ export function renderBacklogTable({
   plan,
   estimationHeader,
   buildCellInput,
+  buildBacklogPeriodSelect,
   estimationType,
   resourceGroupingType,
   roleOptions
@@ -33,7 +34,8 @@ export function renderBacklogTable({
       estimationHeader,
       estimationType,
       roleOptions,
-      buildCellInput
+      buildCellInput,
+      buildBacklogPeriodSelect
     });
     return;
   }
@@ -43,6 +45,7 @@ export function renderBacklogTable({
     plan,
     estimationHeader,
     estimationType,
-    buildCellInput
+    buildCellInput,
+    buildBacklogPeriodSelect
   });
 }

@@ -3,7 +3,7 @@ import { renderCapacityByTeam } from "./byTeam.js";
 
 function renderCapacityNoPlan(refs) {
   const headRow = document.createElement("tr");
-  ["#", "Member", "Role", "Specialization", "Act", "Load (%)"].forEach((title) => {
+  ["#", "Member", "Role", "Act", "Load (%)"].forEach((title) => {
     const th = document.createElement("th");
     th.textContent = title;
     headRow.appendChild(th);
@@ -24,10 +24,6 @@ function renderCapacityNoPlan(refs) {
     const role = document.createElement("td");
     role.textContent = "Select";
     tr.appendChild(role);
-
-    const specialization = document.createElement("td");
-    specialization.textContent = "";
-    tr.appendChild(specialization);
 
     const remove = document.createElement("td");
     remove.textContent = "";
@@ -50,15 +46,21 @@ export function renderCapacityTable({
   roleOptions,
   ensureTeamPeriodValues,
   buildCellInput,
-  buildCellSelect,
+  buildRoleSelect,
   buildPercentSelect,
   createEmptyCapacityPeriodValues
 }) {
   refs.capacityTable.innerHTML = "";
+  refs.capacityTable.classList.remove("capacity-view-compact", "capacity-view-full");
   if (!plan) {
+    refs.capacityTable.classList.add("capacity-view-full");
     renderCapacityNoPlan(refs);
     return;
   }
+
+  const compact = plan.capacityTableViewMode === "compact";
+  refs.capacityTable.classList.toggle("capacity-view-compact", compact);
+  refs.capacityTable.classList.toggle("capacity-view-full", !compact);
 
   if (resourceGroupingType === "by_roles") {
     renderCapacityByRoles({
@@ -69,7 +71,7 @@ export function renderCapacityTable({
       roleOptions,
       ensureTeamPeriodValues,
       buildCellInput,
-      buildCellSelect,
+      buildRoleSelect,
       buildPercentSelect,
       createEmptyCapacityPeriodValues
     });
@@ -84,7 +86,7 @@ export function renderCapacityTable({
     roleOptions,
     ensureTeamPeriodValues,
     buildCellInput,
-    buildCellSelect,
+    buildRoleSelect,
     buildPercentSelect,
     createEmptyCapacityPeriodValues
   });
