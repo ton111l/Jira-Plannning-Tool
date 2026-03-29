@@ -33,6 +33,9 @@ export function bindEvents({
   });
 
   refs.addCapacityRowBtn.addEventListener("click", handlers.handleAddCapacityRow);
+  if (refs.capacityTableViewModeSelect) {
+    refs.capacityTableViewModeSelect.addEventListener("change", handlers.handleCapacityTableViewModeChange);
+  }
   refs.addQuarterBtn.addEventListener("click", handlers.handleAddQuarter);
   refs.openImportModalBtn.addEventListener("click", handlers.openImportDialog);
   refs.importOverlayBtn.addEventListener("click", handlers.handleBacklogOverlayAction);
@@ -77,6 +80,10 @@ export function bindEvents({
   refs.capacityTable.addEventListener("click", handlers.handleCapacityTableClick);
   refs.backlogTable.addEventListener("input", handlers.handleTableInput);
   refs.backlogTable.addEventListener("change", handlers.handleTableInput);
+  refs.backlogTable.addEventListener("change", handlers.handleBacklogSelectionChange);
+  if (refs.backlogDeleteSelectedBtn) {
+    refs.backlogDeleteSelectedBtn.addEventListener("click", handlers.handleDeleteSelectedBacklogRows);
+  }
   if (refs.teamNameInput) {
     refs.teamNameInput.addEventListener("input", handlers.handleTeamNameInput);
   }

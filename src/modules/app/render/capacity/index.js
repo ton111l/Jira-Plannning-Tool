@@ -51,10 +51,16 @@ export function renderCapacityTable({
   createEmptyCapacityPeriodValues
 }) {
   refs.capacityTable.innerHTML = "";
+  refs.capacityTable.classList.remove("capacity-view-compact", "capacity-view-full");
   if (!plan) {
+    refs.capacityTable.classList.add("capacity-view-full");
     renderCapacityNoPlan(refs);
     return;
   }
+
+  const compact = plan.capacityTableViewMode === "compact";
+  refs.capacityTable.classList.toggle("capacity-view-compact", compact);
+  refs.capacityTable.classList.toggle("capacity-view-full", !compact);
 
   if (resourceGroupingType === "by_roles") {
     renderCapacityByRoles({

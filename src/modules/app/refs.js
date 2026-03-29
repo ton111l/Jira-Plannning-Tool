@@ -16,8 +16,11 @@ export function cacheRefs(refs) {
   refs.backlogTableWrap = document.getElementById("backlogTableWrap");
   refs.backlogOverlay = document.getElementById("backlogOverlay");
   refs.addCapacityRowBtn = document.getElementById("addCapacityRowBtn");
+  refs.capacityTableViewModeSelect = document.getElementById("capacityTableViewModeSelect");
   refs.addQuarterBtn = document.getElementById("addQuarterBtn");
   refs.openImportModalBtn = document.getElementById("openImportModalBtn");
+  refs.backlogBulkActions = document.getElementById("backlogBulkActions");
+  refs.backlogDeleteSelectedBtn = document.getElementById("backlogDeleteSelectedBtn");
   refs.importOverlayBtn = document.getElementById("importOverlayBtn");
   refs.manualOverlayBtn = null;
 

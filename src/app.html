@@ -11,9 +11,7 @@
       <div class="brand">Jira Planning Tool</div>
       <div class="toolbar">
         <button id="createPlanBtn" class="btn">Create Plan</button>
-        <select id="planSelect" class="input select" aria-label="Select Plan">
-          <option value="">Select Plan</option>
-        </select>
+        <select id="planSelect" class="input select" aria-label="Plan" hidden></select>
         <button id="settingsBtn" class="toolbar-glyph-btn" title="Settings" aria-label="Settings">⚙️</button>
       </div>
     </header>
@@ -30,6 +28,13 @@
         <section id="capacityPanel" class="panel panel-active">
           <div class="panel-header">
             <h2>Capacity</h2>
+            <div class="panel-actions capacity-view-actions">
+              <label for="capacityTableViewModeSelect" class="capacity-view-label">View</label>
+              <select id="capacityTableViewModeSelect" class="input select capacity-view-select" aria-label="Capacity table view">
+                <option value="full">Full</option>
+                <option value="compact">Compact</option>
+              </select>
+            </div>
           </div>
           <div id="capacityContent" class="capacity-content">
             <div id="capacityTableWrap" class="table-wrap">
@@ -60,6 +65,11 @@
         <div class="panel-header">
           <h2>Backlog for planning</h2>
           <div class="panel-actions">
+            <div id="backlogBulkActions" class="backlog-bulk-actions" hidden>
+              <button type="button" id="backlogDeleteSelectedBtn" class="btn btn-danger" disabled>
+                Delete selected
+              </button>
+            </div>
             <button id="openImportModalBtn" class="btn">Import backlog from Jira</button>
           </div>
         </div>

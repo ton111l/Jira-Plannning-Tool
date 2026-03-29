@@ -85,6 +85,20 @@ body {
   gap: 8px;
 }
 
+.capacity-view-actions {
+  align-items: center;
+}
+
+.capacity-view-label {
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.capacity-view-select {
+  min-width: 118px;
+}
+
 .table-wrap {
   overflow: auto;
   max-width: 100%;
@@ -193,6 +207,12 @@ body {
   padding: 5px 6px;
 }
 
+/* Compact view: width follows columns; no stretch to fill the panel */
+#capacityTable.grid-table.capacity-view-compact {
+  width: max-content;
+  min-width: max-content;
+}
+
 #backlogTable.backlog-import-table th,
 #backlogTable.backlog-import-table td {
   min-width: 74px;
@@ -200,9 +220,21 @@ body {
   font-size: 12px;
 }
 
-#backlogTable.backlog-import-table.backlog-import-by-team {
+#backlogTable.backlog-import-table.backlog-import-by-team,
+#backlogTable.backlog-import-table.backlog-import-by-roles {
   width: max-content;
   min-width: max-content;
+}
+
+#backlogTable.backlog-import-table th.backlog-col-select,
+#backlogTable.backlog-import-table td.backlog-col-select {
+  width: 32px;
+  min-width: 32px;
+  max-width: 36px;
+  padding: 4px 2px;
+  text-align: center;
+  vertical-align: middle;
+  box-sizing: border-box;
 }
 
 #backlogTable.backlog-import-table th.backlog-effective-header {
@@ -216,14 +248,14 @@ body {
 
 #backlogTable.backlog-import-table th.backlog-col-key,
 #backlogTable.backlog-import-table td.backlog-col-key {
-  min-width: 100px;
-  width: 100px;
+  min-width: 152px;
+  width: 152px;
 }
 
 #backlogTable.backlog-import-table th.backlog-col-summary,
 #backlogTable.backlog-import-table td.backlog-col-summary {
-  min-width: 220px;
-  width: 220px;
+  min-width: 300px;
+  width: 300px;
 }
 
 #backlogTable.backlog-import-table th.backlog-col-issuetype,
@@ -434,6 +466,15 @@ body {
 .btn-secondary {
   border-color: #9595a3;
   color: #565663;
+}
+
+.btn-danger {
+  border-color: #b83232;
+  color: #a02828;
+}
+
+.btn-danger:hover:not(:disabled) {
+  background: #fff5f5;
 }
 
 .btn-disabled {

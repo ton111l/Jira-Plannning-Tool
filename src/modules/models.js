@@ -111,6 +111,8 @@ export function createPlan({
     defaultWorkingDays: Number(defaultWorkingDays) >= 0 ? Number(defaultWorkingDays) : 0,
     /** Default Load (%) for capacity rows; Settings applies to all rows on Save. */
     defaultLoadPercent: 100,
+    /** Capacity table UI: Full (all columns) or Compact (hide Days off and Per member). */
+    capacityTableViewMode: "full",
     periods: [firstPeriod],
     teamPeriodValues: {
       [firstPeriod.id]: {

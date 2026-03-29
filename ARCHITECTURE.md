@@ -48,7 +48,7 @@ Stored in `chrome.storage.local` as part of app state. Key concepts:
 
 **Backlog demand flow:** [`getBacklogRowPeriodId(row, plan)`](src/modules/app/services/backlogDemand.js) resolves which period a row counts toward (only when `targetPeriodId` matches a `plan.periods[].id`). Before capacity render, [`src/app.js`](src/app.js) calls `applyPlannedFromBacklog` so member `plannedEstimation` and team roll-ups match backlog rows for that period. Capacity UI shows **Planned** (`sumPlannedForPeriod` / role-group sums) and **Available balance** as supply minus planned (see `render/capacity/byTeam.js`, `byRoles.js`).
 
-Per-plan settings include: `estimationType`, `resourceGroupingType`, `jiraBaseUrl`, `estimationFieldName`, `lastImportJql`, `defaultWorkingDays`, **`defaultLoadPercent`** (Load % for all capacity rows, default 100; applied to every row on Settings Save), and planning-mode fields below.
+Per-plan settings include: `estimationType`, `resourceGroupingType`, `jiraBaseUrl`, `estimationFieldName`, `lastImportJql`, `defaultWorkingDays`, **`defaultLoadPercent`** (Load % for all capacity rows, default 100; applied to every row on Settings Save), **`capacityTableViewMode`**: `full` | `compact` (Capacity **View** — Compact **omits** **Days off** and all **Per member** cells so header `colspan` matches the body; **Per team** / **Role total** columns stay. Implemented by a second, flatter thead + fewer `td` per row, not CSS-only hide), and planning-mode fields below.
 
 ### 3.2 Period object
 
@@ -123,7 +123,7 @@ Switching `quarter` ↔ `sprint` may require rebuilding `periods` and remapping 
 ## 7. Persistence and migration
 
 - Load/save: [`src/modules/storage.js`](src/modules/storage.js).
-- **Any new plan-level field** must be backfilled in [`src/app.js`](src/app.js) `init()` for older stored state (see existing patterns for `planningTimeMode`, `velocity`, period `kind`, `targetPeriodId`).
+- **Any new plan-level field** must be backfilled in [`src/app.js`](src/app.js) `init()` for older stored state (see existing patterns for `planningTimeMode`, `velocity`, period `kind`, `targetPeriodId`, `capacityTableViewMode`).
 
 ## 8. Build and distribution
 
