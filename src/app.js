@@ -46,11 +46,14 @@ import {
   normalizePlanForMode
 } from "./modules/planning/index.js";
 import { PLANNING_TIME_MODE } from "./modules/planning/constants.js";
+import { buildSprintPeriods } from "./modules/planning/periodFactory.js";
 
 let appState = null;
 let pendingDeleteAction = null;
 let pendingBulkRowEstimationPeriodId = null;
 let pendingAddRoleRowId = null;
+/** Saved sprint rows from Sprints Settings dialog: Array<{ sprintIndex: number, workingDays: number }> | null */
+let pendingSprintConfig = null;
 function cacheRefs() {
   cacheAppRefs(refs);
 }
@@ -394,6 +397,159 @@ function handleCreatePlanEstimationTypeChange() {
   refs.createPlanTeamEstimationValueWrap.style.display = mode === "manual" ? "flex" : "none";
 }
 
+function handleCreatePlanUseSprintsChange() {
+  const enabled = refs.createPlanUseSprintsCheckbox.checked;
+  refs.createPlanSprintSettingsBtn.disabled = !enabled;
+  refs.createPlanWorkingDaysInput.disabled = enabled;
+
+  const personDaysOption = refs.createPlanEstimationTypeSelect.querySelector('option[value="person_days"]');
+  if (personDaysOption) {
+    personDaysOption.disabled = enabled;
+  }
+  if (enabled) {
+    refs.createPlanEstimationTypeSelect.value = "story_points";
+    handleCreatePlanEstimationTypeChange();
+  }
+}
+
+function buildSprintSettingsRow(sprintNumber) {
+  const tr = document.createElement("tr");
+
+  const sprintTd = document.createElement("td");
+  sprintTd.className = "sprint-settings-cell";
+  sprintTd.textContent = String(sprintNumber);
+  tr.appendChild(sprintTd);
+
+  const daysTd = document.createElement("td");
+  daysTd.className = "sprint-settings-cell";
+  const daysInput = document.createElement("input");
+  daysInput.type = "number";
+  daysInput.min = "1";
+  daysInput.step = "1";
+  daysInput.className = "input sprint-settings-days-input";
+  daysInput.setAttribute("aria-label", `Working days for sprint ${sprintNumber}`);
+  daysTd.appendChild(daysInput);
+  tr.appendChild(daysTd);
+
+  const actionTd = document.createElement("td");
+  actionTd.className = "sprint-settings-cell sprint-settings-action-cell";
+  tr.appendChild(actionTd);
+
+  return tr;
+}
+
+function renumberSprintRows() {
+  const rows = refs.sprintSettingsTbody.querySelectorAll("tr");
+  rows.forEach((row, index) => {
+    const sprintCell = row.querySelector(".sprint-settings-cell");
+    if (sprintCell) {
+      sprintCell.textContent = String(index + 1);
+    }
+  });
+}
+
+function updateSprintDeleteButton() {
+  const rows = Array.from(refs.sprintSettingsTbody.querySelectorAll("tr"));
+  rows.forEach((row, index) => {
+    const actionTd = row.querySelector(".sprint-settings-action-cell");
+    if (!actionTd) return;
+    actionTd.innerHTML = "";
+    if (index === rows.length - 1 && rows.length > 0) {
+      const deleteBtn = document.createElement("button");
+      deleteBtn.type = "button";
+      deleteBtn.className = "row-delete-btn";
+      deleteBtn.textContent = "×";
+      deleteBtn.title = "Remove last sprint";
+      deleteBtn.setAttribute("aria-label", "Remove last sprint");
+      deleteBtn.addEventListener("click", () => {
+        row.remove();
+        updateSprintDeleteButton();
+        renumberSprintRows();
+      });
+      actionTd.appendChild(deleteBtn);
+    }
+  });
+}
+
+function openSprintSettingsDialog() {
+  if (refs.sprintSettingsTbody.rows.length === 0) {
+    refs.sprintSettingsTbody.appendChild(buildSprintSettingsRow(1));
+  }
+  updateSprintDeleteButton();
+  refs.sprintSettingsDialog.showModal();
+}
+
+function handleAddSprintRow() {
+  const nextNumber = refs.sprintSettingsTbody.rows.length + 1;
+  refs.sprintSettingsTbody.appendChild(buildSprintSettingsRow(nextNumber));
+  updateSprintDeleteButton();
+}
+
+function submitSprintSettings(event) {
+  event.preventDefault();
+  if (event.submitter?.value === "cancel") {
+    refs.sprintSettingsDialog.close();
+    return;
+  }
+
+  const rows = Array.from(refs.sprintSettingsTbody.querySelectorAll("tr"));
+  pendingSprintConfig = rows.map((tr, idx) => {
+    const input = tr.querySelector(".sprint-settings-days-input");
+    return {
+      sprintIndex: idx + 1,
+      workingDays: sanitizeNonNegative(input?.value ?? 0)
+    };
+  });
+
+  refs.sprintSettingsDialog.close();
+}
+
+function applySprintConfigToPlan(plan, sprintConfig) {
+  const anchorPeriod = plan.periods.find((p) => p.kind === "quarter" || !p.kind);
+  if (!anchorPeriod || !sprintConfig?.length) return;
+
+  plan.periods = plan.periods.filter(
+    (p) => !(p.kind === "sprint" && p.anchorQuarter === anchorPeriod.anchorQuarter && p.anchorYear === anchorPeriod.anchorYear)
+  );
+  plan.capacityRows.forEach((row) => {
+    Object.keys(row.periodValues).forEach((pid) => {
+      if (!plan.periods.find((p) => p.id === pid)) {
+        delete row.periodValues[pid];
+      }
+    });
+  });
+
+  const sprintPeriods = buildSprintPeriods({
+    anchorQuarter: anchorPeriod.anchorQuarter,
+    anchorYear: anchorPeriod.anchorYear,
+    sprintCount: sprintConfig.length
+  });
+
+  const anchorIdx = plan.periods.findIndex((p) => p.id === anchorPeriod.id);
+  plan.periods.splice(anchorIdx, 0, ...sprintPeriods);
+
+  ensureTeamPeriodValues(plan);
+  sprintPeriods.forEach((sp) => {
+    plan.teamPeriodValues[sp.id] = { teamEstimationMode: "average", teamEstimationPerDay: "" };
+  });
+
+  const estimationType = getPlanEstimationType(plan);
+  const workingDaysByIndex = Object.fromEntries(sprintConfig.map((s) => [s.sprintIndex, s.workingDays]));
+
+  plan.capacityRows.forEach((row) => {
+    sprintPeriods.forEach((sp) => {
+      const values = createEmptyCapacityPeriodValues();
+      values.workingDays = workingDaysByIndex[sp.sprintIndex] ?? 0;
+      values.availableCapacity = Math.max(0, values.workingDays - values.daysOff);
+      if (estimationType === "person_days") {
+        values.availableBalance = calculatePlannedCapacity(values.workingDays, values.daysOff, row.loadPercent);
+      }
+      row.periodValues[sp.id] = values;
+    });
+    recomputeCapacityRow(row, plan.periods, estimationType);
+  });
+}
+
 function handleImportJiraBaseUrlBlur() {
   refs.importJiraBaseUrlInput.value = normalizeJiraBaseUrlInput(refs.importJiraBaseUrlInput.value);
   syncImportButtonState();
@@ -459,15 +615,43 @@ function render() {
   positionFabQuarter();
 }
 
+function buildSprintsByAnchor(periods) {
+  const map = {};
+  for (const p of periods) {
+    if (p.kind === "sprint") {
+      const key = `${p.anchorQuarter}_${p.anchorYear}`;
+      if (!map[key]) map[key] = [];
+      map[key].push(p);
+    }
+  }
+  return map;
+}
+
 function recomputeCapacityRow(row, periods, estimationType = getPlanEstimationType()) {
   row.loadPercent = sanitizeLoadPercent(row.loadPercent);
+  const sprintsByAnchor = buildSprintsByAnchor(periods);
+
   periods.forEach((period) => {
     if (!row.periodValues[period.id]) {
       row.periodValues[period.id] = createEmptyCapacityPeriodValues();
     }
     const values = row.periodValues[period.id];
-    values.daysOff = sanitizeNonNegative(values.daysOff);
-    values.workingDays = sanitizeNonNegative(values.workingDays);
+    const isQuarter = period.kind === "quarter" || !period.kind;
+    const anchorKey = `${period.anchorQuarter ?? period.quarter}_${period.anchorYear ?? period.year}`;
+    const linkedSprints = isQuarter ? (sprintsByAnchor[anchorKey] ?? []) : [];
+
+    if (isQuarter && linkedSprints.length > 0) {
+      values.daysOff = linkedSprints.reduce((sum, sp) => {
+        return sum + sanitizeNonNegative(row.periodValues[sp.id]?.daysOff ?? 0);
+      }, 0);
+      values.workingDays = linkedSprints.reduce((sum, sp) => {
+        return sum + sanitizeNonNegative(row.periodValues[sp.id]?.workingDays ?? 0);
+      }, 0);
+    } else {
+      values.daysOff = sanitizeNonNegative(values.daysOff);
+      values.workingDays = sanitizeNonNegative(values.workingDays);
+    }
+
     values.availableCapacity = Math.max(values.workingDays - values.daysOff, 0);
     values.rowEstimationPerDay = sanitizeOptionalNonNegative(values.rowEstimationPerDay ?? values.estimationPerDay);
     if (estimationType === "story_points") {
@@ -512,6 +696,9 @@ async function handleCreatePlan() {
   refs.createPlanTeamEstimationModeSelect.value = periodTeamSettings?.teamEstimationMode || "average";
   refs.createPlanTeamEstimationValueInput.value = String(periodTeamSettings?.teamEstimationPerDay ?? "");
   handleCreatePlanEstimationTypeChange();
+  refs.createPlanUseSprintsCheckbox.checked = false;
+  pendingSprintConfig = null;
+  handleCreatePlanUseSprintsChange();
   refs.createPlanDialog.showModal();
 }
 
@@ -569,6 +756,11 @@ async function submitCreatePlan(event) {
     plan.teamPeriodValues[firstPeriodId].teamEstimationPerDay =
       estimationType === "story_points" && teamEstimationMode === "manual" ? teamEstimationPerDay : "";
   }
+  if (refs.createPlanUseSprintsCheckbox.checked && pendingSprintConfig?.length) {
+    applySprintConfigToPlan(plan, pendingSprintConfig);
+  }
+  pendingSprintConfig = null;
+
   appState.plans.push(plan);
   appState.lastSelectedPlanId = plan.id;
   appState.activeTab = "capacity";
@@ -606,9 +798,13 @@ async function handleAddCapacityRow() {
   const newRow = createCapacityRow(plan.periods);
   newRow.loadPercent = sanitizeLoadPercent(plan.defaultLoadPercent ?? 100);
   const defaultWorkingDays = sanitizeNonNegative(plan.defaultWorkingDays ?? 0);
+  const referenceRow = plan.capacityRows[0] ?? null;
   for (const period of plan.periods) {
     const to = newRow.periodValues[period.id];
-    if (to) {
+    if (!to) continue;
+    if (period.kind === "sprint" && referenceRow) {
+      to.workingDays = sanitizeNonNegative(referenceRow.periodValues[period.id]?.workingDays ?? 0);
+    } else {
       to.workingDays = defaultWorkingDays;
     }
   }
@@ -1419,6 +1615,10 @@ function bindEvents() {
       handleImportJiraBaseUrlBlur,
       handleSettingsEstimationTypeChange,
       handleCreatePlanEstimationTypeChange,
+      handleCreatePlanUseSprintsChange,
+      openSprintSettingsDialog,
+      handleAddSprintRow,
+      submitSprintSettings,
       syncImportButtonState,
       handleTableInput,
       handleCapacityTableClick,

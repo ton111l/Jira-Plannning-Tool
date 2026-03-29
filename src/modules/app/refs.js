@@ -37,6 +37,12 @@ export function cacheRefs(refs) {
   refs.createPlanTeamEstimationValueWrap = document.getElementById("createPlanTeamEstimationValueWrap");
   refs.createPlanTeamEstimationValueInput = document.getElementById("createPlanTeamEstimationValueInput");
   refs.createPlanResourceGroupingTypeSelect = document.getElementById("createPlanResourceGroupingTypeSelect");
+  refs.createPlanUseSprintsCheckbox = document.getElementById("createPlanUseSprintsCheckbox");
+  refs.createPlanSprintSettingsBtn = document.getElementById("createPlanSprintSettingsBtn");
+  refs.sprintSettingsDialog = document.getElementById("sprintSettingsDialog");
+  refs.sprintSettingsForm = document.getElementById("sprintSettingsForm");
+  refs.sprintSettingsTbody = document.getElementById("sprintSettingsTbody");
+  refs.addSprintRowBtn = document.getElementById("addSprintRowBtn");
   refs.createPeriodDialog = document.getElementById("createPeriodDialog");
   refs.createPeriodForm = document.getElementById("createPeriodForm");
   refs.periodQuarterInput = document.getElementById("periodQuarterInput");

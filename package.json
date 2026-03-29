@@ -8,6 +8,7 @@
   },
   "scripts": {
     "dev": "vite",
+    "dev:extension": "vite",
     "build": "vite build",
     "build:watch": "vite build --watch",
     "dev:legacy": "browser-sync start --server --files \"src/**/*\" --port 4173 --no-open",

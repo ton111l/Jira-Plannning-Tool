@@ -110,6 +110,19 @@
           </select>
           <input id="yearInput" class="input" type="number" min="2000" max="2100" />
         </div>
+        <div class="sprint-planning-row">
+          <label class="checkbox-label">
+            <input type="checkbox" id="createPlanUseSprintsCheckbox" />
+            Use Sprints Planning
+          </label>
+          <button
+            type="button"
+            id="createPlanSprintSettingsBtn"
+            class="btn btn-secondary sprint-settings-btn"
+            disabled
+          >Sprints settings</button>
+        </div>
+
         <div id="createPlanWorkingDaysWrap">
           <label for="createPlanWorkingDaysInput">Working days for all rows</label>
           <input
@@ -397,6 +410,36 @@
         </div>
         <div class="modal-actions">
           <button type="submit" value="cancel" class="btn btn-secondary">Cancel</button>
+          <button type="submit" value="apply" class="btn">Apply</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="sprintSettingsDialog" class="modal sprint-settings-modal">
+      <form method="dialog" id="sprintSettingsForm">
+        <h3>Sprints settings</h3>
+        <div class="sprint-settings-table-wrap">
+          <table id="sprintSettingsTable" class="sprint-settings-table">
+            <thead>
+              <tr>
+                <th>Sprint</th>
+                <th>Working days</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="sprintSettingsTbody">
+            </tbody>
+          </table>
+          <button
+            type="button"
+            id="addSprintRowBtn"
+            class="btn btn-secondary sprint-settings-add-btn"
+            title="Add sprint"
+            aria-label="Add sprint row"
+          >+</button>
+        </div>
+        <div class="modal-actions">
+          <button type="submit" value="cancel" formnovalidate class="btn btn-secondary">Cancel</button>
           <button type="submit" value="apply" class="btn">Apply</button>
         </div>
       </form>
