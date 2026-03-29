@@ -589,20 +589,16 @@ async function handleAddCapacityRow() {
     return;
   }
   const estimationType = getPlanEstimationType(plan);
-  const prevRow =
-    plan.capacityRows.length > 0 ? plan.capacityRows[plan.capacityRows.length - 1] : null;
   const newRow = createCapacityRow(plan.periods);
   newRow.loadPercent = sanitizeLoadPercent(plan.defaultLoadPercent ?? 100);
-  if (prevRow) {
-    for (const period of plan.periods) {
-      const from = prevRow.periodValues[period.id];
-      const to = newRow.periodValues[period.id];
-      if (from && to) {
-        to.workingDays = from.workingDays;
-      }
+  const defaultWorkingDays = sanitizeNonNegative(plan.defaultWorkingDays ?? 0);
+  for (const period of plan.periods) {
+    const to = newRow.periodValues[period.id];
+    if (to) {
+      to.workingDays = defaultWorkingDays;
     }
-    recomputeCapacityRow(newRow, plan.periods, estimationType);
   }
+  recomputeCapacityRow(newRow, plan.periods, estimationType);
   plan.capacityRows.push(newRow);
   const regrouped = regroupCapacityRowsByRole(plan);
   if (regrouped) {
