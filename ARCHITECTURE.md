@@ -22,7 +22,7 @@ src/modules/
 │   ├── actions/        # User actions (settings, backlog)
 │   ├── events/         # bindEvents — DOM wiring
 │   ├── render/         # UI: capacity/backlog strategies (by_team / by_roles), ui.js
-│   ├── services/       # metrics.js — aggregations per period
+│   ├── services/       # metrics.js (capacity aggregates); backlogDemand.js (backlog → planned per period)
 │   ├── state.js        # active plan, regroup by role, sanitizers
 │   └── constants.js
 ├── planning/           # Time-mode rules and period factories (see §5)
@@ -45,6 +45,8 @@ Stored in `chrome.storage.local` as part of app state. Key concepts:
 - **`roleOptions[]`** — per-plan list of roles for the capacity Role column. Users can add or edit roles via **+ Add role…** in the capacity row select and manage the full list in **Settings** (create / rename / delete; deleting a role clears `roleId` on rows that used it). Default seed for new plans: Developer, Analyst, QA; see [`createDefaultRoleOptions`](src/modules/models.js).
 - **`teamPeriodValues[periodId]`** — team-level overrides (e.g. team Story Points per day mode).
 - **`backlogRows[]`** — imported or manual issues; **`targetPeriodId`** chosen in the backlog **Period** column (dropdown of `plan.periods` labels). No default: the user must pick a period (empty / placeholder means no demand attributed to any period). **`periodValues[].plannedEstimation`** and **Available balance** (remaining = supply − planned) come from [`applyPlannedFromBacklog`](src/modules/app/services/backlogDemand.js) (By team / By roles as documented there).
+
+**Backlog demand flow:** [`getBacklogRowPeriodId(row, plan)`](src/modules/app/services/backlogDemand.js) resolves which period a row counts toward (only when `targetPeriodId` matches a `plan.periods[].id`). Before capacity render, [`src/app.js`](src/app.js) calls `applyPlannedFromBacklog` so member `plannedEstimation` and team roll-ups match backlog rows for that period. Capacity UI shows **Planned** (`sumPlannedForPeriod` / role-group sums) and **Available balance** as supply minus planned (see `render/capacity/byTeam.js`, `byRoles.js`).
 
 Per-plan settings include: `estimationType`, `resourceGroupingType`, `jiraBaseUrl`, `estimationFieldName`, `lastImportJql`, `defaultWorkingDays`, **`defaultLoadPercent`** (Load % for all capacity rows, default 100; applied to every row on Settings Save), and planning-mode fields below.
 
@@ -139,4 +141,4 @@ Switching `quarter` ↔ `sprint` may require rebuilding `periods` and remapping 
 
 ---
 
-*Last updated to match the planning module layout and quarter/sprint architecture layer.*
+*Last updated: backlog Period column / `backlogDemand.js`, capacity planned-vs-balance; planning module and quarter/sprint layer.*
