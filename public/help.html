@@ -4,6 +4,414 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Instructions — Jira Planning Tool</title>
+    <link rel="stylesheet" href="src/styles.css" />
+    <style>
+      .help-page-wrap {
+        max-width: 46rem;
+        margin: 0 auto;
+        padding: 1.5rem 1.25rem 3rem;
+      }
+      .help-lang-bar {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 8px 12px;
+        margin-bottom: 1.25rem;
+        padding-bottom: 0.75rem;
+        border-bottom: 1px solid #d9d9de;
+      }
+      .help-lang-label {
+        font-size: 13px;
+        font-weight: 600;
+        color: #3d3d4a;
+        margin-right: 4px;
+      }
+      .help-lang-btn {
+        border: 1px solid #696991;
+        background: #fff;
+        border-radius: 8px;
+        padding: 4px 14px;
+        cursor: pointer;
+        font: inherit;
+        font-size: 14px;
+        color: #1a1a1a;
+      }
+      .help-lang-btn:hover {
+        background: #fafafc;
+      }
+      .help-lang-btn[aria-pressed="true"] {
+        background: #e8e8ef;
+        font-weight: 600;
+        border-color: #5a5a72;
+      }
+      .help-doc {
+        line-height: 1.5;
+      }
+      .help-doc h1 {
+        font-size: 1.5rem;
+        font-weight: 700;
+        margin: 0 0 0.75rem;
+        color: #1a1a1a;
+      }
+      .help-doc .help-lead {
+        color: #3d3d4a;
+        margin-bottom: 1.5rem;
+      }
+      .help-doc h2 {
+        font-size: 1.15rem;
+        font-weight: 700;
+        margin: 1.75rem 0 0.5rem;
+        color: #1a1a1a;
+        border-bottom: 1px solid #d9d9de;
+        padding-bottom: 0.35rem;
+      }
+      .help-doc h3 {
+        font-size: 1rem;
+        font-weight: 600;
+        margin: 1rem 0 0.35rem;
+        color: #2a2a38;
+      }
+      .help-doc p {
+        margin: 0.5rem 0;
+      }
+      .help-doc ul {
+        margin: 0.35rem 0 0.75rem;
+        padding-left: 1.35rem;
+      }
+      .help-doc li {
+        margin: 0.25rem 0;
+      }
+      .help-doc kbd,
+      .help-doc .ui-label {
+        font-family: inherit;
+        font-size: 0.95em;
+        font-weight: 600;
+      }
+    </style>
   </head>
-  <body></body>
+  <body>
+    <div class="help-page-wrap">
+      <div class="help-lang-bar" role="group" id="helpLangGroup" aria-label="Language">
+        <span class="help-lang-label" id="helpLangLabel">Language:</span>
+        <button type="button" class="help-lang-btn" data-help-lang="en" aria-pressed="true">Eng</button>
+        <button type="button" class="help-lang-btn" data-help-lang="ru" aria-pressed="false">Ru</button>
+      </div>
+
+      <article id="help-content-en" class="help-doc" lang="en">
+        <h1>Jira Planning Tool — quick guide</h1>
+        <p class="help-lead">
+          This browser extension helps align <strong>team capacity</strong> across periods and a
+          <strong>backlog</strong> with issues tied to plan periods or quarters. Data is stored locally
+          in your browser profile (Chrome / Edge).
+        </p>
+
+        <h2>Opening the app</h2>
+        <p>
+          Open the extension from the toolbar icon and choose
+          <span class="ui-label">Open Jira Planning Tool</span> (or the equivalent action from the
+          extension description). A separate tab opens with the planning UI.
+        </p>
+
+        <h2>Plans</h2>
+        <ul>
+          <li>
+            <span class="ui-label">Create Plan</span> — create a plan: name, start period (quarter and
+            year), default working days, estimation type (Story Points or Man-days), resource grouping,
+            and more.
+          </li>
+          <li>
+            The dropdown next to the button switches between saved plans. Each plan has its own
+            settings and tables.
+          </li>
+          <li>
+            If the plan has no periods or capacity rows yet, an overlay may prompt you — use its
+            buttons (e.g. create plan or period).
+          </li>
+        </ul>
+
+        <h2>Capacity tab</h2>
+        <p>People, roles, and available capacity per period (columns with dates / quarters).</p>
+        <ul>
+          <li>
+            Rows are team members: name, role, load %, working days, days off, estimation per day,
+            and derived fields (available capacity, planned, balance).
+          </li>
+          <li>
+            The <span class="ui-label">+</span> button near the table adds a capacity row; the
+            <span class="ui-label">+</span> on the right adds period (quarter) columns.
+          </li>
+          <li>
+            <span class="ui-label">View</span>: <strong>Full</strong> — full grid;
+            <strong>Compact</strong> — simplified (some per-member and days-off columns hidden); in
+            compact mode the table width follows content instead of stretching.
+          </li>
+          <li>
+            <span class="ui-label">By team</span> / <span class="ui-label">By roles</span> is set in
+            Settings: one team summary or split by role (both Capacity and Backlog).
+          </li>
+        </ul>
+
+        <h2>Backlog for planning tab</h2>
+        <ul>
+          <li>
+            Issue list (key, summary, status, priority, type, estimate). The
+            <span class="ui-label">Period</span> column selects which plan period counts demand toward;
+            without a period the issue does not contribute to “planned” on Capacity.
+          </li>
+          <li>
+            <span class="ui-label">Import backlog from Jira</span> loads issues via JQL (server base URL
+            and the correct estimate field — see below).
+          </li>
+          <li>
+            First column: checkboxes — select one or many rows; the header selects all.
+            <span class="ui-label">Delete selected</span> removes chosen rows after confirmation.
+          </li>
+          <li>
+            Re-import updates existing issues by key and appends new ones. If you deleted an issue
+            locally but it appears in the JQL result again, it is added back.
+          </li>
+        </ul>
+
+        <h2>Settings (gear icon)</h2>
+        <ul>
+          <li><span class="ui-label">Estimation type</span> — Story Points or Man-days for metrics and backlog.</li>
+          <li>
+            For Story Points — how “team Story Points per day” is derived (average across members or a
+            fixed team value).
+          </li>
+          <li>
+            <span class="ui-label">Working days for all rows</span> — default working days for capacity
+            rows; new rows pick this up from Settings.
+          </li>
+          <li>
+            <span class="ui-label">Load (%) for all rows</span> — default load for every row when you
+            save Settings.
+          </li>
+          <li>
+            <span class="ui-label">Resource grouping type</span> — by team or by roles; in by-roles
+            mode you can manage the plan’s role list.
+          </li>
+        </ul>
+
+        <h2>Jira import</h2>
+        <p>In the import dialog, provide:</p>
+        <ul>
+          <li>
+            Your Jira base URL (how you open the instance in the browser). The extension uses the
+            Search API; access must match your logged-in account.
+          </li>
+          <li>JQL — which issues to load (same idea as Jira Issue Navigator).</li>
+          <li>
+            Estimate field depends on plan type: Story Points usually need a custom field id (e.g.
+            <kbd>customfield_…</kbd>); Man-days use a time/estimate field (often
+            <kbd>timeoriginalestimate</kbd> or similar — hints are in the form).
+          </li>
+        </ul>
+        <p>
+          Import does not replace the whole backlog: it merges on the normalized issue key (e.g.
+          <kbd>PROJECT-123</kbd>).
+        </p>
+
+        <h2>Where data lives</h2>
+        <p>
+          Plans and tables are stored in the browser’s local storage (<code>chrome.storage.local</code>).
+          Clearing site data or removing the extension may delete plans — copy important values
+          elsewhere if needed (a dedicated file export may not be available in this version).
+        </p>
+
+        <h2>This page</h2>
+        <p>
+          Opened from the <strong>ℹ️</strong> icon in the main window header. Forms may show extra “?”
+          tooltips next to labels.
+        </p>
+      </article>
+
+      <article id="help-content-ru" class="help-doc" lang="ru" hidden>
+        <h1>Jira Planning Tool — краткая инструкция</h1>
+        <p class="help-lead">
+          Расширение для браузера помогает согласовать <strong>ёмкость команды</strong> по периодам и
+          <strong>бэклог</strong> с привязкой задач к кварталам или периодам плана. Данные хранятся
+          локально в профиле браузера (Chrome / Edge).
+        </p>
+
+        <h2>Как открыть приложение</h2>
+        <p>
+          Откройте расширение через иконку на панели инструментов и выберите действие
+          <span class="ui-label">Open Jira Planning Tool</span> (или аналогичное название из описания
+          расширения). Откроется отдельная вкладка с интерфейсом планирования.
+        </p>
+
+        <h2>Планы</h2>
+        <ul>
+          <li>
+            <span class="ui-label">Create Plan</span> — создать новый план: имя, стартовый период
+            (квартал и год), рабочие дни по умолчанию, тип оценки (Story Points или Man-days), режим
+            группировки ресурсов и др.
+          </li>
+          <li>
+            Выпадающий список рядом с кнопкой создания — переключение между сохранёнными планами. У
+            каждого плана свои настройки и таблицы.
+          </li>
+          <li>
+            Если в плане ещё нет периодов или строк ёмкости, часть экрана может быть перекрыта подсказкой
+            — используйте кнопки на оверлее (например, создать план или период).
+          </li>
+        </ul>
+
+        <h2>Вкладка «Capacity»</h2>
+        <p>Здесь задаются люди, роли и доступная ёмкость по периодам (колонки с датами / кварталами).</p>
+        <ul>
+          <li>
+            Строки — участники: имя, роль, нагрузка в процентах, рабочие дни, выходные, оценка в день и
+            производные поля (доступная ёмкость, план, баланс).
+          </li>
+          <li>
+            Кнопка <span class="ui-label">+</span> у таблицы добавляет строку ёмкости; отдельная
+            <span class="ui-label">+</span> справа — добавление колонок периода (квартала).
+          </li>
+          <li>
+            <span class="ui-label">View</span>: <strong>Full</strong> — полная таблица;
+            <strong>Compact</strong> — упрощённый вид (скрыты часть колонок «на человека» и выходные);
+            ширина таблицы в компактном режиме подстраивается под содержимое.
+          </li>
+          <li>
+            Режим <span class="ui-label">By team</span> / <span class="ui-label">By roles</span> задаётся
+            в настройках: сводка по команде или разбивка по ролям (и в Capacity, и в Backlog).
+          </li>
+        </ul>
+
+        <h2>Вкладка «Backlog for planning»</h2>
+        <ul>
+          <li>
+            Список задач (ключ, summary, статус, приоритет, тип, оценка). Колонка
+            <span class="ui-label">Period</span> — в какой период плана относится спрос по задаче; без
+            выбора периода задача не участвует в расчёте «запланировано» на Capacity.
+          </li>
+          <li>
+            <span class="ui-label">Import backlog from Jira</span> — загрузка задач из Jira по JQL (нужен
+            базовый URL сервера и корректное поле оценки — см. ниже).
+          </li>
+          <li>
+            Первая колонка — чекбоксы: можно выбрать одну или несколько строк, в шапке —
+            «выбрать все». Кнопка <span class="ui-label">Delete selected</span> удаляет выбранные строки
+            из бэклога после подтверждения.
+          </li>
+          <li>
+            Повторный импорт обновляет уже существующие задачи по ключу и добавляет новые. Если задачу
+            удалили локально, но она снова попала в результат JQL, она появится в таблице снова.
+          </li>
+        </ul>
+
+        <h2>Настройки (иконка шестерёнки)</h2>
+        <ul>
+          <li><span class="ui-label">Estimation type</span> — Story Points или Man-days для метрик и бэклога.</li>
+          <li>
+            Для Story Points — режим расчёта «Story Points в день» для команды (среднее по людям или
+            фиксированное значение).
+          </li>
+          <li>
+            <span class="ui-label">Working days for all rows</span> — базовое число рабочих дней для
+            строк ёмкости; для новых строк оно подставляется из этого значения.
+          </li>
+          <li>
+            <span class="ui-label">Load (%) for all rows</span> — процент загрузки по умолчанию для всех
+            строк при сохранении настроек.
+          </li>
+          <li>
+            <span class="ui-label">Resource grouping type</span> — «по команде» или «по ролям»; при
+            режиме по ролям доступно управление списком ролей плана.
+          </li>
+        </ul>
+
+        <h2>Импорт из Jira</h2>
+        <p>В диалоге импорта укажите:</p>
+        <ul>
+          <li>
+            Базовый URL вашего Jira (как вы открываете инстанс в браузере). Расширение использует API
+            поиска; доступ и права должны соответствовать вашей учётной записи в браузере.
+          </li>
+          <li>JQL — какие задачи загрузить (как в Jira Issue Navigator).</li>
+          <li>
+            Поле оценки зависит от типа оценки плана: для Story Points обычно нужен id кастомного поля
+            (например, <kbd>customfield_…</kbd>); для Man-days — поле времени/оценки (часто
+            <kbd>timeoriginalestimate</kbd> или аналог; подсказки есть в форме).
+          </li>
+        </ul>
+        <p>
+          Импорт не заменяет весь бэклог целиком: выполняется слияние по нормализованному ключу задачи
+          (например, <kbd>PROJECT-123</kbd>).
+        </p>
+
+        <h2>Где хранятся данные</h2>
+        <p>
+          Планы и таблицы сохраняются в локальном хранилище браузера (<code>chrome.storage.local</code>).
+          Очистка данных сайта или удаление расширения может привести к потере планов — при необходимости
+          заранее экспортируйте или зафиксируйте важные значения вне расширения (отдельного экспорта в
+          файле в текущей версии может не быть).
+        </p>
+
+        <h2>Эта страница</h2>
+        <p>
+          Справка открывается из иконки <strong>ℹ️</strong> в шапке основного окна. Дополнительные подсказки
+          по полям встречаются в виде значка «?» рядом с подписями в формах.
+        </p>
+      </article>
+    </div>
+
+    <script>
+      (function () {
+        var STORAGE_KEY = "helpPageLang";
+        var enEl = document.getElementById("help-content-en");
+        var ruEl = document.getElementById("help-content-ru");
+        var labelEl = document.getElementById("helpLangLabel");
+        var btnEn = document.querySelector('[data-help-lang="en"]');
+        var btnRu = document.querySelector('[data-help-lang="ru"]');
+
+        var langGroup = document.getElementById("helpLangGroup");
+        var STR = {
+          en: {
+            title: "Instructions — Jira Planning Tool",
+            langLabel: "Language:",
+            ariaGroup: "Language"
+          },
+          ru: {
+            title: "Инструкция — Jira Planning Tool",
+            langLabel: "Язык:",
+            ariaGroup: "Язык"
+          }
+        };
+
+        function apply(lang) {
+          var isEn = lang === "en";
+          enEl.hidden = !isEn;
+          ruEl.hidden = isEn;
+          btnEn.setAttribute("aria-pressed", isEn ? "true" : "false");
+          btnRu.setAttribute("aria-pressed", isEn ? "false" : "true");
+          document.documentElement.lang = isEn ? "en" : "ru";
+          document.title = isEn ? STR.en.title : STR.ru.title;
+          labelEl.textContent = isEn ? STR.en.langLabel : STR.ru.langLabel;
+          langGroup.setAttribute("aria-label", isEn ? STR.en.ariaGroup : STR.ru.ariaGroup);
+          try {
+            localStorage.setItem(STORAGE_KEY, lang);
+          } catch (_) {}
+        }
+
+        var saved = "en";
+        try {
+          saved = localStorage.getItem(STORAGE_KEY) || "en";
+        } catch (_) {}
+        if (saved !== "en" && saved !== "ru") {
+          saved = "en";
+        }
+        apply(saved);
+
+        btnEn.addEventListener("click", function () {
+          apply("en");
+        });
+        btnRu.addEventListener("click", function () {
+          apply("ru");
+        });
+      })();
+    </script>
+  </body>
 </html>
