@@ -139,7 +139,7 @@ Switching `quarter` ↔ `sprint` may require rebuilding `periods` and remapping 
 ### 8.1 Static help page (`public/help.html`)
 
 - Vite copies everything under [`public/`](public/) to the **root** of `dist/`, so [`public/help.html`](public/help.html) becomes **`dist/help.html`** (alongside `dist/src/…`).
-- The page is plain HTML with a small **inline script** (not bundled as a module): bilingual body copy in **`#help-content-en`** (English, **default**) and **`#help-content-ru`** (Russian). Toolbar buttons **Eng** / **Ru** toggle visibility and update `<html lang>`, `document.title`, and `aria-pressed`. Language choice is persisted in **`localStorage`** under **`helpPageLang`** (`en` | `ru`).
+- The page is plain HTML plus [`public/help-page.js`](public/help-page.js) (copied next to `dist/help.html` as `dist/help-page.js`). **Inline `<script>` in HTML is not used:** Chrome extension MV3 **CSP** blocks inline scripts on `chrome-extension://` pages, so language switching lives in the external file. Bilingual body copy in **`#help-content-en`** (English, **default**) and **`#help-content-ru`** (Russian). Toolbar buttons **Eng** / **Ru** toggle visibility and update `<html lang>`, `document.title`, and `aria-pressed`. Language choice is persisted in **`localStorage`** under **`helpPageLang`** (`en` | `ru`).
 - Styling: `<link href="src/styles.css">` resolves from `dist/help.html` to `dist/src/styles.css`; help-only layout rules live in a `<style>` block in the same file.
 - Entry point from the app: [`src/app.html`](src/app.html) top bar — link with **ℹ️** (left of Settings) uses `href="../help.html"` and `target="_blank"` so the guide opens in a new tab (`chrome-extension://…/help.html`).
 
