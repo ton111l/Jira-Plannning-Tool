@@ -154,4 +154,4 @@ Switching `quarter` ↔ `sprint` may require rebuilding `periods` and remapping 
 
 ---
 
-*Last updated: static bilingual help page (`public/help.html`, `helpPageLang`), toolbar ℹ️ link; backlog bulk UI; capacity compact width; planning module and quarter/sprint layer.*
+*Last updated: static bilingual help page (`public/help.html`, `helpPageLang`), toolbar ℹ️ link; backlog bulk UI; capacity compact width; re-import after local delete; planning module and quarter/sprint layer.*
