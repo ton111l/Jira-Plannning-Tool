@@ -44,8 +44,13 @@ export function renderTeamName({ refs, plan }) {
 }
 
 export function renderSettings({ refs, plan, appState }) {
+  const hasSprints = plan?.periods?.some((p) => p.kind === "sprint") ?? false;
   const estimationType = plan?.estimationType || appState.estimationType || "story_points";
   refs.estimationTypeSelect.value = estimationType;
+  const personDaysOption = refs.estimationTypeSelect.querySelector('option[value="person_days"]');
+  if (personDaysOption) {
+    personDaysOption.disabled = hasSprints;
+  }
   const firstPeriodId = plan?.periods?.[0]?.id || "";
   const periodTeamSettings = firstPeriodId ? plan?.teamPeriodValues?.[firstPeriodId] : null;
   const teamMode = periodTeamSettings?.teamEstimationMode || "average";
@@ -56,6 +61,7 @@ export function renderSettings({ refs, plan, appState }) {
     estimationType === "story_points" && teamMode === "manual" ? "flex" : "none";
   refs.settingsTeamEstimationValueInput.value = String(teamValue);
   refs.settingsWorkingDaysInput.value = String(plan?.defaultWorkingDays ?? 0);
+  refs.settingsWorkingDaysInput.disabled = hasSprints;
   if (refs.settingsDefaultLoadPercentSelect) {
     const raw = plan?.defaultLoadPercent ?? 100;
     const n = Number(raw);

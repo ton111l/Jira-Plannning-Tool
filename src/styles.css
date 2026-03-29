@@ -682,6 +682,86 @@ a.toolbar-help-link {
   margin-top: 6px;
 }
 
+.sprint-planning-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 0;
+}
+
+.sprint-settings-btn {
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.sprint-settings-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.checkbox-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  user-select: none;
+  font-size: 14px;
+}
+
+.sprint-settings-modal {
+  min-width: 320px;
+}
+
+.sprint-settings-table-wrap {
+  position: relative;
+  padding-bottom: 40px;
+}
+
+.sprint-settings-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.sprint-settings-table th {
+  text-align: left;
+  padding: 5px 8px;
+  border-bottom: 1px solid #cbcbd4;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.sprint-settings-cell {
+  padding: 4px 8px;
+  vertical-align: middle;
+  border-bottom: 1px solid #ebebf0;
+}
+
+.sprint-settings-action-cell {
+  width: 28px;
+  text-align: center;
+  padding: 2px 4px;
+}
+
+.sprint-settings-days-input {
+  width: 90px;
+}
+
+.sprint-settings-add-btn {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  font-size: 20px;
+  line-height: 1;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .import-meta {
   display: flex;
   justify-content: space-between;
