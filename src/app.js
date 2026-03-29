@@ -8,6 +8,7 @@ import {
   generateId
 } from "./modules/models.js";
 import { migrateLegacyRolesToCatalog } from "./modules/app/roleCatalog.js";
+import { resolveBacklogPeriodSelectValue } from "./modules/app/render/shared/backlogHelpers.js";
 import { calculatePlannedCapacity, sanitizeLoadPercent, sanitizeNonNegative } from "./modules/calculations.js";
 import { loadState, saveState } from "./modules/storage.js";
 import { importIssuesFromJira } from "./modules/jira.js";
@@ -26,6 +27,7 @@ import {
 import { bindEvents as bindAppEvents } from "./modules/app/events/bindEvents.js";
 import { openImportDialogAction } from "./modules/app/actions/backlog.js";
 import { applySettingsChanges } from "./modules/app/actions/settings.js";
+import { applyPlannedFromBacklog } from "./modules/app/services/backlogDemand.js";
 import { renderBacklogTable as renderBacklogTableView } from "./modules/app/render/backlog/index.js";
 import { renderCapacityTable as renderCapacityTableView } from "./modules/app/render/capacity/index.js";
 import {
@@ -192,6 +194,35 @@ function buildRoleSelect({ value, dataset = {}, roleOptions = [] }) {
   return select;
 }
 
+function buildBacklogPeriodSelect({ row, plan, dataset = {} }) {
+  const select = document.createElement("select");
+  select.className = "cell-select";
+  const periods = plan?.periods || [];
+  if (periods.length === 0) {
+    const opt = document.createElement("option");
+    opt.value = "";
+    opt.textContent = "No period";
+    select.appendChild(opt);
+    select.disabled = true;
+  } else {
+    const ph = document.createElement("option");
+    ph.value = "";
+    ph.textContent = "Select period";
+    select.appendChild(ph);
+    for (const p of periods) {
+      const opt = document.createElement("option");
+      opt.value = p.id;
+      opt.textContent = p.label;
+      select.appendChild(opt);
+    }
+    select.value = resolveBacklogPeriodSelectValue(row, plan);
+  }
+  for (const [key, datasetValue] of Object.entries(dataset)) {
+    select.dataset[key] = datasetValue;
+  }
+  return select;
+}
+
 function buildPercentSelect({ value, dataset = {} }) {
   const select = document.createElement("select");
   select.className = "cell-select";
@@ -239,6 +270,7 @@ function renderBacklogTable() {
     estimationHeader: getEstimationUnitLabel(),
     buildCellInput,
     buildCellSelect,
+    buildBacklogPeriodSelect,
     estimationType: getPlanEstimationType(activePlan),
     resourceGroupingType: getPlanResourceGroupingType(activePlan),
     roleOptions: getBacklogRoleColumnLabels(activePlan)
@@ -413,6 +445,10 @@ function render() {
   renderTabs();
   renderPlanSelect();
   renderTeamName();
+  const activePlanForDemand = getActivePlan();
+  if (activePlanForDemand?.periods?.length && activePlanForDemand.capacityRows?.length) {
+    applyPlannedFromBacklog(activePlanForDemand, getPlanResourceGroupingType(activePlanForDemand));
+  }
   renderCapacityTable();
   renderCapacityOverlay();
   renderBacklogTable();
@@ -882,6 +918,11 @@ async function handleCapacityTableClick(event) {
         delete row.periodValues[periodId];
         recomputeCapacityRow(row, activePlan.periods, getPlanEstimationType(activePlan));
       });
+      (activePlan.backlogRows || []).forEach((brow) => {
+        if (brow.targetPeriodId === periodId) {
+          brow.targetPeriodId = "";
+        }
+      });
       touchPlan(activePlan);
       await persistAndRender(`Quarter ${removedPeriod.label} removed.`, "success");
     });
@@ -941,6 +982,10 @@ async function handleTableInput(event) {
   }
 
   touchPlan(plan);
+  if (section === "backlog" && field === "targetPeriodId") {
+    await persistAndRender();
+    return;
+  }
   const isTextInput = target instanceof HTMLInputElement && target.type === "text";
   const isSelectInput = target instanceof HTMLSelectElement;
   const shouldRenderForRoleGrouping =
@@ -1126,7 +1171,8 @@ async function submitImport(event) {
         addedCount += 1;
         const newRow = createBacklogRow({
           ...jiraRow,
-          key: normalizedImportedKey
+          key: normalizedImportedKey,
+          targetPeriodId: ""
         });
         plan.backlogRows.push(newRow);
         if (normalizedImportedKey) {

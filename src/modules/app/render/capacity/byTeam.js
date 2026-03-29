@@ -1,5 +1,7 @@
 import { sanitizeNonNegative } from "../../../calculations.js";
+import { sumPlannedForPeriod } from "../../services/backlogDemand.js";
 import { buildPeriodMetrics } from "../../services/metrics.js";
+import { asNumber } from "../shared/backlogHelpers.js";
 
 export function renderCapacityByTeam({
   refs,
@@ -348,7 +350,7 @@ export function renderCapacityByTeam({
         plannedTeamCell.rowSpan = groupSpan;
         plannedTeamCell.appendChild(
           buildCellInput({
-            value: "",
+            value: String(sumPlannedForPeriod(plan, period.id)),
             dataset: { section: "capacity", rowId: capacityRow.id, field: "plannedEstimationTeam", periodId: period.id },
             readOnly: true
           })
@@ -358,15 +360,18 @@ export function renderCapacityByTeam({
 
       const balanceCell = document.createElement("td");
       balanceCell.className = "period-value-cell period-value-cell-wide";
-      const linkedMemberBalanceValue =
+      const supplyMember =
         estimationType === "story_points"
           ? rowEstimationPerDay === "" || rowEstimationPerDay === undefined
             ? ""
             : Number((sanitizeNonNegative(values.availableCapacity) * sanitizeNonNegative(rowEstimationPerDay)).toFixed(2))
           : values.availableBalance ?? values.plannedCapacity ?? 0;
+      const plannedMember = asNumber(values.plannedEstimation);
+      const remainingMember =
+        supplyMember === "" || supplyMember === undefined ? "" : Number((sanitizeNonNegative(supplyMember) - plannedMember).toFixed(2));
       balanceCell.appendChild(
         buildCellInput({
-          value: linkedMemberBalanceValue,
+          value: remainingMember,
           dataset: { section: "capacity", rowId: capacityRow.id, field: "availableBalance", periodId: period.id },
           readOnly: true
         })
@@ -375,7 +380,7 @@ export function renderCapacityByTeam({
 
       if (isGroupStart) {
         const groupedMetrics = periodTeamMetrics[period.id];
-        const linkedTeamBalanceValue =
+        const supplyTeam =
           estimationType === "story_points"
             ? groupedMetrics?.estimationTeamValue === "" || groupedMetrics?.estimationTeamValue === undefined
               ? ""
@@ -386,12 +391,15 @@ export function renderCapacityByTeam({
                   ).toFixed(2)
                 )
             : groupedMetrics?.availableBalanceTotal ?? 0;
+        const plannedTeam = sumPlannedForPeriod(plan, period.id);
+        const remainingTeam =
+          supplyTeam === "" || supplyTeam === undefined ? "" : Number((sanitizeNonNegative(supplyTeam) - plannedTeam).toFixed(2));
         const balanceTeamCell = document.createElement("td");
         balanceTeamCell.className = "period-value-cell period-value-cell-wide";
         balanceTeamCell.rowSpan = groupSpan;
         balanceTeamCell.appendChild(
           buildCellInput({
-            value: linkedTeamBalanceValue,
+            value: remainingTeam,
             dataset: { section: "capacity", rowId: capacityRow.id, field: "availableBalanceTeam", periodId: period.id },
             readOnly: true
           })
