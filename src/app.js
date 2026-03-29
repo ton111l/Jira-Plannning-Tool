@@ -19,6 +19,7 @@ import {
   positionFabQuarter as positionFabQuarterView,
   renderBacklogOverlay as renderBacklogOverlayView,
   renderCapacityOverlay as renderCapacityOverlayView,
+  renderCapacityViewMode as renderCapacityViewModeView,
   renderPlanSelect as renderPlanSelectView,
   renderSettings as renderSettingsView,
   renderTabs as renderTabsView,
@@ -450,9 +451,11 @@ function render() {
     applyPlannedFromBacklog(activePlanForDemand, getPlanResourceGroupingType(activePlanForDemand));
   }
   renderCapacityTable();
+  renderCapacityViewModeView({ refs, plan: getActivePlan() });
   renderCapacityOverlay();
   renderBacklogTable();
   renderBacklogOverlay();
+  updateBacklogBulkActionsState();
   positionFabQuarter();
 }
 
@@ -571,6 +574,17 @@ async function submitCreatePlan(event) {
   appState.activeTab = "capacity";
   refs.createPlanDialog.close();
   await persistAndRender("Plan created.", "success");
+}
+
+async function handleCapacityTableViewModeChange(event) {
+  const plan = getActivePlan();
+  if (!plan?.periods?.length) {
+    return;
+  }
+  const value = event.target.value === "compact" ? "compact" : "full";
+  plan.capacityTableViewMode = value;
+  touchPlan(plan);
+  await persistAndRender();
 }
 
 async function handlePlanSelect(event) {
@@ -696,6 +710,71 @@ async function handleBacklogOverlayAction() {
     return;
   }
   openImportDialog();
+}
+
+function syncBacklogSelectAllState() {
+  const table = refs.backlogTable;
+  const selectAll = table.querySelector('[data-backlog-select="all"]');
+  if (!selectAll) {
+    return;
+  }
+  const boxes = [...table.querySelectorAll('tbody input[data-backlog-select="row"]')];
+  const n = boxes.length;
+  const checked = boxes.filter((b) => b.checked).length;
+  selectAll.checked = n > 0 && checked === n;
+  selectAll.indeterminate = checked > 0 && checked < n;
+}
+
+function updateBacklogBulkActionsState() {
+  if (!refs.backlogDeleteSelectedBtn) {
+    return;
+  }
+  const n = refs.backlogTable.querySelectorAll('input[data-backlog-select="row"]:checked').length;
+  refs.backlogDeleteSelectedBtn.disabled = n === 0;
+}
+
+function handleBacklogSelectionChange(event) {
+  const t = event.target;
+  if (!(t instanceof HTMLInputElement) || t.type !== "checkbox") {
+    return;
+  }
+  if (t.dataset.backlogSelect === "all") {
+    const checked = t.checked;
+    refs.backlogTable.querySelectorAll('input[data-backlog-select="row"]').forEach((cb) => {
+      cb.checked = checked;
+    });
+    t.indeterminate = false;
+    updateBacklogBulkActionsState();
+    return;
+  }
+  if (t.dataset.backlogSelect === "row") {
+    syncBacklogSelectAllState();
+    updateBacklogBulkActionsState();
+  }
+}
+
+function handleDeleteSelectedBacklogRows() {
+  const plan = getActivePlan();
+  if (!plan?.backlogRows?.length) {
+    return;
+  }
+  const selectedIds = new Set(
+    [...refs.backlogTable.querySelectorAll('input[data-backlog-select="row"]:checked')].map(
+      (cb) => cb.dataset.rowId
+    )
+  );
+  if (!selectedIds.size) {
+    return;
+  }
+  const n = selectedIds.size;
+  openDeleteConfirmDialog(
+    n === 1 ? "Remove this issue from the backlog?" : `Remove ${n} issues from the backlog?`,
+    async () => {
+      plan.backlogRows = plan.backlogRows.filter((r) => !selectedIds.has(r.id));
+      touchPlan(plan);
+      await persistAndRender("Removed from backlog.", "success");
+    }
+  );
 }
 
 function openDeleteConfirmDialog(message, onConfirm) {
@@ -1344,6 +1423,9 @@ function bindEvents() {
       handleTableInput,
       handleCapacityTableClick,
       handleTeamNameInput,
+      handleCapacityTableViewModeChange,
+      handleBacklogSelectionChange,
+      handleDeleteSelectedBacklogRows,
       persistAndRender
     }
   });
@@ -1428,6 +1510,9 @@ async function init() {
         ? sanitizeNonNegative(plan.capacityRows[0].periodValues[firstPeriodId].workingDays)
         : 0;
       plan.defaultWorkingDays = inferredWorkingDays;
+    }
+    if (plan.capacityTableViewMode !== "compact" && plan.capacityTableViewMode !== "full") {
+      plan.capacityTableViewMode = "full";
     }
     if (typeof plan.defaultLoadPercent !== "number" || Number.isNaN(plan.defaultLoadPercent)) {
       const inferred = plan.capacityRows?.[0]?.loadPercent;

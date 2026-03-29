@@ -13,10 +13,12 @@ export function renderTabs({ refs, appState }) {
 export function renderPlanSelect({ refs, appState, activePlan }) {
   refs.planSelect.innerHTML = "";
 
-  const placeholder = document.createElement("option");
-  placeholder.value = "";
-  placeholder.textContent = "Select Plan";
-  refs.planSelect.appendChild(placeholder);
+  if (!appState.plans.length) {
+    refs.planSelect.hidden = true;
+    return;
+  }
+
+  refs.planSelect.hidden = false;
 
   for (const plan of appState.plans) {
     const option = document.createElement("option");
@@ -26,6 +28,10 @@ export function renderPlanSelect({ refs, appState, activePlan }) {
       option.selected = true;
     }
     refs.planSelect.appendChild(option);
+  }
+
+  if (activePlan) {
+    refs.planSelect.value = activePlan.id;
   }
 }
 
@@ -97,6 +103,15 @@ export function renderSettingsRolesList({ refs, plan }) {
   }
 }
 
+export function renderCapacityViewMode({ refs, plan }) {
+  if (!refs.capacityTableViewModeSelect) {
+    return;
+  }
+  const hasPeriods = Boolean(plan?.periods?.length);
+  refs.capacityTableViewModeSelect.disabled = !hasPeriods;
+  refs.capacityTableViewModeSelect.value = plan?.capacityTableViewMode === "compact" ? "compact" : "full";
+}
+
 export function renderCapacityOverlay({ refs, plan }) {
   const hasPlan = Boolean(plan);
   const hasPeriods = Boolean(plan?.periods?.length);
@@ -133,6 +148,9 @@ export function renderBacklogOverlay({ refs, plan }) {
   refs.backlogOverlay.classList.toggle("active", showOverlay);
   refs.backlogTableWrap.classList.toggle("table-wrap-blur", showOverlay);
   refs.openImportModalBtn.style.display = showOverlay ? "none" : "inline-block";
+  if (refs.backlogBulkActions) {
+    refs.backlogBulkActions.hidden = showOverlay;
+  }
 
   if (!showOverlay) {
     return;

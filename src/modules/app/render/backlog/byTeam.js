@@ -10,11 +10,22 @@ export function renderImportBacklogByTeam({
 }) {
   const estimationUnit = getEstimationUnitByType(estimationType);
   const baseHeaders = ["Key", "Summary", "Status", "Priority", "IssueType", estimationHeader, "Period"];
-  const totalColumns = baseHeaders.length + 2;
+  const totalColumns = baseHeaders.length + 2 + 1;
 
   const thead = document.createElement("thead");
   const tbody = document.createElement("tbody");
   const singleHeader = document.createElement("tr");
+
+  const selectAllTh = document.createElement("th");
+  selectAllTh.className = "backlog-col-select";
+  const selectAllInput = document.createElement("input");
+  selectAllInput.type = "checkbox";
+  selectAllInput.setAttribute("aria-label", "Select all rows");
+  selectAllInput.title = "Select all";
+  selectAllInput.dataset.backlogSelect = "all";
+  selectAllTh.appendChild(selectAllInput);
+  singleHeader.appendChild(selectAllTh);
+
   const effectiveTitle = `Effective ${estimationUnit}`;
   const headerLabels = [...baseHeaders, "Team allocation (%)", effectiveTitle];
   headerLabels.forEach((label) => {
@@ -58,6 +69,16 @@ export function renderImportBacklogByTeam({
   plan.backlogRows.forEach((backlogRow) => {
     const tr = document.createElement("tr");
     const baseEstimation = asNumber(backlogRow.estimation);
+
+    const selectTd = document.createElement("td");
+    selectTd.className = "backlog-col-select";
+    const rowCb = document.createElement("input");
+    rowCb.type = "checkbox";
+    rowCb.setAttribute("aria-label", "Select row");
+    rowCb.dataset.backlogSelect = "row";
+    rowCb.dataset.rowId = backlogRow.id;
+    selectTd.appendChild(rowCb);
+    tr.appendChild(selectTd);
 
     ["key", "summary", "status", "priority", "issueType", "estimation"].forEach((field) => {
       const td = document.createElement("td");
