@@ -5,10 +5,11 @@ export function renderImportBacklogByTeam({
   plan,
   estimationHeader,
   estimationType,
-  buildCellInput
+  buildCellInput,
+  buildBacklogPeriodSelect
 }) {
   const estimationUnit = getEstimationUnitByType(estimationType);
-  const baseHeaders = ["Key", "Summary", "Status", "Priority", "IssueType", estimationHeader];
+  const baseHeaders = ["Key", "Summary", "Status", "Priority", "IssueType", estimationHeader, "Period"];
   const totalColumns = baseHeaders.length + 2;
 
   const thead = document.createElement("thead");
@@ -28,8 +29,11 @@ export function renderImportBacklogByTeam({
       help.tabIndex = 0;
       help.setAttribute("aria-label", `Help: ${effectiveTitle}`);
       const unitWord = estimationType === "person_days" ? "Man-days" : "Story Points";
-      help.dataset.tooltip = `Read-only. Formula: Estimation × (Team allocation % ÷ 100). Example: 8 ${unitWord} with 50% team allocation → 4 effective.`;
-      help.textContent = "?";
+      help.appendChild(document.createTextNode("?"));
+      const bubble = document.createElement("span");
+      bubble.className = "help-tooltip-bubble";
+      bubble.textContent = `Read-only. Formula: Estimation × (Team allocation % ÷ 100). Example: 8 ${unitWord} with 50% team allocation → 4 effective.`;
+      help.appendChild(bubble);
       wrap.appendChild(help);
       th.appendChild(wrap);
     } else {
@@ -66,6 +70,17 @@ export function renderImportBacklogByTeam({
       );
       tr.appendChild(td);
     });
+
+    const periodTd = document.createElement("td");
+    periodTd.className = "backlog-col-period";
+    periodTd.appendChild(
+      buildBacklogPeriodSelect({
+        row: backlogRow,
+        plan,
+        dataset: { section: "backlog", rowId: backlogRow.id, field: "targetPeriodId" }
+      })
+    );
+    tr.appendChild(periodTd);
 
     const teamAllocationPercent = backlogRow.teamAllocationPercent === "" || backlogRow.teamAllocationPercent === undefined
       ? 100

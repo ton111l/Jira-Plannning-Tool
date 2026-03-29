@@ -242,6 +242,12 @@ body {
   width: 72px;
 }
 
+#backlogTable.backlog-import-table th.backlog-col-period,
+#backlogTable.backlog-import-table td.backlog-col-period {
+  min-width: 120px;
+  width: 120px;
+}
+
 #backlogTable.backlog-import-table th.backlog-role-group {
   min-width: 136px;
 }
@@ -553,6 +559,40 @@ body {
 
 .help-tooltip:focus-visible {
   outline: 1px solid #7d7db6;
+}
+
+/* Real DOM bubble: `content: attr(data-tooltip)` is unreliable on JS-created nodes in Chromium. */
+.help-tooltip-bubble {
+  position: absolute;
+  left: 0;
+  top: calc(100% + 8px);
+  bottom: auto;
+  width: 280px;
+  max-width: min(280px, 80vw);
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: #2a2a38;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.35;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.2);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease;
+  z-index: 1000;
+  text-align: left;
+  white-space: normal;
+}
+
+.help-tooltip:hover .help-tooltip-bubble,
+.help-tooltip:focus-visible .help-tooltip-bubble {
+  opacity: 1;
+}
+
+.help-tooltip:has(.help-tooltip-bubble)::after {
+  content: none;
+  display: none;
 }
 
 .help-tooltip::after {

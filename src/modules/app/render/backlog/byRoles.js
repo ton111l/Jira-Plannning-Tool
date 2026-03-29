@@ -6,7 +6,8 @@ export function renderImportBacklogByRoles({
   estimationHeader,
   estimationType,
   roleOptions,
-  buildCellInput
+  buildCellInput,
+  buildBacklogPeriodSelect
 }) {
   const estimationUnit = getEstimationUnitByType(estimationType);
   const roleColumns = roleOptions.map((role) => ({
@@ -17,7 +18,7 @@ export function renderImportBacklogByRoles({
 
   const thead = document.createElement("thead");
   const tbody = document.createElement("tbody");
-  const baseHeaders = ["Key", "Summary", "Status", "Priority", "IssueType", estimationHeader];
+  const baseHeaders = ["Key", "Summary", "Status", "Priority", "IssueType", estimationHeader, "Period"];
   const totalColumns = baseHeaders.length + roleColumns.length * 2;
 
   const topHeader = document.createElement("tr");
@@ -31,6 +32,7 @@ export function renderImportBacklogByRoles({
     if (label === "IssueType") th.className = "backlog-col-issuetype";
     if (label === "Priority") th.className = "backlog-col-priority";
     if (label === estimationHeader) th.className = "backlog-col-estimation";
+    if (label === "Period") th.className = "backlog-col-period";
     topHeader.appendChild(th);
   });
   roleColumns.forEach((column) => {
@@ -83,6 +85,17 @@ export function renderImportBacklogByRoles({
       );
       tr.appendChild(td);
     });
+
+    const periodTd = document.createElement("td");
+    periodTd.className = "backlog-col-period";
+    periodTd.appendChild(
+      buildBacklogPeriodSelect({
+        row: backlogRow,
+        plan,
+        dataset: { section: "backlog", rowId: backlogRow.id, field: "targetPeriodId" }
+      })
+    );
+    tr.appendChild(periodTd);
 
     roleColumns.forEach((column) => {
       const splitPercent = asNumber(backlogRow[column.splitField]);
