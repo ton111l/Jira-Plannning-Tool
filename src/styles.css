@@ -510,6 +510,13 @@ body {
   border-radius: 4px;
 }
 
+a.toolbar-help-link {
+  text-decoration: none;
+  color: inherit;
+  font-size: 20px;
+  line-height: 1;
+}
+
 .toolbar-glyph-btn svg {
   width: 18px;
   height: 18px;
