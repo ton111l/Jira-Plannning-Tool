@@ -39,6 +39,13 @@ export function cacheRefs(refs) {
   refs.createPlanResourceGroupingTypeSelect = document.getElementById("createPlanResourceGroupingTypeSelect");
   refs.createPlanUseSprintsCheckbox = document.getElementById("createPlanUseSprintsCheckbox");
   refs.createPlanSprintSettingsBtn = document.getElementById("createPlanSprintSettingsBtn");
+  refs.createPlanUseBuffersCheckbox = document.getElementById("createPlanUseBuffersCheckbox");
+  refs.createPlanBufferSettingsBtn = document.getElementById("createPlanBufferSettingsBtn");
+  refs.bufferSettingsDialog = document.getElementById("bufferSettingsDialog");
+  refs.bufferSettingsForm = document.getElementById("bufferSettingsForm");
+  refs.bufferSettingsTbody = document.getElementById("bufferSettingsTbody");
+  refs.addBufferRowBtn = document.getElementById("addBufferRowBtn");
+  refs.bufferSettingsTotalPercentInput = document.getElementById("bufferSettingsTotalPercentInput");
   refs.sprintSettingsDialog = document.getElementById("sprintSettingsDialog");
   refs.sprintSettingsForm = document.getElementById("sprintSettingsForm");
   refs.sprintSettingsTbody = document.getElementById("sprintSettingsTbody");

@@ -54,6 +54,7 @@ let pendingBulkRowEstimationPeriodId = null;
 let pendingAddRoleRowId = null;
 /** Saved sprint rows from Sprints Settings dialog: Array<{ sprintIndex: number, workingDays: number }> | null */
 let pendingSprintConfig = null;
+let pendingBufferTotalPercent = 0;
 function cacheRefs() {
   cacheAppRefs(refs);
 }
@@ -412,6 +413,11 @@ function handleCreatePlanUseSprintsChange() {
   }
 }
 
+function handleCreatePlanUseBuffersChange() {
+  const enabled = refs.createPlanUseBuffersCheckbox.checked;
+  refs.createPlanBufferSettingsBtn.disabled = !enabled;
+}
+
 function buildSprintSettingsRow(sprintNumber) {
   const tr = document.createElement("tr");
 
@@ -479,10 +485,92 @@ function openSprintSettingsDialog() {
   refs.sprintSettingsDialog.showModal();
 }
 
+function buildBufferSettingsRow(bufferNumber) {
+  const tr = document.createElement("tr");
+
+  const nameTd = document.createElement("td");
+  nameTd.className = "sprint-settings-cell";
+  const nameInput = document.createElement("input");
+  nameInput.type = "text";
+  nameInput.className = "input";
+  nameInput.setAttribute("aria-label", `Buffer name ${bufferNumber}`);
+  nameTd.appendChild(nameInput);
+  tr.appendChild(nameTd);
+
+  const percentTd = document.createElement("td");
+  percentTd.className = "sprint-settings-cell";
+  const percentInput = document.createElement("input");
+  percentInput.type = "number";
+  percentInput.min = "0";
+  percentInput.step = "0.1";
+  percentInput.className = "input sprint-settings-days-input";
+  percentInput.setAttribute("aria-label", `Buffer percent ${bufferNumber}`);
+  percentTd.appendChild(percentInput);
+  tr.appendChild(percentTd);
+
+  const actionTd = document.createElement("td");
+  actionTd.className = "sprint-settings-cell sprint-settings-action-cell";
+  tr.appendChild(actionTd);
+
+  return tr;
+}
+
+function updateAllBuffersTotal() {
+  const rows = Array.from(refs.bufferSettingsTbody.querySelectorAll("tr"));
+  const total = rows.reduce((sum, row) => {
+    const percentInput = row.querySelector(".sprint-settings-days-input");
+    return sum + sanitizeNonNegative(percentInput?.value ?? 0);
+  }, 0);
+  refs.bufferSettingsTotalPercentInput.value = String(Number(total.toFixed(2)));
+}
+
+function updateBufferDeleteButton() {
+  const rows = Array.from(refs.bufferSettingsTbody.querySelectorAll("tr"));
+  rows.forEach((row, index) => {
+    const actionTd = row.querySelector(".sprint-settings-action-cell");
+    if (!actionTd) return;
+    actionTd.innerHTML = "";
+    if (index === rows.length - 1 && rows.length > 0) {
+      const deleteBtn = document.createElement("button");
+      deleteBtn.type = "button";
+      deleteBtn.className = "row-delete-btn";
+      deleteBtn.textContent = "×";
+      deleteBtn.title = "Remove last buffer";
+      deleteBtn.setAttribute("aria-label", "Remove last buffer");
+      deleteBtn.addEventListener("click", () => {
+        row.remove();
+        updateBufferDeleteButton();
+        updateAllBuffersTotal();
+      });
+      actionTd.appendChild(deleteBtn);
+    }
+  });
+}
+
+function openBufferSettingsDialog() {
+  if (refs.bufferSettingsTbody.rows.length === 0) {
+    refs.bufferSettingsTbody.appendChild(buildBufferSettingsRow(1));
+  }
+  updateBufferDeleteButton();
+  updateAllBuffersTotal();
+  refs.bufferSettingsDialog.showModal();
+}
+
 function handleAddSprintRow() {
   const nextNumber = refs.sprintSettingsTbody.rows.length + 1;
   refs.sprintSettingsTbody.appendChild(buildSprintSettingsRow(nextNumber));
   updateSprintDeleteButton();
+}
+
+function handleAddBufferRow() {
+  const nextNumber = refs.bufferSettingsTbody.rows.length + 1;
+  refs.bufferSettingsTbody.appendChild(buildBufferSettingsRow(nextNumber));
+  updateBufferDeleteButton();
+  updateAllBuffersTotal();
+}
+
+function handleBufferSettingsInput() {
+  updateAllBuffersTotal();
 }
 
 function submitSprintSettings(event) {
@@ -502,6 +590,16 @@ function submitSprintSettings(event) {
   });
 
   refs.sprintSettingsDialog.close();
+}
+
+function submitBufferSettings(event) {
+  event.preventDefault();
+  if (event.submitter?.value === "cancel") {
+    refs.bufferSettingsDialog.close();
+    return;
+  }
+  pendingBufferTotalPercent = sanitizeNonNegative(refs.bufferSettingsTotalPercentInput.value || 0);
+  refs.bufferSettingsDialog.close();
 }
 
 function applySprintConfigToPlan(plan, sprintConfig) {
@@ -697,8 +795,11 @@ async function handleCreatePlan() {
   refs.createPlanTeamEstimationValueInput.value = String(periodTeamSettings?.teamEstimationPerDay ?? "");
   handleCreatePlanEstimationTypeChange();
   refs.createPlanUseSprintsCheckbox.checked = false;
+  refs.createPlanUseBuffersCheckbox.checked = false;
   pendingSprintConfig = null;
+  pendingBufferTotalPercent = 0;
   handleCreatePlanUseSprintsChange();
+  handleCreatePlanUseBuffersChange();
   refs.createPlanDialog.showModal();
 }
 
@@ -713,6 +814,8 @@ async function submitCreatePlan(event) {
   const year = Number(refs.yearInput.value);
   const estimationType = refs.createPlanEstimationTypeSelect.value || "story_points";
   const resourceGroupingType = refs.createPlanResourceGroupingTypeSelect.value || "by_roles";
+  const useBuffers = refs.createPlanUseBuffersCheckbox.checked;
+  const allBuffersPercent = useBuffers ? sanitizeNonNegative(pendingBufferTotalPercent) : 0;
   const defaultWorkingDays = sanitizeNonNegative(refs.createPlanWorkingDaysInput.value || 0);
   const teamEstimationMode = refs.createPlanTeamEstimationModeSelect.value === "manual" ? "manual" : "average";
   const teamEstimationPerDay = String(refs.createPlanTeamEstimationValueInput.value || "").trim();
@@ -739,6 +842,8 @@ async function submitCreatePlan(event) {
     year,
     estimationType,
     resourceGroupingType,
+    useBuffers,
+    allBuffersPercent,
     estimationFieldName: "",
     defaultWorkingDays
   });
@@ -760,6 +865,7 @@ async function submitCreatePlan(event) {
     applySprintConfigToPlan(plan, pendingSprintConfig);
   }
   pendingSprintConfig = null;
+  pendingBufferTotalPercent = 0;
 
   appState.plans.push(plan);
   appState.lastSelectedPlanId = plan.id;
@@ -1616,9 +1722,14 @@ function bindEvents() {
       handleSettingsEstimationTypeChange,
       handleCreatePlanEstimationTypeChange,
       handleCreatePlanUseSprintsChange,
+      handleCreatePlanUseBuffersChange,
       openSprintSettingsDialog,
+      openBufferSettingsDialog,
       handleAddSprintRow,
+      handleAddBufferRow,
+      handleBufferSettingsInput,
       submitSprintSettings,
+      submitBufferSettings,
       syncImportButtonState,
       handleTableInput,
       handleCapacityTableClick,
@@ -1693,6 +1804,14 @@ async function init() {
     }
     if (!plan.resourceGroupingType) {
       plan.resourceGroupingType = appState.resourceGroupingType || "by_team";
+    }
+    if (typeof plan.useBuffers !== "boolean") {
+      plan.useBuffers = false;
+    }
+    if (typeof plan.allBuffersPercent !== "number" || Number.isNaN(plan.allBuffersPercent)) {
+      plan.allBuffersPercent = 0;
+    } else {
+      plan.allBuffersPercent = sanitizeNonNegative(plan.allBuffersPercent);
     }
     if (typeof plan.jiraBaseUrl !== "string") {
       plan.jiraBaseUrl = String(appState.jiraBaseUrl || "");
