@@ -32,6 +32,23 @@ export function renderCapacityByRoles({
 
   const thead = document.createElement("thead");
   const estimationTitleForPlanned = estimationLabel ? estimationLabel.toLowerCase() : "estimation";
+  const availableBalanceTitle = plan.useBuffers ? "Available balance with buffers" : "Available balance";
+  const buffersFactor = plan.useBuffers
+    ? Math.max(0, 1 - sanitizeNonNegative(plan.allBuffersPercent ?? 0) / 100)
+    : 1;
+
+  const calculateRemainingMember = (periodValues, rowEstimationPerDayValue) => {
+    const supplyMember =
+      estimationType === "story_points"
+        ? rowEstimationPerDayValue === "" || rowEstimationPerDayValue === undefined
+          ? ""
+          : Number((sanitizeNonNegative(periodValues.availableCapacity) * sanitizeNonNegative(rowEstimationPerDayValue)).toFixed(2))
+        : periodValues.availableBalance ?? periodValues.plannedCapacity ?? 0;
+    const plannedMember = asNumber(periodValues.plannedEstimation);
+    return supplyMember === "" || supplyMember === undefined
+      ? ""
+      : Number((sanitizeNonNegative(supplyMember) - plannedMember).toFixed(2));
+  };
 
   if (isCompact) {
     const topHeadRow = document.createElement("tr");
@@ -100,7 +117,7 @@ export function renderCapacityByRoles({
 
         const balance = document.createElement("th");
         balance.className = "period-subcol period-subcol-wide";
-        balance.textContent = "Available balance";
+        balance.textContent = availableBalanceTitle;
         metricRow.appendChild(balance);
       }
     }
@@ -182,7 +199,7 @@ export function renderCapacityByRoles({
         const balance = document.createElement("th");
         balance.className = "period-subcol period-subcol-wide";
         balance.colSpan = 2;
-        balance.textContent = "Available balance";
+        balance.textContent = availableBalanceTitle;
 
         metricHeadRow.append(dayOff, working, available, estimationPerDay, planned, balance);
       }
@@ -473,15 +490,11 @@ export function renderCapacityByRoles({
       if (!isCompact && !isSprint) {
         const balanceCell = document.createElement("td");
         balanceCell.className = "period-value-cell period-value-cell-wide";
-        const supplyMember =
-          estimationType === "story_points"
-            ? rowEstimationPerDay === "" || rowEstimationPerDay === undefined
-              ? ""
-              : Number((sanitizeNonNegative(values.availableCapacity) * sanitizeNonNegative(rowEstimationPerDay)).toFixed(2))
-            : values.availableBalance ?? values.plannedCapacity ?? 0;
-        const plannedMember = asNumber(values.plannedEstimation);
+        const remainingMemberRaw = calculateRemainingMember(values, rowEstimationPerDay);
         const remainingMember =
-          supplyMember === "" || supplyMember === undefined ? "" : Number((sanitizeNonNegative(supplyMember) - plannedMember).toFixed(2));
+          remainingMemberRaw === "" || remainingMemberRaw === undefined
+            ? ""
+            : Number((sanitizeNonNegative(remainingMemberRaw) * buffersFactor).toFixed(2));
         balanceCell.appendChild(
           buildCellInput({
             value: remainingMember,
@@ -493,21 +506,20 @@ export function renderCapacityByRoles({
       }
 
       if (isGroupStart && !isSprint) {
-        const groupedMetrics = periodRoleMetrics[period.id]?.[roleKey] || periodTeamMetrics[period.id];
-        const supplyTeam =
-          estimationType === "story_points"
-            ? groupedMetrics?.estimationTeamValue === "" || groupedMetrics?.estimationTeamValue === undefined
-              ? ""
-              : Number(
-                  (
-                    sanitizeNonNegative(groupedMetrics?.availableCapacityTotal) *
-                    sanitizeNonNegative(groupedMetrics?.estimationTeamValue)
-                  ).toFixed(2)
-                )
-            : groupedMetrics?.availableBalanceTotal ?? 0;
-        const plannedTeam = sumPlannedForRoleGroup(plan, period.id, index, groupSpan);
-        const remainingTeam =
-          supplyTeam === "" || supplyTeam === undefined ? "" : Number((sanitizeNonNegative(supplyTeam) - plannedTeam).toFixed(2));
+        const remainingTeam = Number(
+          plan.capacityRows
+            .slice(index, index + groupSpan)
+            .reduce((sum, memberRow) => {
+              const memberValues = memberRow.periodValues?.[period.id];
+              if (!memberValues) return sum;
+              const memberEstimationPerDay =
+                memberValues.rowEstimationPerDay ?? memberValues.estimationPerDay ?? "";
+              const memberRemaining = calculateRemainingMember(memberValues, memberEstimationPerDay);
+              if (memberRemaining === "" || memberRemaining === undefined) return sum;
+              return sum + Number((sanitizeNonNegative(memberRemaining) * buffersFactor).toFixed(2));
+            }, 0)
+            .toFixed(2)
+        );
         const balanceTeamCell = document.createElement("td");
         balanceTeamCell.className = "period-value-cell period-value-cell-wide";
         balanceTeamCell.rowSpan = groupSpan;

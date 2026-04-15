@@ -682,10 +682,12 @@ a.toolbar-help-link {
   margin-top: 6px;
 }
 
-.sprint-planning-row {
-  display: flex;
+.sprint-planning-grid {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  column-gap: 10px;
+  row-gap: 8px;
   align-items: center;
-  gap: 10px;
   padding: 6px 0;
 }
 
@@ -761,6 +763,7 @@ a.toolbar-help-link {
   align-items: center;
   justify-content: center;
 }
+
 
 .import-meta {
   display: flex;

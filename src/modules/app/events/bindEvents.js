@@ -58,9 +58,14 @@ export function bindEvents({
   refs.createPlanEstimationTypeSelect.addEventListener("change", handlers.handleCreatePlanEstimationTypeChange);
   refs.createPlanTeamEstimationModeSelect.addEventListener("change", handlers.handleCreatePlanEstimationTypeChange);
   refs.createPlanUseSprintsCheckbox.addEventListener("change", handlers.handleCreatePlanUseSprintsChange);
+  refs.createPlanUseBuffersCheckbox.addEventListener("change", handlers.handleCreatePlanUseBuffersChange);
   refs.createPlanSprintSettingsBtn.addEventListener("click", handlers.openSprintSettingsDialog);
+  refs.createPlanBufferSettingsBtn.addEventListener("click", handlers.openBufferSettingsDialog);
   refs.addSprintRowBtn.addEventListener("click", handlers.handleAddSprintRow);
   refs.sprintSettingsForm.addEventListener("submit", handlers.submitSprintSettings);
+  refs.addBufferRowBtn.addEventListener("click", handlers.handleAddBufferRow);
+  refs.bufferSettingsForm.addEventListener("submit", handlers.submitBufferSettings);
+  refs.bufferSettingsTbody.addEventListener("input", handlers.handleBufferSettingsInput);
   if (refs.settingsTeamEstimationModeSelect) {
     refs.settingsTeamEstimationModeSelect.addEventListener("change", handlers.handleSettingsEstimationTypeChange);
   }

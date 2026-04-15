@@ -110,7 +110,7 @@
           </select>
           <input id="yearInput" class="input" type="number" min="2000" max="2100" />
         </div>
-        <div class="sprint-planning-row">
+        <div class="sprint-planning-grid">
           <label class="checkbox-label">
             <input type="checkbox" id="createPlanUseSprintsCheckbox" />
             Use Sprints Planning
@@ -121,6 +121,16 @@
             class="btn btn-secondary sprint-settings-btn"
             disabled
           >Sprints settings</button>
+          <label class="checkbox-label">
+            <input type="checkbox" id="createPlanUseBuffersCheckbox" />
+            Use Buffers
+          </label>
+          <button
+            type="button"
+            id="createPlanBufferSettingsBtn"
+            class="btn btn-secondary sprint-settings-btn"
+            disabled
+          >Buffer settings</button>
         </div>
 
         <div id="createPlanWorkingDaysWrap">
@@ -436,6 +446,53 @@
             class="btn btn-secondary sprint-settings-add-btn"
             title="Add sprint"
             aria-label="Add sprint row"
+          >+</button>
+        </div>
+        <div class="modal-actions">
+          <button type="submit" value="cancel" formnovalidate class="btn btn-secondary">Cancel</button>
+          <button type="submit" value="apply" class="btn">Apply</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="bufferSettingsDialog" class="modal sprint-settings-modal">
+      <form method="dialog" id="bufferSettingsForm">
+        <h3>Buffer settings</h3>
+        <div class="sprint-settings-table-wrap">
+          <table id="bufferSettingsTable" class="sprint-settings-table">
+            <thead>
+              <tr>
+                <th>Name of Buffer</th>
+                <th>%</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="sprint-settings-cell">
+                  <input type="text" class="input" value="All Buffers" readonly aria-label="All Buffers label" />
+                </td>
+                <td class="sprint-settings-cell">
+                  <input
+                    id="bufferSettingsTotalPercentInput"
+                    type="number"
+                    class="input sprint-settings-days-input"
+                    value="0"
+                    readonly
+                    aria-label="All Buffers percent"
+                  />
+                </td>
+                <td class="sprint-settings-cell sprint-settings-action-cell"></td>
+              </tr>
+            </tbody>
+            <tbody id="bufferSettingsTbody"></tbody>
+          </table>
+          <button
+            type="button"
+            id="addBufferRowBtn"
+            class="btn btn-secondary sprint-settings-add-btn"
+            title="Add buffer"
+            aria-label="Add buffer row"
           >+</button>
         </div>
         <div class="modal-actions">
