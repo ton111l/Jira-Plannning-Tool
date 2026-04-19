@@ -78,6 +78,9 @@ export function cacheRefs(refs) {
   refs.settingsWorkingDaysInput = document.getElementById("settingsWorkingDaysInput");
   refs.settingsDefaultLoadPercentSelect = document.getElementById("settingsDefaultLoadPercentSelect");
   refs.resourceGroupingTypeSelect = document.getElementById("resourceGroupingTypeSelect");
+  refs.settingsDefaultRoleSplitWrap = document.getElementById("settingsDefaultRoleSplitWrap");
+  refs.settingsDefaultRoleSplitList = document.getElementById("settingsDefaultRoleSplitList");
+  refs.settingsDefaultRoleSplitTotal = document.getElementById("settingsDefaultRoleSplitTotal");
   refs.settingsRolesSection = document.getElementById("settingsRolesSection");
   refs.settingsRolesList = document.getElementById("settingsRolesList");
   refs.settingsAddRoleBtn = document.getElementById("settingsAddRoleBtn");

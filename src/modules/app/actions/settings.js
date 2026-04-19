@@ -1,3 +1,57 @@
+/**
+ * Reads default % inputs in lockstep with `.settings-role-row` order.
+ * Requires every role to have a value and the sum to equal 100% (±0.02).
+ */
+export function validateAndCollectDefaultRoleSplitPct(refs) {
+  if (!refs.settingsRolesList || !refs.settingsDefaultRoleSplitList) {
+    return { ok: true, values: {} };
+  }
+  const roleRows = refs.settingsRolesList.querySelectorAll(".settings-role-row");
+  const values = {};
+  let sum = 0;
+  for (const row of roleRows) {
+    const id = String(row.dataset.roleId || "").trim();
+    if (!id) {
+      return { ok: false, error: "Invalid role row.", values: {} };
+    }
+    const inp = refs.settingsDefaultRoleSplitList.querySelector(
+      `.settings-default-role-split-input[data-role-id="${id}"]`
+    );
+    if (!inp) {
+      return {
+        ok: false,
+        error: "Each role needs a default % field. Close Settings and reopen if lists are out of sync.",
+        values: {}
+      };
+    }
+    const raw = String(inp.value ?? "").trim();
+    if (raw === "") {
+      return {
+        ok: false,
+        error: "Enter default % for every role. The values must sum to 100%.",
+        values: {}
+      };
+    }
+    const n = Number(raw);
+    if (!Number.isFinite(n) || n < 0) {
+      return { ok: false, error: "Each default % must be a valid non-negative number.", values: {} };
+    }
+    values[id] = n;
+    sum += n;
+  }
+  if (roleRows.length === 0) {
+    return { ok: true, values: {} };
+  }
+  if (Math.abs(sum - 100) > 0.02) {
+    return {
+      ok: false,
+      error: `Default % by roles must sum to 100% (currently ${sum.toFixed(2)}%).`,
+      values: {}
+    };
+  }
+  return { ok: true, values };
+}
+
 export function collectSettingsRoleOptions(refs) {
   if (refs.settingsRolesSection?.hidden || !refs.settingsRolesList) {
     return { ok: true, options: null };
@@ -95,6 +149,15 @@ export function applySettingsChanges({
     if (regroupCapacityRowsByRole(plan)) {
       touchPlan(plan);
     }
+  }
+  if (plan.estimationType === "story_points" && plan.resourceGroupingType === "by_roles") {
+    const splitResult = validateAndCollectDefaultRoleSplitPct(refs);
+    if (!splitResult.ok) {
+      return { ok: false, error: splitResult.error };
+    }
+    plan.defaultRoleSplitPctByRoleId = splitResult.values;
+  } else if (!plan.defaultRoleSplitPctByRoleId || typeof plan.defaultRoleSplitPctByRoleId !== "object") {
+    plan.defaultRoleSplitPctByRoleId = {};
   }
   touchPlan(plan);
   return { ok: true };

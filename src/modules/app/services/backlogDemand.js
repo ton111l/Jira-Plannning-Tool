@@ -28,7 +28,9 @@ export function getTeamModeEffectiveDemand(row) {
 
 /**
  * Writes `plannedEstimation` on each capacity row per period from backlog demand.
- * By team: total demand split evenly across members. By roles: per-role demand split across rows with that role.
+ * By team: total effective demand split evenly across members.
+ * By roles: per-role demand split across capacity rows with that role.
+ * By member: each backlog row’s full estimation is added to the selected capacity row (`targetCapacityRowId`) for that period.
  */
 export function applyPlannedFromBacklog(plan, resourceGroupingType) {
   if (!plan?.periods?.length || !plan.capacityRows?.length) {
@@ -36,6 +38,7 @@ export function applyPlannedFromBacklog(plan, resourceGroupingType) {
   }
 
   const isByRoles = resourceGroupingType === "by_roles";
+  const isByMember = resourceGroupingType === "by_member";
   const roleLabels = (plan.roleOptions || []).map((o) => o.label).filter(Boolean);
 
   for (const row of plan.capacityRows) {
@@ -80,6 +83,27 @@ export function applyPlannedFromBacklog(plan, resourceGroupingType) {
         for (const i of indices) {
           const crow = plan.capacityRows[i];
           crow.periodValues[period.id].plannedEstimation = String(share);
+        }
+      }
+    } else if (isByMember) {
+      const totalsByCapacityRowId = new Map();
+      for (const brow of plan.backlogRows || []) {
+        if (getBacklogRowPeriodId(brow, plan) !== period.id) {
+          continue;
+        }
+        const tid = String(brow.targetCapacityRowId ?? "").trim();
+        if (!tid || !plan.capacityRows.some((r) => r.id === tid)) {
+          continue;
+        }
+        const add = asNumber(brow.estimation);
+        totalsByCapacityRowId.set(tid, (totalsByCapacityRowId.get(tid) || 0) + add);
+      }
+      for (const crow of plan.capacityRows) {
+        const t = totalsByCapacityRowId.get(crow.id);
+        if (t === undefined || t <= 0) {
+          crow.periodValues[period.id].plannedEstimation = "";
+        } else {
+          crow.periodValues[period.id].plannedEstimation = String(Number(t.toFixed(2)));
         }
       }
     } else {

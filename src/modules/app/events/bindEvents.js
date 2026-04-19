@@ -1,3 +1,5 @@
+import { distributeDefaultRoleSplitFromFirst, refreshDefaultRoleSplitTotal } from "../render/ui.js";
+
 export function bindEvents({
   refs,
   appState,
@@ -15,6 +17,15 @@ export function bindEvents({
   }
   if (refs.settingsRolesList) {
     refs.settingsRolesList.addEventListener("click", handlers.handleSettingsRolesListClick);
+  }
+  if (refs.settingsDefaultRoleSplitList) {
+    refs.settingsDefaultRoleSplitList.addEventListener("input", (event) => {
+      const inputs = refs.settingsDefaultRoleSplitList.querySelectorAll(".settings-default-role-split-input");
+      if (inputs.length && event.target === inputs[0]) {
+        distributeDefaultRoleSplitFromFirst(refs);
+      }
+      refreshDefaultRoleSplitTotal(refs);
+    });
   }
   refs.deleteConfirmForm.addEventListener("submit", handlers.submitDeleteConfirm);
   refs.addRoleForm.addEventListener("submit", handlers.submitAddRole);
@@ -86,9 +97,11 @@ export function bindEvents({
 
   refs.capacityTable.addEventListener("input", handlers.handleTableInput);
   refs.capacityTable.addEventListener("change", handlers.handleTableInput);
+  refs.capacityTable.addEventListener("keydown", handlers.handleDeferredNumericInputKeydown);
   refs.capacityTable.addEventListener("click", handlers.handleCapacityTableClick);
   refs.backlogTable.addEventListener("input", handlers.handleTableInput);
   refs.backlogTable.addEventListener("change", handlers.handleTableInput);
+  refs.backlogTable.addEventListener("keydown", handlers.handleDeferredNumericInputKeydown);
   refs.backlogTable.addEventListener("change", handlers.handleBacklogSelectionChange);
   if (refs.backlogDeleteSelectedBtn) {
     refs.backlogDeleteSelectedBtn.addEventListener("click", handlers.handleDeleteSelectedBacklogRows);

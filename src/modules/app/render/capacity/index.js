@@ -51,7 +51,11 @@ export function renderCapacityTable({
   createEmptyCapacityPeriodValues
 }) {
   refs.capacityTable.innerHTML = "";
-  refs.capacityTable.classList.remove("capacity-view-compact", "capacity-view-full");
+  refs.capacityTable.classList.remove(
+    "capacity-view-compact",
+    "capacity-view-full",
+    "capacity-sp-by-team-layout"
+  );
   if (!plan) {
     refs.capacityTable.classList.add("capacity-view-full");
     renderCapacityNoPlan(refs);
@@ -61,6 +65,11 @@ export function renderCapacityTable({
   const compact = plan.capacityTableViewMode === "compact";
   refs.capacityTable.classList.toggle("capacity-view-compact", compact);
   refs.capacityTable.classList.toggle("capacity-view-full", !compact);
+  refs.capacityTable.classList.toggle(
+    "capacity-sp-by-team-layout",
+    (resourceGroupingType === "by_team" || resourceGroupingType === "by_member") &&
+      estimationType === "story_points"
+  );
 
   if (resourceGroupingType === "by_roles") {
     renderCapacityByRoles({
