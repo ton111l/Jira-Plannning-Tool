@@ -298,9 +298,12 @@
       </form>
     </dialog>
 
-    <dialog id="settingsDialog" class="modal">
-      <form method="dialog" id="settingsForm">
-        <h3>Settings</h3>
+    <dialog id="settingsDialog" class="modal modal--settings">
+      <form method="dialog" id="settingsForm" class="settings-form">
+        <div class="settings-form-header">
+          <h3>Settings</h3>
+        </div>
+        <div class="settings-form-body">
         <label for="estimationTypeSelect" class="label-with-help">
           Estimation type
           <span
@@ -424,8 +427,9 @@
             Add role
           </button>
         </div>
+        </div>
 
-        <div class="modal-actions">
+        <div class="modal-actions settings-form-footer">
           <button type="submit" value="cancel" class="btn btn-secondary">Close</button>
           <button type="submit" id="saveSettingsBtn" value="default" class="btn">Save</button>
         </div>
