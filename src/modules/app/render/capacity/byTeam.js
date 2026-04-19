@@ -1,6 +1,6 @@
-import { sanitizeNonNegative } from "../../../calculations.js";
+import { sanitizeNonNegative, toNumber } from "../../../calculations.js";
 import { sumPlannedForPeriod } from "../../services/backlogDemand.js";
-import { buildPeriodMetrics } from "../../services/metrics.js";
+import { buildPeriodMetrics, computeStoryPointsTeamAvailableBalance } from "../../services/metrics.js";
 import { asNumber } from "../shared/backlogHelpers.js";
 
 export function renderCapacityByTeam({
@@ -18,6 +18,14 @@ export function renderCapacityByTeam({
   ensureTeamPeriodValues(plan);
   const isCompact = plan.capacityTableViewMode === "compact";
   const isPersonDays = estimationType === "person_days";
+  const isByMember = plan.resourceGroupingType === "by_member";
+  const isSpTeamOnlyColumns =
+    estimationType === "story_points" &&
+    (plan.resourceGroupingType === "by_team" || plan.resourceGroupingType === "by_member");
+  const hasSprintPeriod = plan.periods.some((p) => p.kind === "sprint");
+  const useSpTeamSimplifiedHeader = isSpTeamOnlyColumns && !hasSprintPeriod;
+  const spGroupLabel = isByMember ? " (Per member)" : " (Per team)";
+
   const getPeriodColumnsCount = (period) => {
     const isSprint = period.kind === "sprint";
     if (isCompact) {
@@ -25,6 +33,9 @@ export function renderCapacityByTeam({
     }
     if (isSprint) return 4;
     if (isPersonDays) return 9;
+    if (useSpTeamSimplifiedHeader) {
+      return 6;
+    }
     const teamMode = plan.teamPeriodValues?.[period.id]?.teamEstimationMode || "average";
     return teamMode === "manual" ? 9 : 10;
   };
@@ -40,8 +51,8 @@ export function renderCapacityByTeam({
   const calculateRemainingMember = (periodValues, rowEstimationPerDayValue) => {
     const supplyMember =
       estimationType === "story_points"
-        ? rowEstimationPerDayValue === "" || rowEstimationPerDayValue === undefined
-          ? ""
+        ? rowEstimationPerDayValue === "" || rowEstimationPerDayValue == null
+          ? 0
           : Number((sanitizeNonNegative(periodValues.availableCapacity) * sanitizeNonNegative(rowEstimationPerDayValue)).toFixed(2))
         : periodValues.availableBalance ?? periodValues.plannedCapacity ?? 0;
     const plannedMember = asNumber(periodValues.plannedEstimation);
@@ -97,7 +108,7 @@ export function renderCapacityByTeam({
 
       const available = document.createElement("th");
       available.className = "period-subcol period-subcol-wide";
-      available.textContent = "Available capacity";
+      available.textContent = isSpTeamOnlyColumns ? `Available capacity${spGroupLabel}` : "Available capacity";
       metricRow.appendChild(available);
 
       if (!isSprint) {
@@ -105,23 +116,95 @@ export function renderCapacityByTeam({
         estimationPerDay.className = "period-subcol period-subcol-wide";
         estimationPerDay.textContent = isPersonDays
           ? "Man-days per day (team total)"
-          : hasTeamFixedMode
+          : hasTeamFixedMode && !isByMember
             ? `${estimationLabel} per day (Team)`
-            : `${estimationLabel} per day (${teamSubLabel})`;
+            : isSpTeamOnlyColumns
+              ? `${estimationLabel} per day${spGroupLabel}`
+              : `${estimationLabel} per day (${teamSubLabel})`;
         metricRow.appendChild(estimationPerDay);
 
         const planned = document.createElement("th");
         planned.className = "period-subcol period-subcol-wide";
-        planned.textContent = `Planned ${estimationTitleForPlanned}`;
+        planned.textContent = isSpTeamOnlyColumns
+          ? `Planned ${estimationTitleForPlanned}${spGroupLabel}`
+          : `Planned ${estimationTitleForPlanned}`;
         metricRow.appendChild(planned);
 
         const balance = document.createElement("th");
         balance.className = "period-subcol period-subcol-wide";
-        balance.textContent = availableBalanceTitle;
+        balance.textContent = isSpTeamOnlyColumns ? `${availableBalanceTitle}${spGroupLabel}` : availableBalanceTitle;
         metricRow.appendChild(balance);
       }
     }
     thead.appendChild(metricRow);
+  } else if (useSpTeamSimplifiedHeader) {
+    const topHeadRow = document.createElement("tr");
+    ["#", "Member", "Role", "Act"].forEach((title) => {
+      const th = document.createElement("th");
+      th.textContent = title;
+      th.rowSpan = 2;
+      topHeadRow.appendChild(th);
+    });
+    const loadHead = document.createElement("th");
+    loadHead.rowSpan = 2;
+    loadHead.textContent = "Load (%)";
+    topHeadRow.appendChild(loadHead);
+
+    for (const period of plan.periods) {
+      const periodHead = document.createElement("th");
+      periodHead.colSpan = getPeriodColumnsCount(period);
+      const periodHeadWrap = document.createElement("div");
+      periodHeadWrap.className = "period-head";
+      const periodLabel = document.createElement("span");
+      periodLabel.textContent = period.label;
+      const deletePeriodButton = document.createElement("button");
+      deletePeriodButton.type = "button";
+      deletePeriodButton.className = "quarter-delete-btn";
+      deletePeriodButton.textContent = "×";
+      deletePeriodButton.title = `Delete ${period.label}`;
+      deletePeriodButton.setAttribute("aria-label", `Delete ${period.label}`);
+      deletePeriodButton.dataset.action = "delete-quarter";
+      deletePeriodButton.dataset.periodId = period.id;
+      periodHeadWrap.append(periodLabel, deletePeriodButton);
+      periodHead.appendChild(periodHeadWrap);
+      topHeadRow.appendChild(periodHead);
+    }
+    thead.appendChild(topHeadRow);
+
+    const metricHeadRow = document.createElement("tr");
+    for (const period of plan.periods) {
+      const teamMode = plan.teamPeriodValues?.[period.id]?.teamEstimationMode || "average";
+      const hasTeamFixedMode = teamMode === "manual";
+
+      const dayOff = document.createElement("th");
+      dayOff.className = "period-subcol period-subcol-short";
+      dayOff.textContent = "Days off";
+      const working = document.createElement("th");
+      working.className = "period-subcol period-subcol-short";
+      working.textContent = "Working days";
+
+      const available = document.createElement("th");
+      available.className = "period-subcol period-subcol-wide";
+      available.textContent = `Available capacity${spGroupLabel}`;
+
+      const estimationPerDay = document.createElement("th");
+      estimationPerDay.className = "period-subcol period-subcol-wide";
+      estimationPerDay.textContent =
+        hasTeamFixedMode && !isByMember
+          ? `${estimationLabel} per day (Team)`
+          : `${estimationLabel} per day${spGroupLabel}`;
+
+      const planned = document.createElement("th");
+      planned.className = "period-subcol period-subcol-wide";
+      planned.textContent = `Planned ${estimationTitleForPlanned}${spGroupLabel}`;
+
+      const balance = document.createElement("th");
+      balance.className = "period-subcol period-subcol-wide";
+      balance.textContent = `${availableBalanceTitle}${spGroupLabel}`;
+
+      metricHeadRow.append(dayOff, working, available, estimationPerDay, planned, balance);
+    }
+    thead.appendChild(metricHeadRow);
   } else {
     const topHeadRow = document.createElement("tr");
     ["#", "Member", "Role", "Act"].forEach((title) => {
@@ -292,6 +375,8 @@ export function renderCapacityByTeam({
     }
   }
 
+  const useTeamOnlyBody = useSpTeamSimplifiedHeader && !isCompact;
+
   plan.capacityRows.forEach((capacityRow, index) => {
     const tr = document.createElement("tr");
     const isGroupStart = index === 0;
@@ -353,6 +438,262 @@ export function renderCapacityByTeam({
       }
       const values = capacityRow.periodValues[period.id];
       const rowEstimationPerDay = values.rowEstimationPerDay ?? values.estimationPerDay ?? "";
+
+      if (useTeamOnlyBody) {
+        if (isByMember) {
+          if (!isCompact) {
+            const daysOffCell = document.createElement("td");
+            daysOffCell.className = "period-value-cell period-value-cell-short";
+            daysOffCell.appendChild(
+              buildCellInput({
+                value: values.daysOff,
+                type: "number",
+                dataset: { section: "capacity", rowId: capacityRow.id, field: "daysOff", periodId: period.id },
+                readOnly: isQuarterWithSprints
+              })
+            );
+            tr.appendChild(daysOffCell);
+          }
+
+          const workingCellMember = document.createElement("td");
+          workingCellMember.className = "period-value-cell period-value-cell-short";
+          workingCellMember.appendChild(
+            buildCellInput({
+              value: values.workingDays,
+              type: "number",
+              dataset: { section: "capacity", rowId: capacityRow.id, field: "workingDays", periodId: period.id },
+              readOnly: isQuarterWithSprints
+            })
+          );
+          tr.appendChild(workingCellMember);
+
+          const availableCellMember = document.createElement("td");
+          availableCellMember.className = "period-value-cell period-value-cell-short";
+          availableCellMember.appendChild(
+            buildCellInput({
+              value: values.availableCapacity,
+              dataset: { section: "capacity", rowId: capacityRow.id, field: "availableCapacity", periodId: period.id },
+              readOnly: true
+            })
+          );
+          tr.appendChild(availableCellMember);
+
+          const estimationPerDayMember = document.createElement("td");
+          estimationPerDayMember.className = "period-value-cell period-value-cell-wide";
+          const spDayInput = buildCellInput({
+            value: rowEstimationPerDay,
+            type: "number",
+            dataset: { section: "capacity", rowId: capacityRow.id, field: "rowEstimationPerDay", periodId: period.id }
+          });
+          spDayInput.title = "Story Points per day for this member (same basis as team average or manual team value).";
+          estimationPerDayMember.appendChild(spDayInput);
+          tr.appendChild(estimationPerDayMember);
+
+          const plannedCellMember = document.createElement("td");
+          plannedCellMember.className = "period-value-cell period-value-cell-wide";
+          plannedCellMember.appendChild(
+            buildCellInput({
+              value: values.plannedEstimation ?? "",
+              dataset: { section: "capacity", rowId: capacityRow.id, field: "plannedEstimation", periodId: period.id },
+              readOnly: true
+            })
+          );
+          tr.appendChild(plannedCellMember);
+
+          const balanceCellMember = document.createElement("td");
+          balanceCellMember.className = "period-value-cell period-value-cell-wide";
+          const remainingMemberRawBm = calculateRemainingMember(values, rowEstimationPerDay);
+          const remainingMemberBm =
+            remainingMemberRawBm === "" || remainingMemberRawBm === undefined
+              ? ""
+              : Number((toNumber(remainingMemberRawBm, 0) * buffersFactor).toFixed(2));
+          balanceCellMember.appendChild(
+            buildCellInput({
+              value: remainingMemberBm,
+              dataset: { section: "capacity", rowId: capacityRow.id, field: "availableBalance", periodId: period.id },
+              readOnly: true
+            })
+          );
+          tr.appendChild(balanceCellMember);
+
+          continue;
+        }
+
+        if (!isCompact) {
+          const daysOffCell = document.createElement("td");
+          daysOffCell.className = "period-value-cell period-value-cell-short";
+          daysOffCell.appendChild(
+            buildCellInput({
+              value: values.daysOff,
+              type: "number",
+              dataset: { section: "capacity", rowId: capacityRow.id, field: "daysOff", periodId: period.id },
+              readOnly: isQuarterWithSprints
+            })
+          );
+          tr.appendChild(daysOffCell);
+        }
+
+        const workingCellOnly = document.createElement("td");
+        workingCellOnly.className = "period-value-cell period-value-cell-short";
+        workingCellOnly.appendChild(
+          buildCellInput({
+            value: values.workingDays,
+            type: "number",
+            dataset: { section: "capacity", rowId: capacityRow.id, field: "workingDays", periodId: period.id },
+            readOnly: isQuarterWithSprints
+          })
+        );
+        tr.appendChild(workingCellOnly);
+
+        if (isGroupStart) {
+          const groupedMetrics = periodTeamMetrics[period.id];
+          const availableTeamCellOnly = document.createElement("td");
+          availableTeamCellOnly.className = "period-value-cell period-value-cell-short";
+          availableTeamCellOnly.rowSpan = groupSpan;
+          availableTeamCellOnly.appendChild(
+            buildCellInput({
+              value: groupedMetrics?.availableCapacityTotal ?? 0,
+              dataset: { section: "capacity", rowId: capacityRow.id, field: "availableCapacityTeam", periodId: period.id },
+              readOnly: true
+            })
+          );
+          tr.appendChild(availableTeamCellOnly);
+        }
+
+        if (isGroupStart) {
+          const groupedMetrics = periodTeamMetrics[period.id];
+          const estimationPerDayTeamCellOnly = document.createElement("td");
+          estimationPerDayTeamCellOnly.className = "period-value-cell period-value-cell-wide";
+          estimationPerDayTeamCellOnly.rowSpan = groupSpan;
+          const teamEstInput = buildCellInput({
+            value: groupedMetrics?.estimationTeamValue ?? "",
+            type: "number",
+            dataset: { section: "capacity", rowId: capacityRow.id, field: "rowEstimationPerDayTeam", periodId: period.id },
+            readOnly: false
+          });
+          teamEstInput.title =
+            "Fixed team Story Points per day for this period. Saving your entry switches from team average to this value.";
+          estimationPerDayTeamCellOnly.appendChild(teamEstInput);
+          tr.appendChild(estimationPerDayTeamCellOnly);
+        }
+
+        if (isGroupStart) {
+          const plannedTeamCellOnly = document.createElement("td");
+          plannedTeamCellOnly.className = "period-value-cell period-value-cell-wide";
+          plannedTeamCellOnly.rowSpan = groupSpan;
+          plannedTeamCellOnly.appendChild(
+            buildCellInput({
+              value: String(sumPlannedForPeriod(plan, period.id)),
+              dataset: { section: "capacity", rowId: capacityRow.id, field: "plannedEstimationTeam", periodId: period.id },
+              readOnly: true
+            })
+          );
+          tr.appendChild(plannedTeamCellOnly);
+        }
+
+        if (isGroupStart) {
+          const groupedMetricsBalance = periodTeamMetrics[period.id];
+          const remainingTeamOnly =
+            estimationType === "story_points"
+              ? computeStoryPointsTeamAvailableBalance({
+                  availableCapacityTotal: groupedMetricsBalance?.availableCapacityTotal ?? 0,
+                  estimationTeamValue: groupedMetricsBalance?.estimationTeamValue,
+                  plannedTotal: sumPlannedForPeriod(plan, period.id),
+                  buffersFactor
+                })
+              : Number(
+                  plan.capacityRows
+                    .reduce((sum, memberRow) => {
+                      const memberValues = memberRow.periodValues?.[period.id];
+                      if (!memberValues) return sum;
+                      const memberEstimationPerDay =
+                        memberValues.rowEstimationPerDay ?? memberValues.estimationPerDay ?? "";
+                      const memberRemaining = calculateRemainingMember(memberValues, memberEstimationPerDay);
+                      if (memberRemaining === "" || memberRemaining === undefined) return sum;
+                      return sum + Number((toNumber(memberRemaining, 0) * buffersFactor).toFixed(2));
+                    }, 0)
+                    .toFixed(2)
+                );
+          const balanceTeamCellOnly = document.createElement("td");
+          balanceTeamCellOnly.className = "period-value-cell period-value-cell-wide";
+          balanceTeamCellOnly.rowSpan = groupSpan;
+          balanceTeamCellOnly.appendChild(
+            buildCellInput({
+              value: remainingTeamOnly,
+              dataset: { section: "capacity", rowId: capacityRow.id, field: "availableBalanceTeam", periodId: period.id },
+              readOnly: true
+            })
+          );
+          tr.appendChild(balanceTeamCellOnly);
+        }
+
+        continue;
+      }
+
+      if (isCompact && isByMember && isSpTeamOnlyColumns && !isSprint) {
+        const workingCellCm = document.createElement("td");
+        workingCellCm.className = "period-value-cell period-value-cell-short";
+        workingCellCm.appendChild(
+          buildCellInput({
+            value: values.workingDays,
+            type: "number",
+            dataset: { section: "capacity", rowId: capacityRow.id, field: "workingDays", periodId: period.id },
+            readOnly: isQuarterWithSprints
+          })
+        );
+        tr.appendChild(workingCellCm);
+
+        const availableCellCm = document.createElement("td");
+        availableCellCm.className = "period-value-cell period-value-cell-short";
+        availableCellCm.appendChild(
+          buildCellInput({
+            value: values.availableCapacity,
+            dataset: { section: "capacity", rowId: capacityRow.id, field: "availableCapacity", periodId: period.id },
+            readOnly: true
+          })
+        );
+        tr.appendChild(availableCellCm);
+
+        const estimationCm = document.createElement("td");
+        estimationCm.className = "period-value-cell period-value-cell-wide";
+        const spInpCm = buildCellInput({
+          value: rowEstimationPerDay,
+          type: "number",
+          dataset: { section: "capacity", rowId: capacityRow.id, field: "rowEstimationPerDay", periodId: period.id }
+        });
+        spInpCm.title = "Story Points per day for this member.";
+        estimationCm.appendChild(spInpCm);
+        tr.appendChild(estimationCm);
+
+        const plannedCm = document.createElement("td");
+        plannedCm.className = "period-value-cell period-value-cell-wide";
+        plannedCm.appendChild(
+          buildCellInput({
+            value: values.plannedEstimation ?? "",
+            dataset: { section: "capacity", rowId: capacityRow.id, field: "plannedEstimation", periodId: period.id },
+            readOnly: true
+          })
+        );
+        tr.appendChild(plannedCm);
+
+        const balanceCm = document.createElement("td");
+        balanceCm.className = "period-value-cell period-value-cell-wide";
+        const remRawCm = calculateRemainingMember(values, rowEstimationPerDay);
+        const remCm =
+          remRawCm === "" || remRawCm === undefined
+            ? ""
+            : Number((toNumber(remRawCm, 0) * buffersFactor).toFixed(2));
+        balanceCm.appendChild(
+          buildCellInput({
+            value: remCm,
+            dataset: { section: "capacity", rowId: capacityRow.id, field: "availableBalance", periodId: period.id },
+            readOnly: true
+          })
+        );
+        tr.appendChild(balanceCm);
+
+        continue;
+      }
 
       if (!isCompact) {
         const daysOffCell = document.createElement("td");
@@ -445,13 +786,15 @@ export function renderCapacityByTeam({
             const estimationPerDayTeamCell = document.createElement("td");
             estimationPerDayTeamCell.className = "period-value-cell period-value-cell-wide";
             estimationPerDayTeamCell.rowSpan = groupSpan;
-            estimationPerDayTeamCell.appendChild(
-              buildCellInput({
-                value: groupedMetrics?.estimationTeamValue ?? "",
-                dataset: { section: "capacity", rowId: capacityRow.id, field: "rowEstimationPerDayTeam", periodId: period.id },
-                readOnly: true
-              })
-            );
+            const teamEstInputLegacy = buildCellInput({
+              value: groupedMetrics?.estimationTeamValue ?? "",
+              type: "number",
+              dataset: { section: "capacity", rowId: capacityRow.id, field: "rowEstimationPerDayTeam", periodId: period.id },
+              readOnly: false
+            });
+            teamEstInputLegacy.title =
+              "Fixed team Story Points per day for this period. Saving your entry switches from team average to this value.";
+            estimationPerDayTeamCell.appendChild(teamEstInputLegacy);
             tr.appendChild(estimationPerDayTeamCell);
           }
         }
@@ -491,7 +834,7 @@ export function renderCapacityByTeam({
         const remainingMember =
           remainingMemberRaw === "" || remainingMemberRaw === undefined
             ? ""
-            : Number((sanitizeNonNegative(remainingMemberRaw) * buffersFactor).toFixed(2));
+            : Number((toNumber(remainingMemberRaw, 0) * buffersFactor).toFixed(2));
         balanceCell.appendChild(
           buildCellInput({
             value: remainingMember,
@@ -503,19 +846,28 @@ export function renderCapacityByTeam({
       }
 
       if (isGroupStart && !isSprint) {
-        const remainingTeam = Number(
-          plan.capacityRows
-            .reduce((sum, memberRow) => {
-              const memberValues = memberRow.periodValues?.[period.id];
-              if (!memberValues) return sum;
-              const memberEstimationPerDay =
-                memberValues.rowEstimationPerDay ?? memberValues.estimationPerDay ?? "";
-              const memberRemaining = calculateRemainingMember(memberValues, memberEstimationPerDay);
-              if (memberRemaining === "" || memberRemaining === undefined) return sum;
-              return sum + Number((sanitizeNonNegative(memberRemaining) * buffersFactor).toFixed(2));
-            }, 0)
-            .toFixed(2)
-        );
+        const groupedMetricsBalance = periodTeamMetrics[period.id];
+        const remainingTeam =
+          estimationType === "story_points"
+            ? computeStoryPointsTeamAvailableBalance({
+                availableCapacityTotal: groupedMetricsBalance?.availableCapacityTotal ?? 0,
+                estimationTeamValue: groupedMetricsBalance?.estimationTeamValue,
+                plannedTotal: sumPlannedForPeriod(plan, period.id),
+                buffersFactor
+              })
+            : Number(
+                plan.capacityRows
+                  .reduce((sum, memberRow) => {
+                    const memberValues = memberRow.periodValues?.[period.id];
+                    if (!memberValues) return sum;
+                    const memberEstimationPerDay =
+                      memberValues.rowEstimationPerDay ?? memberValues.estimationPerDay ?? "";
+                    const memberRemaining = calculateRemainingMember(memberValues, memberEstimationPerDay);
+                    if (memberRemaining === "" || memberRemaining === undefined) return sum;
+                    return sum + Number((toNumber(memberRemaining, 0) * buffersFactor).toFixed(2));
+                  }, 0)
+                  .toFixed(2)
+              );
         const balanceTeamCell = document.createElement("td");
         balanceTeamCell.className = "period-value-cell period-value-cell-wide";
         balanceTeamCell.rowSpan = groupSpan;

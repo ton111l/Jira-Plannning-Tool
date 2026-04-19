@@ -191,12 +191,13 @@
             class="help-tooltip"
             tabindex="0"
             aria-label="Help: Resource grouping type"
-            data-tooltip="Controls how capacity and totals are aggregated. By team combines everyone into one group, while By roles splits calculations and summaries per role."
+            data-tooltip="Controls how backlog demand maps to capacity. By team splits demand evenly across members; By roles uses per-role splits; By member assigns each issue to one capacity row."
           >?</span>
         </label>
         <select id="createPlanResourceGroupingTypeSelect" class="input select">
           <option value="by_team">By team</option>
           <option value="by_roles">By roles</option>
+          <option value="by_member">By member</option>
         </select>
 
         <div class="modal-actions">
@@ -356,13 +357,32 @@
             class="help-tooltip"
             tabindex="0"
             aria-label="Help: Resource grouping type"
-            data-tooltip="Controls how capacity and totals are aggregated. By team combines everyone into one group, while By roles splits calculations and summaries per role."
+            data-tooltip="Controls how backlog demand maps to capacity. By team splits demand evenly across members; By roles uses per-role splits; By member assigns each issue to one capacity row."
           >?</span>
         </label>
         <select id="resourceGroupingTypeSelect" class="input select">
           <option value="by_team">By team</option>
           <option value="by_roles">By roles</option>
+          <option value="by_member">By member</option>
         </select>
+
+        <div id="settingsDefaultRoleSplitWrap" class="settings-default-role-split-wrap" hidden>
+          <span class="label-with-help settings-roles-heading">
+            Default % SP by roles
+            <span
+              class="help-tooltip"
+              tabindex="0"
+              aria-label="Help: Default split percent by role"
+              data-tooltip="One row per role (same list as Roles for this plan). Percents must sum to 100%. Enter the first role’s percent: the rest split the remainder equally (you can still edit any row). When a backlog row has an empty Split (%) for a role, this value is used. Applied when you save Settings, when adding issues, and on import for empty splits."
+            >?</span>
+          </span>
+          <div id="settingsDefaultRoleSplitList" class="settings-default-role-split-list"></div>
+          <div
+            id="settingsDefaultRoleSplitTotal"
+            class="settings-default-role-split-total"
+            aria-live="polite"
+          ></div>
+        </div>
 
         <div id="settingsRolesSection" class="settings-roles-section" hidden>
           <span class="label-with-help settings-roles-heading">

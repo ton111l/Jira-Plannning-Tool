@@ -5,7 +5,8 @@ import {
   createEmptyCapacityPeriodValues,
   createPeriod,
   createPlan,
-  generateId
+  generateId,
+  buildEqualDefaultRoleSplitPctByRoleId
 } from "./modules/models.js";
 import { migrateLegacyRolesToCatalog } from "./modules/app/roleCatalog.js";
 import { resolveBacklogPeriodSelectValue } from "./modules/app/render/shared/backlogHelpers.js";
@@ -22,6 +23,9 @@ import {
   renderCapacityViewMode as renderCapacityViewModeView,
   renderPlanSelect as renderPlanSelectView,
   renderSettings as renderSettingsView,
+  syncSettingsDefaultRoleSplitSection,
+  distributeDefaultRoleSplitFromFirst,
+  refreshDefaultRoleSplitTotal,
   renderTabs as renderTabsView,
   renderTeamName as renderTeamNameView
 } from "./modules/app/render/ui.js";
@@ -29,6 +33,7 @@ import { bindEvents as bindAppEvents } from "./modules/app/events/bindEvents.js"
 import { openImportDialogAction } from "./modules/app/actions/backlog.js";
 import { applySettingsChanges } from "./modules/app/actions/settings.js";
 import { applyPlannedFromBacklog } from "./modules/app/services/backlogDemand.js";
+import { applyDefaultRoleSplitsToBacklogRows } from "./modules/app/services/backlogRoleSplits.js";
 import { renderBacklogTable as renderBacklogTableView } from "./modules/app/render/backlog/index.js";
 import { renderCapacityTable as renderCapacityTableView } from "./modules/app/render/capacity/index.js";
 import {
@@ -379,10 +384,16 @@ function handleSettingsEstimationTypeChange() {
     refs.settingsTeamEstimationModeSelect.value = "average";
     refs.settingsTeamEstimationValueWrap.style.display = "none";
     refs.settingsTeamEstimationValueInput.value = "";
+    syncSettingsDefaultRoleSplitSection(refs, getActivePlan(), appState);
     return;
   }
   const mode = refs.settingsTeamEstimationModeSelect.value || "average";
   refs.settingsTeamEstimationValueWrap.style.display = mode === "manual" ? "flex" : "none";
+  syncSettingsDefaultRoleSplitSection(refs, getActivePlan(), appState);
+}
+
+function handleSettingsResourceGroupingChange() {
+  syncSettingsDefaultRoleSplitSection(refs, getActivePlan(), appState);
 }
 
 function handleCreatePlanEstimationTypeChange() {
@@ -1306,6 +1317,25 @@ async function handleCapacityTableClick(event) {
   }
 }
 
+/** Split (%) and team allocation use type=number; defer full render until change (blur) so multi-digit entry works. */
+function isBacklogDeferredNumericField(field) {
+  if (field === "teamAllocationPercent") {
+    return true;
+  }
+  const f = String(field || "");
+  return f.startsWith("split_") && f.endsWith("_pct");
+}
+
+/** Capacity number cells: defer full render until change (blur) so multi-digit entry works. */
+function isCapacityDeferredNumericField(field) {
+  return (
+    field === "daysOff" ||
+    field === "workingDays" ||
+    field === "rowEstimationPerDay" ||
+    field === "rowEstimationPerDayTeam"
+  );
+}
+
 async function handleTableInput(event) {
   const target = event.target;
   if (!(target instanceof HTMLInputElement) && !(target instanceof HTMLSelectElement)) {
@@ -1322,6 +1352,25 @@ async function handleTableInput(event) {
   }
 
   if (section === "capacity") {
+    if (field === "rowEstimationPerDayTeam" && periodId) {
+      ensureTeamPeriodValues(plan);
+      if (!plan.teamPeriodValues[periodId]) {
+        plan.teamPeriodValues[periodId] = { teamEstimationMode: "average", teamEstimationPerDay: "" };
+      }
+      plan.teamPeriodValues[periodId].teamEstimationMode = "manual";
+      plan.teamPeriodValues[periodId].teamEstimationPerDay = sanitizeOptionalNonNegative(target.value);
+      plan.capacityRows.forEach((capacityRow) => {
+        recomputeCapacityRow(capacityRow, plan.periods, getPlanEstimationType(plan));
+      });
+      touchPlan(plan);
+      if (event.type === "input") {
+        await saveState(appState);
+        return;
+      }
+      await persistAndRender();
+      return;
+    }
+
     const row = plan.capacityRows.find((entry) => entry.id === rowId);
     if (!row) {
       return;
@@ -1348,6 +1397,18 @@ async function handleTableInput(event) {
     if (field === "roleId" && regroupCapacityRowsByRole(plan)) {
       touchPlan(plan);
     }
+
+    if (
+      event.type === "input" &&
+      target instanceof HTMLInputElement &&
+      target.type === "number" &&
+      periodId &&
+      (field === "daysOff" || field === "workingDays" || field === "rowEstimationPerDay")
+    ) {
+      touchPlan(plan);
+      await saveState(appState);
+      return;
+    }
   }
 
   if (section === "backlog") {
@@ -1359,8 +1420,18 @@ async function handleTableInput(event) {
   }
 
   touchPlan(plan);
-  if (section === "backlog" && field === "targetPeriodId") {
+  if (section === "backlog" && (field === "targetPeriodId" || field === "targetCapacityRowId")) {
     await persistAndRender();
+    return;
+  }
+  if (
+    section === "backlog" &&
+    event.type === "input" &&
+    target instanceof HTMLInputElement &&
+    target.type === "number" &&
+    isBacklogDeferredNumericField(field)
+  ) {
+    await saveState(appState);
     return;
   }
   const isTextInput = target instanceof HTMLInputElement && target.type === "text";
@@ -1374,6 +1445,33 @@ async function handleTableInput(event) {
   }
 
   await persistAndRender();
+}
+
+function handleDeferredNumericInputKeydown(event) {
+  if (event.key !== "Enter") {
+    return;
+  }
+  const target = event.target;
+  if (!(target instanceof HTMLInputElement) || target.type !== "number") {
+    return;
+  }
+  const { section, field, periodId } = target.dataset;
+  if (
+    section === "backlog" &&
+    isBacklogDeferredNumericField(field)
+  ) {
+    event.preventDefault();
+    target.blur();
+    return;
+  }
+  if (
+    section === "capacity" &&
+    periodId &&
+    isCapacityDeferredNumericField(field)
+  ) {
+    event.preventDefault();
+    target.blur();
+  }
 }
 
 async function handleTeamNameInput(event) {
@@ -1562,6 +1660,8 @@ async function submitImport(event) {
       }
     });
 
+    applyDefaultRoleSplitsToBacklogRows(plan);
+
     plan.backlogEntryMode = "import";
     touchPlan(plan);
     setImportProgress(100);
@@ -1637,6 +1737,35 @@ function handleSettingsAddRoleRow() {
   row.appendChild(input);
   row.appendChild(del);
   refs.settingsRolesList.appendChild(row);
+  if (
+    refs.settingsDefaultRoleSplitList &&
+    refs.settingsDefaultRoleSplitWrap &&
+    !refs.settingsDefaultRoleSplitWrap.hidden
+  ) {
+    const roleId = row.dataset.roleId;
+    const splitRow = document.createElement("div");
+    splitRow.className = "settings-default-role-split-row";
+    splitRow.dataset.roleId = roleId;
+    const lab = document.createElement("label");
+    lab.className = "settings-default-role-split-label";
+    const inputId = `default-split-${roleId}`;
+    lab.htmlFor = inputId;
+    lab.textContent = "New role (%)";
+    const inp = document.createElement("input");
+    inp.id = inputId;
+    inp.type = "number";
+    inp.min = "0";
+    inp.max = "100";
+    inp.step = "any";
+    inp.className = "input settings-default-role-split-input";
+    inp.dataset.roleId = roleId;
+    inp.setAttribute("aria-label", "Default split percent for new role");
+    splitRow.appendChild(lab);
+    splitRow.appendChild(inp);
+    refs.settingsDefaultRoleSplitList.appendChild(splitRow);
+    distributeDefaultRoleSplitFromFirst(refs);
+    refreshDefaultRoleSplitTotal(refs);
+  }
   input.focus();
 }
 
@@ -1654,7 +1783,16 @@ function handleSettingsRolesListClick(event) {
     setMessage("At least one role is required.", "error");
     return;
   }
+  const removedRoleId = row.dataset.roleId;
   row.remove();
+  if (removedRoleId && refs.settingsDefaultRoleSplitList) {
+    const splitRow = refs.settingsDefaultRoleSplitList.querySelector(
+      `.settings-default-role-split-row[data-role-id="${removedRoleId}"]`
+    );
+    splitRow?.remove();
+  }
+  distributeDefaultRoleSplitFromFirst(refs);
+  refreshDefaultRoleSplitTotal(refs);
 }
 
 async function saveSettings(event) {
@@ -1678,6 +1816,7 @@ async function saveSettings(event) {
     }
     return;
   }
+  applyDefaultRoleSplitsToBacklogRows(activePlan);
   activePlan.defaultWorkingDays = defaultWorkingDays;
   activePlan.defaultLoadPercent = defaultLoadPercent;
   activePlan.capacityRows.forEach((row) => {
@@ -1720,6 +1859,7 @@ function bindEvents() {
       handleImportDialogClose,
       handleImportJiraBaseUrlBlur,
       handleSettingsEstimationTypeChange,
+      handleSettingsResourceGroupingChange,
       handleCreatePlanEstimationTypeChange,
       handleCreatePlanUseSprintsChange,
       handleCreatePlanUseBuffersChange,
@@ -1732,6 +1872,7 @@ function bindEvents() {
       submitBufferSettings,
       syncImportButtonState,
       handleTableInput,
+      handleDeferredNumericInputKeydown,
       handleCapacityTableClick,
       handleTeamNameInput,
       handleCapacityTableViewModeChange,
@@ -1798,6 +1939,9 @@ async function init() {
       if (row.targetPeriodId === undefined || row.targetPeriodId === null) {
         row.targetPeriodId = "";
       }
+      if (row.targetCapacityRowId === undefined || row.targetCapacityRowId === null) {
+        row.targetCapacityRowId = "";
+      }
     });
     if (!plan.estimationType) {
       plan.estimationType = appState.estimationType || "story_points";
@@ -1841,6 +1985,27 @@ async function init() {
           : 100;
     } else {
       plan.defaultLoadPercent = sanitizeLoadPercent(plan.defaultLoadPercent);
+    }
+    if (!plan.defaultRoleSplitPctByRoleId || typeof plan.defaultRoleSplitPctByRoleId !== "object") {
+      plan.defaultRoleSplitPctByRoleId = {};
+    }
+    if (
+      plan.estimationType === "story_points" &&
+      plan.resourceGroupingType === "by_roles" &&
+      Array.isArray(plan.roleOptions) &&
+      plan.roleOptions.length > 0
+    ) {
+      const m = plan.defaultRoleSplitPctByRoleId;
+      const missing = plan.roleOptions.some((o) => {
+        if (!o?.id) {
+          return false;
+        }
+        const v = m[o.id];
+        return v === undefined || v === null || String(v).trim() === "";
+      });
+      if (missing || Object.keys(m).length === 0) {
+        plan.defaultRoleSplitPctByRoleId = buildEqualDefaultRoleSplitPctByRoleId(plan.roleOptions);
+      }
     }
     normalizePlanForMode(plan);
     const invariantCheck = assertPlanInvariants(plan);

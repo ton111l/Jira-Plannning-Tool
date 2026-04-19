@@ -1,4 +1,5 @@
 import { createBacklogRow } from "../../models.js";
+import { applyDefaultRoleSplitsToBacklogRows } from "../services/backlogRoleSplits.js";
 
 export async function handleManualBacklogEntryModeAction({ getActivePlan, setMessage, touchPlan, persistAndRender }) {
   const plan = getActivePlan();
@@ -9,6 +10,7 @@ export async function handleManualBacklogEntryModeAction({ getActivePlan, setMes
   plan.backlogEntryMode = "manual";
   if (!plan.backlogRows.length) {
     plan.backlogRows.push(createBacklogRow());
+    applyDefaultRoleSplitsToBacklogRows(plan);
   }
   touchPlan(plan);
   await persistAndRender("Manual backlog entry mode enabled.", "success");

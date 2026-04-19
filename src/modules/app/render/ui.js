@@ -70,12 +70,164 @@ export function renderSettings({ refs, plan, appState }) {
   }
   refs.resourceGroupingTypeSelect.value = plan?.resourceGroupingType || appState.resourceGroupingType || "by_roles";
 
+  syncSettingsDefaultRoleSplitSection(refs, plan, appState);
+
   if (refs.settingsRolesSection) {
     refs.settingsRolesSection.hidden = !plan;
     if (plan) {
       renderSettingsRolesList({ refs, plan });
     }
   }
+}
+
+/**
+ * Visibility and content for "Default % SP by roles": only Story Points + **By roles** (uses live Settings form values).
+ * Call when opening Settings and when Estimation type or Resource grouping changes.
+ */
+export function syncSettingsDefaultRoleSplitSection(refs, plan, appState) {
+  if (!refs.settingsDefaultRoleSplitWrap) {
+    return;
+  }
+  const estimationType =
+    refs.estimationTypeSelect?.value ||
+    plan?.estimationType ||
+    appState?.estimationType ||
+    "story_points";
+  const resourceGroupingType =
+    refs.resourceGroupingTypeSelect?.value ||
+    plan?.resourceGroupingType ||
+    appState?.resourceGroupingType ||
+    "by_team";
+  const show =
+    Boolean(plan) &&
+    estimationType === "story_points" &&
+    resourceGroupingType === "by_roles";
+  refs.settingsDefaultRoleSplitWrap.hidden = !show;
+  if (show) {
+    renderSettingsDefaultRoleSplitList(refs, plan);
+    refreshDefaultRoleSplitTotal(refs);
+  }
+}
+
+function renderSettingsDefaultRoleSplitList(refs, plan) {
+  const list = refs.settingsDefaultRoleSplitList;
+  if (!list || !plan) {
+    return;
+  }
+  list.innerHTML = "";
+  const map = plan.defaultRoleSplitPctByRoleId && typeof plan.defaultRoleSplitPctByRoleId === "object"
+    ? plan.defaultRoleSplitPctByRoleId
+    : {};
+  for (const opt of plan.roleOptions || []) {
+    if (!opt?.id) {
+      continue;
+    }
+    const row = document.createElement("div");
+    row.className = "settings-default-role-split-row";
+    row.dataset.roleId = opt.id;
+    const lab = document.createElement("label");
+    lab.className = "settings-default-role-split-label";
+    const inputId = `default-split-${opt.id}`;
+    lab.htmlFor = inputId;
+    lab.textContent = opt.label ? `${opt.label} (%)` : "Role (%)";
+    const inp = document.createElement("input");
+    inp.id = inputId;
+    inp.type = "number";
+    inp.min = "0";
+    inp.max = "100";
+    inp.step = "any";
+    inp.className = "input settings-default-role-split-input";
+    inp.dataset.roleId = opt.id;
+    inp.setAttribute("aria-label", `Default split percent for ${opt.label || "role"}`);
+    const v = map[opt.id];
+    inp.value = v !== undefined && v !== null && String(v).trim() !== "" ? String(v) : "";
+    inp.placeholder = "";
+    row.appendChild(lab);
+    row.appendChild(inp);
+    list.appendChild(row);
+  }
+}
+
+/** Split `remainder` across `count` slots with equal shares; last slot absorbs rounding (sum matches remainder). */
+function splitRemainderEqually(remainder, count) {
+  const r = Number(remainder);
+  if (count <= 0) {
+    return [];
+  }
+  if (count === 1) {
+    return [Number(r.toFixed(2))];
+  }
+  let allocated = 0;
+  const out = [];
+  const per = Number((r / count).toFixed(2));
+  for (let i = 0; i < count - 1; i += 1) {
+    out.push(per);
+    allocated += per;
+  }
+  out.push(Number((r - allocated).toFixed(2)));
+  return out;
+}
+
+/**
+ * When the first default-% field has a value, fills the rest so the sum is 100%.
+ * (Editing rows 2+ does not trigger this — only call this when the first row changes or role count changes.)
+ */
+export function distributeDefaultRoleSplitFromFirst(refs) {
+  const list = refs.settingsDefaultRoleSplitList;
+  if (!list || refs.settingsDefaultRoleSplitWrap?.hidden) {
+    return;
+  }
+  const inputs = Array.from(list.querySelectorAll(".settings-default-role-split-input"));
+  if (inputs.length < 2) {
+    return;
+  }
+  const first = inputs[0];
+  const raw = String(first.value ?? "").trim();
+  if (raw === "") {
+    return;
+  }
+  let firstNum = Number(raw);
+  if (!Number.isFinite(firstNum)) {
+    return;
+  }
+  firstNum = Math.min(100, Math.max(0, firstNum));
+  if (String(first.value) !== String(firstNum)) {
+    first.value = String(firstNum);
+  }
+  const remainder = 100 - firstNum;
+  const parts = splitRemainderEqually(remainder, inputs.length - 1);
+  for (let i = 1; i < inputs.length; i += 1) {
+    inputs[i].value = String(parts[i - 1]);
+  }
+}
+
+/**
+ * Updates the live total under Default % SP by roles; marks invalid unless sum is 100% (and no empty fields).
+ */
+export function refreshDefaultRoleSplitTotal(refs) {
+  const totalEl = refs.settingsDefaultRoleSplitTotal;
+  const list = refs.settingsDefaultRoleSplitList;
+  if (!totalEl || !list || refs.settingsDefaultRoleSplitWrap?.hidden) {
+    return;
+  }
+  const inputs = list.querySelectorAll(".settings-default-role-split-input");
+  let sum = 0;
+  let anyEmpty = false;
+  for (const inp of inputs) {
+    const raw = String(inp.value ?? "").trim();
+    if (raw === "") {
+      anyEmpty = true;
+      continue;
+    }
+    const n = Number(raw);
+    if (Number.isFinite(n)) {
+      sum += n;
+    }
+  }
+  const label = anyEmpty ? "Total (incomplete)" : "Total";
+  totalEl.textContent = `${label}: ${sum.toFixed(2)}% (must be 100%)`;
+  const valid = !anyEmpty && inputs.length > 0 && Math.abs(sum - 100) <= 0.02;
+  totalEl.classList.toggle("settings-default-role-split-total-invalid", !valid);
 }
 
 export function renderSettingsRolesList({ refs, plan }) {

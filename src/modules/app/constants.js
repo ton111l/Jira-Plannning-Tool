@@ -7,5 +7,6 @@ export const ESTIMATION_TYPE_LABELS = {
 
 export const RESOURCE_GROUPING_TYPES = {
   by_roles: "by_roles",
-  by_team: "by_team"
+  by_team: "by_team",
+  by_member: "by_member"
 };

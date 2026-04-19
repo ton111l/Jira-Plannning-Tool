@@ -43,6 +43,27 @@ export function createDefaultRoleOptions() {
   }));
 }
 
+/** Equal split of 100% across roles (last role absorbs rounding). Used for new plans and migration. */
+export function buildEqualDefaultRoleSplitPctByRoleId(roleOptions) {
+  const opts = (roleOptions || []).filter((o) => o?.id);
+  const n = opts.length;
+  if (n === 0) {
+    return {};
+  }
+  const out = {};
+  let allocated = 0;
+  for (let i = 0; i < n; i += 1) {
+    if (i === n - 1) {
+      out[opts[i].id] = Number((100 - allocated).toFixed(2));
+    } else {
+      const v = Number((100 / n).toFixed(2));
+      out[opts[i].id] = v;
+      allocated += v;
+    }
+  }
+  return out;
+}
+
 export function createCapacityRow(periods = []) {
   const periodValues = {};
   for (const period of periods) {
@@ -69,6 +90,8 @@ export function createBacklogRow(overrides = {}) {
     estimation: "",
     /** Primary sprint/quarter period to consume Story Points from (sprint mode); optional in quarter mode. */
     targetPeriodId: "",
+    /** When resourceGroupingType is by_member: capacity row id to attribute planned demand to. */
+    targetCapacityRowId: "",
     source: "manual",
     ...overrides
   };
@@ -93,6 +116,7 @@ export function createPlan({
   const nowIso = new Date().toISOString();
   const anchorQ = firstPeriod.anchorQuarter || firstPeriod.quarter;
   const anchorY = firstPeriod.anchorYear ?? firstPeriod.year;
+  const roleOptions = createDefaultRoleOptions();
 
   return {
     id: generateId("plan"),
@@ -115,6 +139,8 @@ export function createPlan({
     defaultWorkingDays: Number(defaultWorkingDays) >= 0 ? Number(defaultWorkingDays) : 0,
     /** Default Load (%) for capacity rows; Settings applies to all rows on Save. */
     defaultLoadPercent: 100,
+    /** By roles: default Split (%) per role id; must sum to 100. Applied when split cell is empty. */
+    defaultRoleSplitPctByRoleId: buildEqualDefaultRoleSplitPctByRoleId(roleOptions),
     /** Capacity table UI: Full (all columns) or Compact (hide Days off and Per member). */
     capacityTableViewMode: "full",
     periods: [firstPeriod],
@@ -126,7 +152,7 @@ export function createPlan({
     },
     backlogEntryMode: "import",
     lastImportJql: "",
-    roleOptions: createDefaultRoleOptions(),
+    roleOptions,
     capacityRows: [createCapacityRow([firstPeriod])],
     backlogRows: [],
     createdAt: nowIso,

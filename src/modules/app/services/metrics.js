@@ -1,4 +1,4 @@
-import { sanitizeLoadPercent, sanitizeNonNegative } from "../../calculations.js";
+import { sanitizeLoadPercent, sanitizeNonNegative, toNumber } from "../../calculations.js";
 import { getCapacityRoleKey } from "../roleCatalog.js";
 
 function safePeriodValues(row, periodId) {
@@ -144,4 +144,23 @@ export function buildPeriodMetrics({
   });
 
   return isByRolesGrouping ? { periodTeamMetrics, periodRoleMetrics } : { periodTeamMetrics, periodRoleMetrics: {} };
+}
+
+/**
+ * Team-level Available balance for Story Points: (available capacity × SP/day) − planned, then buffer factor.
+ */
+export function computeStoryPointsTeamAvailableBalance({
+  availableCapacityTotal,
+  estimationTeamValue,
+  plannedTotal,
+  buffersFactor = 1
+}) {
+  const cap = sanitizeNonNegative(availableCapacityTotal);
+  const planned = sanitizeNonNegative(plannedTotal);
+  let supplySp = 0;
+  if (estimationTeamValue !== "" && estimationTeamValue !== null && estimationTeamValue !== undefined) {
+    supplySp = Number((cap * sanitizeNonNegative(estimationTeamValue)).toFixed(2));
+  }
+  const rawBalance = supplySp - planned;
+  return Number((toNumber(rawBalance, 0) * sanitizeNonNegative(buffersFactor)).toFixed(2));
 }
