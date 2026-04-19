@@ -45,7 +45,6 @@ export function renderBacklogTable({
       refs,
       plan,
       estimationHeader,
-      estimationType,
       buildCellInput,
       buildBacklogPeriodSelect
     });
@@ -57,7 +56,6 @@ export function renderBacklogTable({
     refs,
     plan,
     estimationHeader,
-    estimationType,
     buildCellInput,
     buildBacklogPeriodSelect
   });
