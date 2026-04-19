@@ -150,7 +150,10 @@ export function applySettingsChanges({
       touchPlan(plan);
     }
   }
-  if (plan.estimationType === "story_points" && plan.resourceGroupingType === "by_roles") {
+  const saveDefaultRoleSplit =
+    plan.estimationType === "story_points" &&
+    (plan.resourceGroupingType === "by_roles" || plan.resourceGroupingType === "by_member");
+  if (saveDefaultRoleSplit) {
     const splitResult = validateAndCollectDefaultRoleSplitPct(refs);
     if (!splitResult.ok) {
       return { ok: false, error: splitResult.error };

@@ -90,8 +90,10 @@ export function createBacklogRow(overrides = {}) {
     estimation: "",
     /** Primary sprint/quarter period to consume Story Points from (sprint mode); optional in quarter mode. */
     targetPeriodId: "",
-    /** When resourceGroupingType is by_member: capacity row id to attribute planned demand to. */
+    /** When resourceGroupingType is by_member: capacity row id to attribute planned demand to (legacy if no per-role map). */
     targetCapacityRowId: "",
+    /** When resourceGroupingType is by_member: role option id → capacity row id for split-by-role planning. */
+    targetCapacityRowIdByRoleId: {},
     source: "manual",
     ...overrides
   };

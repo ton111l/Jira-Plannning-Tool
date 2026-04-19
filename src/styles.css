@@ -302,6 +302,11 @@ body {
   width: 120px;
 }
 
+#backlogTable.backlog-import-table th.backlog-member-by-roles-header {
+  text-align: center;
+  font-weight: 600;
+}
+
 #backlogTable.backlog-import-table th.backlog-role-group {
   min-width: 136px;
 }
@@ -316,6 +321,12 @@ body {
 #backlogTable.backlog-import-table td.backlog-role-estimation {
   min-width: 68px;
   width: 68px;
+}
+
+#backlogTable.backlog-import-table th.backlog-role-member,
+#backlogTable.backlog-import-table td.backlog-role-member {
+  min-width: 120px;
+  width: 120px;
 }
 
 /* SP + By team (full, quarters only): two-row thead; see byTeam.js useSpTeamSimplifiedHeader */

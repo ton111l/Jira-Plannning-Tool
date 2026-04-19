@@ -8,7 +8,7 @@ export function applyDefaultRoleSplitsToBacklogRows(plan) {
   if (!plan?.backlogRows?.length || !plan.roleOptions?.length) {
     return;
   }
-  if (plan.resourceGroupingType !== "by_roles") {
+  if (plan.resourceGroupingType !== "by_roles" && plan.resourceGroupingType !== "by_member") {
     return;
   }
   const defaults = plan.defaultRoleSplitPctByRoleId;

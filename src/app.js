@@ -1416,11 +1416,25 @@ async function handleTableInput(event) {
     if (!row || field === "source") {
       return;
     }
-    row[field] = target.value;
+    if (field === "targetCapacityRowIdByRole") {
+      const rid = target.dataset.roleId;
+      if (!rid) {
+        return;
+      }
+      if (!row.targetCapacityRowIdByRoleId || typeof row.targetCapacityRowIdByRoleId !== "object") {
+        row.targetCapacityRowIdByRoleId = {};
+      }
+      row.targetCapacityRowIdByRoleId[rid] = target.value;
+    } else {
+      row[field] = target.value;
+    }
   }
 
   touchPlan(plan);
-  if (section === "backlog" && (field === "targetPeriodId" || field === "targetCapacityRowId")) {
+  if (
+    section === "backlog" &&
+    (field === "targetPeriodId" || field === "targetCapacityRowId" || field === "targetCapacityRowIdByRole")
+  ) {
     await persistAndRender();
     return;
   }
@@ -1942,6 +1956,9 @@ async function init() {
       if (row.targetCapacityRowId === undefined || row.targetCapacityRowId === null) {
         row.targetCapacityRowId = "";
       }
+      if (!row.targetCapacityRowIdByRoleId || typeof row.targetCapacityRowIdByRoleId !== "object") {
+        row.targetCapacityRowIdByRoleId = {};
+      }
     });
     if (!plan.estimationType) {
       plan.estimationType = appState.estimationType || "story_points";
@@ -1991,7 +2008,7 @@ async function init() {
     }
     if (
       plan.estimationType === "story_points" &&
-      plan.resourceGroupingType === "by_roles" &&
+      (plan.resourceGroupingType === "by_roles" || plan.resourceGroupingType === "by_member") &&
       Array.isArray(plan.roleOptions) &&
       plan.roleOptions.length > 0
     ) {
