@@ -23,6 +23,7 @@ import {
   renderCapacityViewMode as renderCapacityViewModeView,
   renderPlanSelect as renderPlanSelectView,
   renderSettings as renderSettingsView,
+  syncSettingsDefaultRoleSplitSection,
   distributeDefaultRoleSplitFromFirst,
   refreshDefaultRoleSplitTotal,
   renderTabs as renderTabsView,
@@ -383,10 +384,16 @@ function handleSettingsEstimationTypeChange() {
     refs.settingsTeamEstimationModeSelect.value = "average";
     refs.settingsTeamEstimationValueWrap.style.display = "none";
     refs.settingsTeamEstimationValueInput.value = "";
+    syncSettingsDefaultRoleSplitSection(refs, getActivePlan(), appState);
     return;
   }
   const mode = refs.settingsTeamEstimationModeSelect.value || "average";
   refs.settingsTeamEstimationValueWrap.style.display = mode === "manual" ? "flex" : "none";
+  syncSettingsDefaultRoleSplitSection(refs, getActivePlan(), appState);
+}
+
+function handleSettingsResourceGroupingChange() {
+  syncSettingsDefaultRoleSplitSection(refs, getActivePlan(), appState);
 }
 
 function handleCreatePlanEstimationTypeChange() {
@@ -1852,6 +1859,7 @@ function bindEvents() {
       handleImportDialogClose,
       handleImportJiraBaseUrlBlur,
       handleSettingsEstimationTypeChange,
+      handleSettingsResourceGroupingChange,
       handleCreatePlanEstimationTypeChange,
       handleCreatePlanUseSprintsChange,
       handleCreatePlanUseBuffersChange,

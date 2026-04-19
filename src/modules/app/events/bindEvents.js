@@ -66,6 +66,9 @@ export function bindEvents({
     });
   }
   refs.estimationTypeSelect.addEventListener("change", handlers.handleSettingsEstimationTypeChange);
+  if (refs.resourceGroupingTypeSelect) {
+    refs.resourceGroupingTypeSelect.addEventListener("change", handlers.handleSettingsResourceGroupingChange);
+  }
   refs.createPlanEstimationTypeSelect.addEventListener("change", handlers.handleCreatePlanEstimationTypeChange);
   refs.createPlanTeamEstimationModeSelect.addEventListener("change", handlers.handleCreatePlanEstimationTypeChange);
   refs.createPlanUseSprintsCheckbox.addEventListener("change", handlers.handleCreatePlanUseSprintsChange);

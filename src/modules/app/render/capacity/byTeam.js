@@ -18,12 +18,13 @@ export function renderCapacityByTeam({
   ensureTeamPeriodValues(plan);
   const isCompact = plan.capacityTableViewMode === "compact";
   const isPersonDays = estimationType === "person_days";
+  const isByMember = plan.resourceGroupingType === "by_member";
   const isSpTeamOnlyColumns =
     estimationType === "story_points" &&
     (plan.resourceGroupingType === "by_team" || plan.resourceGroupingType === "by_member");
   const hasSprintPeriod = plan.periods.some((p) => p.kind === "sprint");
   const useSpTeamSimplifiedHeader = isSpTeamOnlyColumns && !hasSprintPeriod;
-  const perTeamLabel = " (Per team)";
+  const spGroupLabel = isByMember ? " (Per member)" : " (Per team)";
 
   const getPeriodColumnsCount = (period) => {
     const isSprint = period.kind === "sprint";
@@ -107,7 +108,7 @@ export function renderCapacityByTeam({
 
       const available = document.createElement("th");
       available.className = "period-subcol period-subcol-wide";
-      available.textContent = isSpTeamOnlyColumns ? `Available capacity${perTeamLabel}` : "Available capacity";
+      available.textContent = isSpTeamOnlyColumns ? `Available capacity${spGroupLabel}` : "Available capacity";
       metricRow.appendChild(available);
 
       if (!isSprint) {
@@ -115,23 +116,23 @@ export function renderCapacityByTeam({
         estimationPerDay.className = "period-subcol period-subcol-wide";
         estimationPerDay.textContent = isPersonDays
           ? "Man-days per day (team total)"
-          : hasTeamFixedMode
+          : hasTeamFixedMode && !isByMember
             ? `${estimationLabel} per day (Team)`
             : isSpTeamOnlyColumns
-              ? `${estimationLabel} per day${perTeamLabel}`
+              ? `${estimationLabel} per day${spGroupLabel}`
               : `${estimationLabel} per day (${teamSubLabel})`;
         metricRow.appendChild(estimationPerDay);
 
         const planned = document.createElement("th");
         planned.className = "period-subcol period-subcol-wide";
         planned.textContent = isSpTeamOnlyColumns
-          ? `Planned ${estimationTitleForPlanned}${perTeamLabel}`
+          ? `Planned ${estimationTitleForPlanned}${spGroupLabel}`
           : `Planned ${estimationTitleForPlanned}`;
         metricRow.appendChild(planned);
 
         const balance = document.createElement("th");
         balance.className = "period-subcol period-subcol-wide";
-        balance.textContent = isSpTeamOnlyColumns ? `${availableBalanceTitle}${perTeamLabel}` : availableBalanceTitle;
+        balance.textContent = isSpTeamOnlyColumns ? `${availableBalanceTitle}${spGroupLabel}` : availableBalanceTitle;
         metricRow.appendChild(balance);
       }
     }
@@ -184,21 +185,22 @@ export function renderCapacityByTeam({
 
       const available = document.createElement("th");
       available.className = "period-subcol period-subcol-wide";
-      available.textContent = `Available capacity${perTeamLabel}`;
+      available.textContent = `Available capacity${spGroupLabel}`;
 
       const estimationPerDay = document.createElement("th");
       estimationPerDay.className = "period-subcol period-subcol-wide";
-      estimationPerDay.textContent = hasTeamFixedMode
-        ? `${estimationLabel} per day (Team)`
-        : `${estimationLabel} per day${perTeamLabel}`;
+      estimationPerDay.textContent =
+        hasTeamFixedMode && !isByMember
+          ? `${estimationLabel} per day (Team)`
+          : `${estimationLabel} per day${spGroupLabel}`;
 
       const planned = document.createElement("th");
       planned.className = "period-subcol period-subcol-wide";
-      planned.textContent = `Planned ${estimationTitleForPlanned}${perTeamLabel}`;
+      planned.textContent = `Planned ${estimationTitleForPlanned}${spGroupLabel}`;
 
       const balance = document.createElement("th");
       balance.className = "period-subcol period-subcol-wide";
-      balance.textContent = `${availableBalanceTitle}${perTeamLabel}`;
+      balance.textContent = `${availableBalanceTitle}${spGroupLabel}`;
 
       metricHeadRow.append(dayOff, working, available, estimationPerDay, planned, balance);
     }
@@ -438,6 +440,85 @@ export function renderCapacityByTeam({
       const rowEstimationPerDay = values.rowEstimationPerDay ?? values.estimationPerDay ?? "";
 
       if (useTeamOnlyBody) {
+        if (isByMember) {
+          if (!isCompact) {
+            const daysOffCell = document.createElement("td");
+            daysOffCell.className = "period-value-cell period-value-cell-short";
+            daysOffCell.appendChild(
+              buildCellInput({
+                value: values.daysOff,
+                type: "number",
+                dataset: { section: "capacity", rowId: capacityRow.id, field: "daysOff", periodId: period.id },
+                readOnly: isQuarterWithSprints
+              })
+            );
+            tr.appendChild(daysOffCell);
+          }
+
+          const workingCellMember = document.createElement("td");
+          workingCellMember.className = "period-value-cell period-value-cell-short";
+          workingCellMember.appendChild(
+            buildCellInput({
+              value: values.workingDays,
+              type: "number",
+              dataset: { section: "capacity", rowId: capacityRow.id, field: "workingDays", periodId: period.id },
+              readOnly: isQuarterWithSprints
+            })
+          );
+          tr.appendChild(workingCellMember);
+
+          const availableCellMember = document.createElement("td");
+          availableCellMember.className = "period-value-cell period-value-cell-short";
+          availableCellMember.appendChild(
+            buildCellInput({
+              value: values.availableCapacity,
+              dataset: { section: "capacity", rowId: capacityRow.id, field: "availableCapacity", periodId: period.id },
+              readOnly: true
+            })
+          );
+          tr.appendChild(availableCellMember);
+
+          const estimationPerDayMember = document.createElement("td");
+          estimationPerDayMember.className = "period-value-cell period-value-cell-wide";
+          const spDayInput = buildCellInput({
+            value: rowEstimationPerDay,
+            type: "number",
+            dataset: { section: "capacity", rowId: capacityRow.id, field: "rowEstimationPerDay", periodId: period.id }
+          });
+          spDayInput.title = "Story Points per day for this member (same basis as team average or manual team value).";
+          estimationPerDayMember.appendChild(spDayInput);
+          tr.appendChild(estimationPerDayMember);
+
+          const plannedCellMember = document.createElement("td");
+          plannedCellMember.className = "period-value-cell period-value-cell-wide";
+          plannedCellMember.appendChild(
+            buildCellInput({
+              value: values.plannedEstimation ?? "",
+              dataset: { section: "capacity", rowId: capacityRow.id, field: "plannedEstimation", periodId: period.id },
+              readOnly: true
+            })
+          );
+          tr.appendChild(plannedCellMember);
+
+          const balanceCellMember = document.createElement("td");
+          balanceCellMember.className = "period-value-cell period-value-cell-wide";
+          const remainingMemberRawBm = calculateRemainingMember(values, rowEstimationPerDay);
+          const remainingMemberBm =
+            remainingMemberRawBm === "" || remainingMemberRawBm === undefined
+              ? ""
+              : Number((toNumber(remainingMemberRawBm, 0) * buffersFactor).toFixed(2));
+          balanceCellMember.appendChild(
+            buildCellInput({
+              value: remainingMemberBm,
+              dataset: { section: "capacity", rowId: capacityRow.id, field: "availableBalance", periodId: period.id },
+              readOnly: true
+            })
+          );
+          tr.appendChild(balanceCellMember);
+
+          continue;
+        }
+
         if (!isCompact) {
           const daysOffCell = document.createElement("td");
           daysOffCell.className = "period-value-cell period-value-cell-short";
@@ -545,6 +626,71 @@ export function renderCapacityByTeam({
           );
           tr.appendChild(balanceTeamCellOnly);
         }
+
+        continue;
+      }
+
+      if (isCompact && isByMember && isSpTeamOnlyColumns && !isSprint) {
+        const workingCellCm = document.createElement("td");
+        workingCellCm.className = "period-value-cell period-value-cell-short";
+        workingCellCm.appendChild(
+          buildCellInput({
+            value: values.workingDays,
+            type: "number",
+            dataset: { section: "capacity", rowId: capacityRow.id, field: "workingDays", periodId: period.id },
+            readOnly: isQuarterWithSprints
+          })
+        );
+        tr.appendChild(workingCellCm);
+
+        const availableCellCm = document.createElement("td");
+        availableCellCm.className = "period-value-cell period-value-cell-short";
+        availableCellCm.appendChild(
+          buildCellInput({
+            value: values.availableCapacity,
+            dataset: { section: "capacity", rowId: capacityRow.id, field: "availableCapacity", periodId: period.id },
+            readOnly: true
+          })
+        );
+        tr.appendChild(availableCellCm);
+
+        const estimationCm = document.createElement("td");
+        estimationCm.className = "period-value-cell period-value-cell-wide";
+        const spInpCm = buildCellInput({
+          value: rowEstimationPerDay,
+          type: "number",
+          dataset: { section: "capacity", rowId: capacityRow.id, field: "rowEstimationPerDay", periodId: period.id }
+        });
+        spInpCm.title = "Story Points per day for this member.";
+        estimationCm.appendChild(spInpCm);
+        tr.appendChild(estimationCm);
+
+        const plannedCm = document.createElement("td");
+        plannedCm.className = "period-value-cell period-value-cell-wide";
+        plannedCm.appendChild(
+          buildCellInput({
+            value: values.plannedEstimation ?? "",
+            dataset: { section: "capacity", rowId: capacityRow.id, field: "plannedEstimation", periodId: period.id },
+            readOnly: true
+          })
+        );
+        tr.appendChild(plannedCm);
+
+        const balanceCm = document.createElement("td");
+        balanceCm.className = "period-value-cell period-value-cell-wide";
+        const remRawCm = calculateRemainingMember(values, rowEstimationPerDay);
+        const remCm =
+          remRawCm === "" || remRawCm === undefined
+            ? ""
+            : Number((toNumber(remRawCm, 0) * buffersFactor).toFixed(2));
+        balanceCm.appendChild(
+          buildCellInput({
+            value: remCm,
+            dataset: { section: "capacity", rowId: capacityRow.id, field: "availableBalance", periodId: period.id },
+            readOnly: true
+          })
+        );
+        tr.appendChild(balanceCm);
 
         continue;
       }

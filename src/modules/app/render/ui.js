@@ -70,23 +70,42 @@ export function renderSettings({ refs, plan, appState }) {
   }
   refs.resourceGroupingTypeSelect.value = plan?.resourceGroupingType || appState.resourceGroupingType || "by_roles";
 
-  const showDefaultRoleSplit =
-    Boolean(plan) &&
-    estimationType === "story_points" &&
-    (plan.resourceGroupingType === "by_roles");
-  if (refs.settingsDefaultRoleSplitWrap) {
-    refs.settingsDefaultRoleSplitWrap.hidden = !showDefaultRoleSplit;
-    if (showDefaultRoleSplit) {
-      renderSettingsDefaultRoleSplitList(refs, plan);
-      refreshDefaultRoleSplitTotal(refs);
-    }
-  }
+  syncSettingsDefaultRoleSplitSection(refs, plan, appState);
 
   if (refs.settingsRolesSection) {
     refs.settingsRolesSection.hidden = !plan;
     if (plan) {
       renderSettingsRolesList({ refs, plan });
     }
+  }
+}
+
+/**
+ * Visibility and content for "Default % SP by roles": only Story Points + **By roles** (uses live Settings form values).
+ * Call when opening Settings and when Estimation type or Resource grouping changes.
+ */
+export function syncSettingsDefaultRoleSplitSection(refs, plan, appState) {
+  if (!refs.settingsDefaultRoleSplitWrap) {
+    return;
+  }
+  const estimationType =
+    refs.estimationTypeSelect?.value ||
+    plan?.estimationType ||
+    appState?.estimationType ||
+    "story_points";
+  const resourceGroupingType =
+    refs.resourceGroupingTypeSelect?.value ||
+    plan?.resourceGroupingType ||
+    appState?.resourceGroupingType ||
+    "by_team";
+  const show =
+    Boolean(plan) &&
+    estimationType === "story_points" &&
+    resourceGroupingType === "by_roles";
+  refs.settingsDefaultRoleSplitWrap.hidden = !show;
+  if (show) {
+    renderSettingsDefaultRoleSplitList(refs, plan);
+    refreshDefaultRoleSplitTotal(refs);
   }
 }
 

@@ -131,9 +131,10 @@ export function sumPlannedForPeriod(plan, periodId) {
   if (!plan?.capacityRows?.length) {
     return 0;
   }
-  return plan.capacityRows.reduce((sum, row) => {
-    return sum + asNumber(row.periodValues?.[periodId]?.plannedEstimation);
+  const sum = plan.capacityRows.reduce((acc, row) => {
+    return acc + asNumber(row.periodValues?.[periodId]?.plannedEstimation);
   }, 0);
+  return Number(sum.toFixed(2));
 }
 
 /** Sum planned backlog demand for a contiguous block of capacity rows (one role group). */
