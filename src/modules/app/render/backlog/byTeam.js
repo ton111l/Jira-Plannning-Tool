@@ -1,21 +1,14 @@
-import {
-  asNumber,
-  getBacklogEstimationForPlan,
-  getBacklogEstimationNumericForPlan,
-  getEstimationUnitByType
-} from "../shared/backlogHelpers.js";
+import { asNumber, getBacklogEstimationForPlan } from "../shared/backlogHelpers.js";
 
 export function renderImportBacklogByTeam({
   refs,
   plan,
   estimationHeader,
-  estimationType,
   buildCellInput,
   buildBacklogPeriodSelect
 }) {
-  const estimationUnit = getEstimationUnitByType(estimationType);
   const baseHeaders = ["Key", "Summary", "Status", "Priority", "IssueType", estimationHeader, "Period"];
-  const totalColumns = baseHeaders.length + 2 + 1;
+  const totalColumns = 1 + baseHeaders.length + 1;
 
   const thead = document.createElement("thead");
   const tbody = document.createElement("tbody");
@@ -31,30 +24,10 @@ export function renderImportBacklogByTeam({
   selectAllTh.appendChild(selectAllInput);
   singleHeader.appendChild(selectAllTh);
 
-  const effectiveTitle = `Effective ${estimationUnit}`;
-  const headerLabels = [...baseHeaders, "Team allocation (%)", effectiveTitle];
+  const headerLabels = [...baseHeaders, "Team allocation (%)"];
   headerLabels.forEach((label) => {
     const th = document.createElement("th");
-    if (label === effectiveTitle) {
-      th.className = "backlog-effective-header";
-      const wrap = document.createElement("span");
-      wrap.className = "label-with-help";
-      wrap.appendChild(document.createTextNode(effectiveTitle));
-      const help = document.createElement("span");
-      help.className = "help-tooltip";
-      help.tabIndex = 0;
-      help.setAttribute("aria-label", `Help: ${effectiveTitle}`);
-      const unitWord = estimationType === "person_days" ? "Man-days" : "Story Points";
-      help.appendChild(document.createTextNode("?"));
-      const bubble = document.createElement("span");
-      bubble.className = "help-tooltip-bubble";
-      bubble.textContent = `Read-only. Formula: Estimation × (Team allocation % ÷ 100). Example: 8 ${unitWord} with 50% team allocation → 4 effective.`;
-      help.appendChild(bubble);
-      wrap.appendChild(help);
-      th.appendChild(wrap);
-    } else {
-      th.textContent = label;
-    }
+    th.textContent = label;
     singleHeader.appendChild(th);
   });
   thead.appendChild(singleHeader);
@@ -73,7 +46,6 @@ export function renderImportBacklogByTeam({
 
   plan.backlogRows.forEach((backlogRow) => {
     const tr = document.createElement("tr");
-    const baseEstimation = getBacklogEstimationNumericForPlan(backlogRow, plan);
 
     const selectTd = document.createElement("td");
     selectTd.className = "backlog-col-select";
@@ -112,8 +84,6 @@ export function renderImportBacklogByTeam({
     const teamAllocationPercent = backlogRow.teamAllocationPercent === "" || backlogRow.teamAllocationPercent === undefined
       ? 100
       : asNumber(backlogRow.teamAllocationPercent);
-    const effectiveEstimation = Number((baseEstimation * teamAllocationPercent / 100).toFixed(2));
-    backlogRow.effectiveEstimation = effectiveEstimation ? String(effectiveEstimation) : "";
 
     const allocationTd = document.createElement("td");
     allocationTd.appendChild(
@@ -124,16 +94,6 @@ export function renderImportBacklogByTeam({
       })
     );
     tr.appendChild(allocationTd);
-
-    const effectiveTd = document.createElement("td");
-    effectiveTd.appendChild(
-      buildCellInput({
-        value: backlogRow.effectiveEstimation,
-        dataset: { section: "backlog", rowId: backlogRow.id, field: "effectiveEstimation" },
-        readOnly: true
-      })
-    );
-    tr.appendChild(effectiveTd);
 
     tbody.appendChild(tr);
   });

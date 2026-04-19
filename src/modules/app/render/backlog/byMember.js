@@ -2,7 +2,6 @@
   asNumber,
   getBacklogEstimationForPlan,
   getBacklogEstimationNumericForPlan,
-  getEstimationUnitByType,
   roleToFieldSuffix
 } from "../shared/backlogHelpers.js";
 
@@ -36,11 +35,9 @@ export function renderImportBacklogByMember({
   refs,
   plan,
   estimationHeader,
-  estimationType,
   buildCellInput,
   buildBacklogPeriodSelect
 }) {
-  const estimationUnit = getEstimationUnitByType(estimationType);
   const roleOpts = Array.isArray(plan.roleOptions) && plan.roleOptions.length ? plan.roleOptions : [];
   const roleColumns = roleOpts.map((role) => ({
     role,
@@ -49,7 +46,7 @@ export function renderImportBacklogByMember({
   }));
   const nRoleCols = roleColumns.length;
   const baseHeaders = ["Key", "Summary", "Status", "Priority", "IssueType", estimationHeader, "Period"];
-  const totalColumns = 1 + baseHeaders.length + nRoleCols * 2 + 1;
+  const totalColumns = 1 + baseHeaders.length + nRoleCols * 2;
 
   const thead = document.createElement("thead");
   const tbody = document.createElement("tbody");
@@ -87,26 +84,6 @@ export function renderImportBacklogByMember({
   memberByRolesTh.textContent = "Member by roles";
   topRow.appendChild(memberByRolesTh);
 
-  const effectiveTitle = `Effective ${estimationUnit}`;
-  const effectiveTh = document.createElement("th");
-  effectiveTh.rowSpan = 3;
-  effectiveTh.className = "backlog-effective-header";
-  const wrap = document.createElement("span");
-  wrap.className = "label-with-help";
-  wrap.appendChild(document.createTextNode(effectiveTitle));
-  const help = document.createElement("span");
-  help.className = "help-tooltip";
-  help.tabIndex = 0;
-  help.setAttribute("aria-label", `Help: ${effectiveTitle}`);
-  const unitWord = estimationType === "person_days" ? "Man-days" : "Story Points";
-  help.appendChild(document.createTextNode("?"));
-  const bubble = document.createElement("span");
-  bubble.className = "help-tooltip-bubble";
-  bubble.textContent = `Read-only. Split (%) divides the issue ${unitWord} across roles; each roleтАЩs share is planned on the selected member when Period is set.`;
-  help.appendChild(bubble);
-  wrap.appendChild(help);
-  effectiveTh.appendChild(wrap);
-  topRow.appendChild(effectiveTh);
   thead.appendChild(topRow);
 
   const roleNameRow = document.createElement("tr");
@@ -204,19 +181,6 @@ export function renderImportBacklogByMember({
       memberTd.appendChild(buildMemberSelectForRole(plan, backlogRow, column.role));
       tr.appendChild(memberTd);
     });
-
-    const effectiveEstimation = Number(baseEstimation.toFixed(2));
-    backlogRow.effectiveEstimation = effectiveEstimation ? String(effectiveEstimation) : "";
-
-    const effectiveTd = document.createElement("td");
-    effectiveTd.appendChild(
-      buildCellInput({
-        value: backlogRow.effectiveEstimation,
-        dataset: { section: "backlog", rowId: backlogRow.id, field: "effectiveEstimation" },
-        readOnly: true
-      })
-    );
-    tr.appendChild(effectiveTd);
 
     tbody.appendChild(tr);
   });

@@ -259,15 +259,6 @@ body {
   box-sizing: border-box;
 }
 
-#backlogTable.backlog-import-table th.backlog-effective-header {
-  min-width: 130px;
-  white-space: nowrap;
-}
-
-#backlogTable.backlog-import-table th.backlog-effective-header .label-with-help {
-  gap: 4px;
-}
-
 #backlogTable.backlog-import-table th.backlog-col-key,
 #backlogTable.backlog-import-table td.backlog-col-key {
   min-width: 152px;
