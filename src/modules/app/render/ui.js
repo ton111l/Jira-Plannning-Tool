@@ -43,13 +43,14 @@ export function renderTeamName({ refs, plan }) {
   refs.teamNameInput.disabled = !plan;
 }
 
-export function renderSettings({ refs, plan, appState }) {
+export function renderSettings({ refs, plan, appState, syncSettingsPlanningRow }) {
   const hasSprints = plan?.periods?.some((p) => p.kind === "sprint") ?? false;
+  const sprintsPlanningActive = hasSprints || Boolean(plan?.useSprintsPlanning);
   const estimationType = plan?.estimationType || appState.estimationType || "story_points";
   refs.estimationTypeSelect.value = estimationType;
   const personDaysOption = refs.estimationTypeSelect.querySelector('option[value="person_days"]');
   if (personDaysOption) {
-    personDaysOption.disabled = hasSprints;
+    personDaysOption.disabled = sprintsPlanningActive;
   }
   const firstPeriodId = plan?.periods?.[0]?.id || "";
   const periodTeamSettings = firstPeriodId ? plan?.teamPeriodValues?.[firstPeriodId] : null;
@@ -61,7 +62,16 @@ export function renderSettings({ refs, plan, appState }) {
     estimationType === "story_points" && teamMode === "manual" ? "flex" : "none";
   refs.settingsTeamEstimationValueInput.value = String(teamValue);
   refs.settingsWorkingDaysInput.value = String(plan?.defaultWorkingDays ?? 0);
-  refs.settingsWorkingDaysInput.disabled = hasSprints;
+  refs.settingsWorkingDaysInput.disabled = sprintsPlanningActive;
+  if (refs.settingsPlanningGrid) {
+    refs.settingsPlanningGrid.hidden = !plan;
+  }
+  if (refs.settingsUseSprintsCheckbox) {
+    refs.settingsUseSprintsCheckbox.checked = Boolean(plan?.useSprintsPlanning);
+  }
+  if (refs.settingsUseBuffersCheckbox) {
+    refs.settingsUseBuffersCheckbox.checked = Boolean(plan?.useBuffers);
+  }
   if (refs.settingsDefaultLoadPercentSelect) {
     const raw = plan?.defaultLoadPercent ?? 100;
     const n = Number(raw);
@@ -77,6 +87,10 @@ export function renderSettings({ refs, plan, appState }) {
     if (plan) {
       renderSettingsRolesList({ refs, plan });
     }
+  }
+
+  if (typeof syncSettingsPlanningRow === "function") {
+    syncSettingsPlanningRow();
   }
 }
 

@@ -66,6 +66,18 @@ export function bindEvents({
     });
   }
   refs.estimationTypeSelect.addEventListener("change", handlers.handleSettingsEstimationTypeChange);
+  if (refs.settingsUseSprintsCheckbox) {
+    refs.settingsUseSprintsCheckbox.addEventListener("change", handlers.handleSettingsUseSprintsChange);
+  }
+  if (refs.settingsUseBuffersCheckbox) {
+    refs.settingsUseBuffersCheckbox.addEventListener("change", handlers.handleSettingsUseBuffersChange);
+  }
+  if (refs.settingsSprintSettingsBtn) {
+    refs.settingsSprintSettingsBtn.addEventListener("click", handlers.openSprintSettingsDialog);
+  }
+  if (refs.settingsBufferSettingsBtn) {
+    refs.settingsBufferSettingsBtn.addEventListener("click", handlers.openBufferSettingsDialog);
+  }
   if (refs.resourceGroupingTypeSelect) {
     refs.resourceGroupingTypeSelect.addEventListener("change", handlers.handleSettingsResourceGroupingChange);
   }
