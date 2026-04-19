@@ -1324,11 +1324,8 @@ async function handleCapacityTableClick(event) {
   }
 }
 
-/** Split (%) and team allocation use type=number; defer full render until change (blur) so multi-digit entry works. */
+/** Split (%) uses type=number; defer full render until change (blur) so multi-digit entry works. */
 function isBacklogDeferredNumericField(field) {
-  if (field === "teamAllocationPercent") {
-    return true;
-  }
   const f = String(field || "");
   return f.startsWith("split_") && f.endsWith("_pct");
 }

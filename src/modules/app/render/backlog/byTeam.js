@@ -1,4 +1,4 @@
-import { asNumber, getBacklogEstimationForPlan } from "../shared/backlogHelpers.js";
+import { getBacklogEstimationForPlan } from "../shared/backlogHelpers.js";
 
 export function renderImportBacklogByTeam({
   refs,
@@ -8,7 +8,7 @@ export function renderImportBacklogByTeam({
   buildBacklogPeriodSelect
 }) {
   const baseHeaders = ["Key", "Summary", "Status", "Priority", "IssueType", estimationHeader, "Period"];
-  const totalColumns = 1 + baseHeaders.length + 1;
+  const totalColumns = 1 + baseHeaders.length;
 
   const thead = document.createElement("thead");
   const tbody = document.createElement("tbody");
@@ -24,7 +24,7 @@ export function renderImportBacklogByTeam({
   selectAllTh.appendChild(selectAllInput);
   singleHeader.appendChild(selectAllTh);
 
-  const headerLabels = [...baseHeaders, "Team allocation (%)"];
+  const headerLabels = [...baseHeaders];
   headerLabels.forEach((label) => {
     const th = document.createElement("th");
     th.textContent = label;
@@ -80,20 +80,6 @@ export function renderImportBacklogByTeam({
       })
     );
     tr.appendChild(periodTd);
-
-    const teamAllocationPercent = backlogRow.teamAllocationPercent === "" || backlogRow.teamAllocationPercent === undefined
-      ? 100
-      : asNumber(backlogRow.teamAllocationPercent);
-
-    const allocationTd = document.createElement("td");
-    allocationTd.appendChild(
-      buildCellInput({
-        value: String(teamAllocationPercent),
-        type: "number",
-        dataset: { section: "backlog", rowId: backlogRow.id, field: "teamAllocationPercent" }
-      })
-    );
-    tr.appendChild(allocationTd);
 
     tbody.appendChild(tr);
   });
