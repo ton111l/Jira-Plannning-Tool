@@ -158,4 +158,4 @@ Switching `quarter` ↔ `sprint` may require rebuilding `periods` and remapping 
 
 ---
 
-*Last updated: **Import** — **Jira estimation field type** (SP vs Man-days) in import dialog; per-row **`estimationKind`**; [`getBacklogEstimationForPlan`](src/modules/app/render/shared/backlogHelpers.js) for backlog UI + demand. **by_member** backlog — [`byMember.js`](src/modules/app/render/backlog/byMember.js), [`applyPlannedFromBacklog`](src/modules/app/services/backlogDemand.js). **Default % SP by roles** ([`syncSettingsDefaultRoleSplitSection`](src/modules/app/render/ui.js)). [`handleTableInput`](src/app.js) sets `estimationKind` on manual **estimation** edits.*
+*Last updated: Backlog **by_team** / **by_member** — removed read-only **Effective** column; planned demand still uses effective team allocation in [`getTeamModeEffectiveDemand`](src/modules/app/services/backlogDemand.js). **Import** **`estimationKind`**, [`getBacklogEstimationForPlan`](src/modules/app/render/shared/backlogHelpers.js). [`byMember.js`](src/modules/app/render/backlog/byMember.js), [`byTeam.js`](src/modules/app/render/backlog/byTeam.js).*
