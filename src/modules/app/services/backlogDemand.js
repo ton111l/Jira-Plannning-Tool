@@ -1,6 +1,9 @@
 import { createEmptyCapacityPeriodValues } from "../../models.js";
 import { getCapacityRoleKey } from "../roleCatalog.js";
-import { roleToFieldSuffix } from "../render/shared/backlogHelpers.js";
+import {
+  getBacklogEstimationNumericForPlan,
+  roleToFieldSuffix
+} from "../render/shared/backlogHelpers.js";
 
 function asNumber(value) {
   const n = Number(value);
@@ -17,8 +20,8 @@ export function getBacklogRowPeriodId(row, plan) {
 }
 
 /** Effective demand for one backlog row in By team mode (estimation × team allocation %). */
-export function getTeamModeEffectiveDemand(row) {
-  const est = asNumber(row?.estimation);
+export function getTeamModeEffectiveDemand(row, plan) {
+  const est = getBacklogEstimationNumericForPlan(row, plan);
   const alloc =
     row?.teamAllocationPercent === "" || row?.teamAllocationPercent === undefined
       ? 100
@@ -60,7 +63,7 @@ export function applyPlannedFromBacklog(plan, resourceGroupingType) {
         if (getBacklogRowPeriodId(brow, plan) !== period.id) {
           continue;
         }
-        const base = asNumber(brow.estimation);
+        const base = getBacklogEstimationNumericForPlan(brow, plan);
         for (const label of roleLabels) {
           const suffix = roleToFieldSuffix(label);
           const splitField = `split_${suffix}_pct`;
@@ -91,7 +94,7 @@ export function applyPlannedFromBacklog(plan, resourceGroupingType) {
         if (getBacklogRowPeriodId(brow, plan) !== period.id) {
           continue;
         }
-        const base = asNumber(brow.estimation);
+        const base = getBacklogEstimationNumericForPlan(brow, plan);
         const map =
           brow.targetCapacityRowIdByRoleId && typeof brow.targetCapacityRowIdByRoleId === "object"
             ? brow.targetCapacityRowIdByRoleId
@@ -143,7 +146,7 @@ export function applyPlannedFromBacklog(plan, resourceGroupingType) {
         if (getBacklogRowPeriodId(brow, plan) !== period.id) {
           continue;
         }
-        total += getTeamModeEffectiveDemand(brow);
+        total += getTeamModeEffectiveDemand(brow, plan);
       }
       const totalRounded = Number(total.toFixed(2));
       const n = plan.capacityRows.length;
