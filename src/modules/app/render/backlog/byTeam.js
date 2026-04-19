@@ -1,4 +1,9 @@
-import { asNumber, getEstimationUnitByType } from "../shared/backlogHelpers.js";
+import {
+  asNumber,
+  getBacklogEstimationForPlan,
+  getBacklogEstimationNumericForPlan,
+  getEstimationUnitByType
+} from "../shared/backlogHelpers.js";
 
 export function renderImportBacklogByTeam({
   refs,
@@ -68,7 +73,7 @@ export function renderImportBacklogByTeam({
 
   plan.backlogRows.forEach((backlogRow) => {
     const tr = document.createElement("tr");
-    const baseEstimation = asNumber(backlogRow.estimation);
+    const baseEstimation = getBacklogEstimationNumericForPlan(backlogRow, plan);
 
     const selectTd = document.createElement("td");
     selectTd.className = "backlog-col-select";
@@ -83,9 +88,10 @@ export function renderImportBacklogByTeam({
     ["key", "summary", "status", "priority", "issueType", "estimation"].forEach((field) => {
       const td = document.createElement("td");
       td.classList.add(`backlog-col-${field.toLowerCase()}`);
+      const cellValue = field === "estimation" ? getBacklogEstimationForPlan(backlogRow, plan) : backlogRow[field];
       td.appendChild(
         buildCellInput({
-          value: backlogRow[field],
+          value: cellValue,
           dataset: { section: "backlog", rowId: backlogRow.id, field }
         })
       );

@@ -240,6 +240,31 @@
           placeholder="project = ABC AND issuetype in (Story, Bug) ORDER BY priority DESC"
         ></textarea>
 
+        <fieldset class="import-estimation-kind-fieldset" id="importJiraEstimationKindFieldset">
+          <legend>Jira estimation field type</legend>
+          <p class="import-estimation-kind-hint">
+            Choose what the field id below represents. Rows imported as Story Points stay hidden in Man-days plan mode (and vice versa) until you re-import or re-enter the estimate.
+          </p>
+          <label class="import-estimation-kind-option">
+            <input
+              type="radio"
+              name="importJiraEstimationKind"
+              id="importJiraEstimationKindStoryPoints"
+              value="story_points"
+            />
+            Story Points (numeric points field)
+          </label>
+          <label class="import-estimation-kind-option">
+            <input
+              type="radio"
+              name="importJiraEstimationKind"
+              id="importJiraEstimationKindPersonDays"
+              value="person_days"
+            />
+            Man-days (time / original estimate field)
+          </label>
+        </fieldset>
+
         <div id="importJiraEstimationFieldWrap">
           <label for="importJiraEstimationFieldInput" class="label-with-help">
             <span id="importJiraEstimationFieldLabel">Jira Story Points field</span>

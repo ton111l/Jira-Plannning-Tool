@@ -88,6 +88,8 @@ export function createBacklogRow(overrides = {}) {
     issueType: "",
     priority: "",
     estimation: "",
+    /** `story_points` | `person_days` — semantic type of `estimation` when set (import/manual); legacy rows omit. */
+    estimationKind: "",
     /** Primary sprint/quarter period to consume Story Points from (sprint mode); optional in quarter mode. */
     targetPeriodId: "",
     /** When resourceGroupingType is by_member: capacity row id to attribute planned demand to (legacy if no per-role map). */
@@ -138,6 +140,8 @@ export function createPlan({
     allBuffersPercent: Number(allBuffersPercent) >= 0 ? Number(allBuffersPercent) : 0,
     jiraBaseUrl: String(jiraBaseUrl || "").trim().replace(/\/+$/, ""),
     estimationFieldName: String(estimationFieldName || "").trim(),
+    /** Last-used Jira field semantic type in Import dialog; also default for next open. */
+    importEstimationFieldKind: String(estimationType || "story_points") === "person_days" ? "person_days" : "story_points",
     defaultWorkingDays: Number(defaultWorkingDays) >= 0 ? Number(defaultWorkingDays) : 0,
     /** Default Load (%) for capacity rows; Settings applies to all rows on Save. */
     defaultLoadPercent: 100,

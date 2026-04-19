@@ -827,6 +827,35 @@ a.toolbar-help-link {
   gap: 10px;
 }
 
+.import-estimation-kind-fieldset {
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--border-color, #ccc);
+  border-radius: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.import-estimation-kind-fieldset legend {
+  padding: 0 6px;
+  font-weight: 600;
+}
+
+.import-estimation-kind-hint {
+  margin: 0;
+  font-size: 12px;
+  opacity: 0.9;
+  line-height: 1.35;
+}
+
+.import-estimation-kind-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
 #importJiraEstimationFieldWrap,
 #createPlanWorkingDaysWrap,
 #settingsTeamEstimationWrap,

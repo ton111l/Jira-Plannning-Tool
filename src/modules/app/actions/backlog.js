@@ -35,6 +35,21 @@ export function openImportDialogAction({
   refs.importJiraBaseUrlInput.value = String(plan.jiraBaseUrl || appState.jiraBaseUrl || "");
   refs.jqlInput.value = String(plan.lastImportJql || "");
   refs.jqlInput.classList.remove("input-invalid");
+  if (refs.importJiraEstimationKindStoryPoints && refs.importJiraEstimationKindPersonDays) {
+    const kind =
+      plan.importEstimationFieldKind === "person_days" || plan.importEstimationFieldKind === "story_points"
+        ? plan.importEstimationFieldKind
+        : plan.estimationType === "person_days"
+          ? "person_days"
+          : "story_points";
+    if (kind === "person_days") {
+      refs.importJiraEstimationKindPersonDays.checked = true;
+      refs.importJiraEstimationKindStoryPoints.checked = false;
+    } else {
+      refs.importJiraEstimationKindStoryPoints.checked = true;
+      refs.importJiraEstimationKindPersonDays.checked = false;
+    }
+  }
   if (refs.importJiraEstimationFieldInput) {
     refs.importJiraEstimationFieldInput.value = String(plan.estimationFieldName || appState.estimationFieldName || "");
     refs.importJiraEstimationFieldInput.classList.remove("input-invalid");
