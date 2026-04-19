@@ -1,4 +1,4 @@
-import { asNumber, getEstimationUnitByType, roleToFieldSuffix } from "../shared/backlogHelpers.js";
+﻿import { asNumber, getEstimationUnitByType, roleToFieldSuffix } from "../shared/backlogHelpers.js";
 
 function buildMemberSelectForRole(plan, backlogRow, roleOption) {
   const select = document.createElement("select");
@@ -96,7 +96,7 @@ export function renderImportBacklogByMember({
   help.appendChild(document.createTextNode("?"));
   const bubble = document.createElement("span");
   bubble.className = "help-tooltip-bubble";
-  bubble.textContent = `Read-only. Split (%) divides the issue ${unitWord} across roles; each role’s share is planned on the selected member when Period is set.`;
+  bubble.textContent = `Read-only. Split (%) divides the issue ${unitWord} across roles; each roleтАЩs share is planned on the selected member when Period is set.`;
   help.appendChild(bubble);
   wrap.appendChild(help);
   effectiveTh.appendChild(wrap);
