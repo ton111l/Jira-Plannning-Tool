@@ -109,6 +109,7 @@ export function createPlan({
   resourceGroupingType = "by_team",
   useBuffers = false,
   allBuffersPercent = 0,
+  bufferItems = [],
   /** User intent: sprint columns; true if plan has sprint periods until explicitly turned off in Settings. */
   useSprintsPlanning = false,
   jiraBaseUrl = "",
@@ -140,6 +141,7 @@ export function createPlan({
     resourceGroupingType: String(resourceGroupingType || "by_roles"),
     useBuffers: Boolean(useBuffers),
     allBuffersPercent: Number(allBuffersPercent) >= 0 ? Number(allBuffersPercent) : 0,
+    bufferItems: Array.isArray(bufferItems) ? bufferItems : [],
     useSprintsPlanning: Boolean(useSprintsPlanning),
     jiraBaseUrl: String(jiraBaseUrl || "").trim().replace(/\/+$/, ""),
     estimationFieldName: String(estimationFieldName || "").trim(),

@@ -1,4 +1,5 @@
 import { countBacklogRowsWithInvalidRoleSplits } from "../services/backlogRoleSplitValidation.js";
+import { PLANNING_TIME_MODE } from "../../planning/constants.js";
 
 export function renderTabs({ refs, appState }) {
   refs.tabButtons.forEach((button) => {
@@ -50,6 +51,8 @@ export function renderTeamName({ refs, plan }) {
 
 export function renderSettings({ refs, plan, appState, syncSettingsPlanningRow }) {
   const hasSprints = plan?.periods?.some((p) => p.kind === "sprint") ?? false;
+  const isSprintPlanningMode =
+    String(plan?.planningTimeMode || PLANNING_TIME_MODE.quarter) === PLANNING_TIME_MODE.sprint;
   const sprintsPlanningActive = hasSprints || Boolean(plan?.useSprintsPlanning);
   const estimationType = plan?.estimationType || appState.estimationType || "story_points";
   refs.estimationTypeSelect.value = estimationType;
@@ -72,7 +75,14 @@ export function renderSettings({ refs, plan, appState, syncSettingsPlanningRow }
     refs.settingsPlanningGrid.hidden = !plan;
   }
   if (refs.settingsUseSprintsCheckbox) {
-    refs.settingsUseSprintsCheckbox.checked = Boolean(plan?.useSprintsPlanning);
+    refs.settingsUseSprintsCheckbox.checked = isSprintPlanningMode ? Boolean(plan?.useSprintsPlanning) : false;
+    const sprintsLabel = refs.settingsUseSprintsCheckbox.closest("label");
+    if (sprintsLabel) {
+      sprintsLabel.hidden = !isSprintPlanningMode;
+    }
+  }
+  if (refs.settingsSprintSettingsBtn) {
+    refs.settingsSprintSettingsBtn.hidden = !isSprintPlanningMode;
   }
   if (refs.settingsUseBuffersCheckbox) {
     refs.settingsUseBuffersCheckbox.checked = Boolean(plan?.useBuffers);
@@ -302,12 +312,36 @@ export function renderCapacityChrome({
 
   const hasPlan = Boolean(plan);
   const hasPeriods = Boolean(plan?.periods?.length);
+  const buffersBar = refs.capacityBuffersBar;
 
   toolbar.hidden = !hasPlan;
+  if (buffersBar) {
+    buffersBar.hidden = true;
+    buffersBar.textContent = "";
+  }
 
   if (!hasPlan || !hasPeriods) {
     return;
   }
+  const sourceItems = Array.isArray(plan.bufferItems) ? plan.bufferItems : [];
+  const items = sourceItems.length
+    ? sourceItems
+    : plan.allBuffersPercent > 0
+      ? [{ name: "All Buffers", percent: plan.allBuffersPercent }]
+      : [];
+  const visibleItems = items.filter((item) => Number(item?.percent) > 0);
+  if (!plan.useBuffers || !visibleItems.length || !buffersBar) {
+    return;
+  }
+  buffersBar.hidden = false;
+  const text = visibleItems
+    .map((item, index) => {
+      const name = String(item?.name || `Buffer ${index + 1}`).trim() || `Buffer ${index + 1}`;
+      const pct = Number(item?.percent || 0);
+      return `${name}: ${pct}%`;
+    })
+    .join(" | ");
+  buffersBar.textContent = text;
 }
 
 export function renderPlanExportControl({ refs, plan }) {
@@ -335,6 +369,9 @@ export function renderCapacityOverlay({ refs, plan }) {
   }
   if (refs.capacityStatsBar) {
     refs.capacityStatsBar.style.display = showOverlay ? "none" : "";
+  }
+  if (refs.capacityBuffersBar) {
+    refs.capacityBuffersBar.style.display = showOverlay ? "none" : "";
   }
   refs.addCapacityRowBtn.disabled = !hasPlan || !hasPeriods;
   refs.addQuarterBtn.disabled = !hasPlan || !hasPeriods;

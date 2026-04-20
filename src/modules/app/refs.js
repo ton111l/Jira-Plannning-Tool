@@ -13,6 +13,7 @@ export function cacheRefs(refs) {
   refs.capacityPanel = document.getElementById("capacityPanel");
   refs.capacityTableWrap = document.getElementById("capacityTableWrap");
   refs.capacityToolbar = document.getElementById("capacityToolbar");
+  refs.capacityBuffersBar = document.getElementById("capacityBuffersBar");
   refs.capacityOverlay = document.getElementById("capacityOverlay");
   refs.capacityQuickFilter = document.getElementById("capacityQuickFilter");
   refs.capacityBulkActions = document.getElementById("capacityBulkActions");
@@ -66,7 +67,6 @@ export function cacheRefs(refs) {
   refs.bufferSettingsForm = document.getElementById("bufferSettingsForm");
   refs.bufferSettingsTbody = document.getElementById("bufferSettingsTbody");
   refs.addBufferRowBtn = document.getElementById("addBufferRowBtn");
-  refs.bufferSettingsTotalPercentInput = document.getElementById("bufferSettingsTotalPercentInput");
   refs.sprintSettingsDialog = document.getElementById("sprintSettingsDialog");
   refs.sprintSettingsForm = document.getElementById("sprintSettingsForm");
   refs.sprintSettingsTbody = document.getElementById("sprintSettingsTbody");
