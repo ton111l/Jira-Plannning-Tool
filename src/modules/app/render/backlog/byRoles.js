@@ -1,10 +1,12 @@
 import {
-  asNumber,
   getBacklogEstimationForPlan,
-  getBacklogEstimationNumericForPlan,
   getEstimationUnitByType,
   roleToFieldSuffix
 } from "../shared/backlogHelpers.js";
+import {
+  refreshBacklogRoleSplitRowDom,
+  syncBacklogRowRoleEstimationsFromSplits
+} from "../../services/backlogRoleSplitValidation.js";
 
 export function renderImportBacklogByRoles({
   refs,
@@ -80,7 +82,9 @@ export function renderImportBacklogByRoles({
     const row = document.createElement("tr");
     const cell = document.createElement("td");
     cell.colSpan = totalColumns;
-    cell.textContent = "No issues yet. Add manually or import from Jira.";
+    cell.textContent =
+      "No issues in this plan yet. Use Import backlog from Jira (JQL). For By roles, set Split (%) and " +
+      "role estimates so they stay consistent with the row total; pick a Period for Capacity.";
     row.appendChild(cell);
     tbody.appendChild(row);
     refs.backlogTable.appendChild(tbody);
@@ -89,7 +93,7 @@ export function renderImportBacklogByRoles({
 
   plan.backlogRows.forEach((backlogRow) => {
     const tr = document.createElement("tr");
-    const baseEstimation = getBacklogEstimationNumericForPlan(backlogRow, plan);
+    tr.dataset.backlogRowId = backlogRow.id;
 
     const selectTd = document.createElement("td");
     selectTd.className = "backlog-col-select";
@@ -105,9 +109,11 @@ export function renderImportBacklogByRoles({
       const td = document.createElement("td");
       td.classList.add(`backlog-col-${field.toLowerCase()}`);
       const cellValue = field === "estimation" ? getBacklogEstimationForPlan(backlogRow, plan) : backlogRow[field];
+      const isReadOnlyField = ["key", "summary", "status", "priority", "issueType"].includes(field);
       td.appendChild(
         buildCellInput({
           value: cellValue,
+          readOnly: isReadOnlyField,
           dataset: { section: "backlog", rowId: backlogRow.id, field }
         })
       );
@@ -125,11 +131,9 @@ export function renderImportBacklogByRoles({
     );
     tr.appendChild(periodTd);
 
-    roleColumns.forEach((column) => {
-      const splitPercent = asNumber(backlogRow[column.splitField]);
-      const roleEstimation = Number((baseEstimation * splitPercent / 100).toFixed(2));
-      backlogRow[column.estimationField] = roleEstimation ? String(roleEstimation) : "";
+    syncBacklogRowRoleEstimationsFromSplits(backlogRow, plan);
 
+    roleColumns.forEach((column) => {
       const splitTd = document.createElement("td");
       splitTd.className = "backlog-role-split";
       splitTd.appendChild(
@@ -143,15 +147,19 @@ export function renderImportBacklogByRoles({
 
       const estimationTd = document.createElement("td");
       estimationTd.className = "backlog-role-estimation";
-      estimationTd.appendChild(
-        buildCellInput({
-          value: backlogRow[column.estimationField],
-          dataset: { section: "backlog", rowId: backlogRow.id, field: column.estimationField },
-          readOnly: true
-        })
-      );
+      const roleSpInput = buildCellInput({
+        value: backlogRow[column.estimationField],
+        type: "number",
+        readOnly: false,
+        dataset: { section: "backlog", rowId: backlogRow.id, field: column.estimationField }
+      });
+      roleSpInput.step = "any";
+      roleSpInput.min = "0";
+      estimationTd.appendChild(roleSpInput);
       tr.appendChild(estimationTd);
     });
+
+    refreshBacklogRoleSplitRowDom(tr, backlogRow, plan);
 
     tbody.appendChild(tr);
   });

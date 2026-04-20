@@ -10,6 +10,9 @@
 
 body {
   margin: 0;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
 }
 
 .topbar {
@@ -32,8 +35,42 @@ body {
   align-items: center;
 }
 
+.toolbar-export {
+  position: relative;
+}
+
 .layout {
+  flex: 1 0 auto;
   padding: 16px 20px 24px;
+}
+
+.app-footer {
+  margin-top: auto;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 20px;
+  border-top: 1px solid #d9d9de;
+  background: #f1f1f5;
+  color: #4a4a5f;
+}
+
+.app-footer-license,
+.app-footer-help {
+  font-size: 12px;
+}
+
+.app-footer-link {
+  font-size: 12px;
+  color: #3d3d4a;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.app-footer-link:hover,
+.app-footer-link:focus {
+  text-decoration: underline;
 }
 
 .team-row {
@@ -85,25 +122,204 @@ body {
   gap: 8px;
 }
 
-.capacity-view-actions {
-  align-items: center;
+.backlog-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px 18px;
+  margin-bottom: 10px;
+  padding: 10px 12px;
+  background: #f6f6f9;
+  border: 1px solid #dcdce4;
+  border-radius: 8px;
 }
 
-.capacity-view-label {
-  font-size: 13px;
+.backlog-toolbar-cluster {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.backlog-toolbar-cluster--actions {
+  margin-left: 0;
+}
+
+.backlog-toolbar-cluster--bulk {
+  padding-left: 14px;
+  border-left: 1px solid #d0d0dc;
+}
+
+#backlogToolbar .backlog-toolbar-cluster--meta {
+  margin-left: 0;
+}
+
+#backlogToolbar .backlog-toolbar-cluster--view {
+  margin-left: auto;
+}
+
+#capacityToolbar .backlog-toolbar-cluster--meta {
+  margin-left: 0;
+}
+
+#capacityToolbar .backlog-toolbar-cluster--primary {
+  margin-left: auto;
+}
+
+.backlog-toolbar-label {
+  font-size: 12px;
   font-weight: 600;
+  color: #3d3d4a;
   white-space: nowrap;
 }
 
-.capacity-view-select {
-  min-width: 118px;
+.backlog-density-select,
+.backlog-bulk-period-select {
+  min-width: 8.5rem;
+  font-size: 13px;
+}
+
+.backlog-density-control {
+  min-height: 30px;
+}
+
+.backlog-density-control .backlog-density-select {
+  min-width: 7.5rem;
+}
+
+.backlog-period-control {
+  min-height: 30px;
+}
+
+.backlog-quick-filter {
+  min-width: 10rem;
+  max-width: 16rem;
+  flex: 1 1 10rem;
+  font-size: 13px;
+}
+
+.capacity-quick-filter {
+  min-width: 12rem;
+  max-width: 18rem;
+  flex: 1 1 12rem;
+  font-size: 13px;
+}
+
+.backlog-split-summary {
+  font-size: 12px;
+  margin: 0 0 8px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  background: #f0f0f4;
+  color: #3d3d4a;
+}
+
+.backlog-split-summary--warn {
+  background: #fff8e6;
+  border: 1px solid #e6c200;
+  color: #5c4a00;
+}
+
+.backlog-stats-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin-top: 8px;
+  padding: 7px 10px;
+  border: 1px solid #d5d5de;
+  border-radius: 8px;
+  background: #f1f1f5;
+}
+
+.backlog-stats-item {
+  font-size: 12px;
+  color: #2f2f3a;
+  font-weight: 600;
+}
+
+.capacity-stats-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin-top: 8px;
+  padding: 7px 10px;
+  border: 1px solid #d5d5de;
+  border-radius: 8px;
+  background: #f1f1f5;
+}
+
+.capacity-stats-item {
+  font-size: 12px;
+  color: #2f2f3a;
+  font-weight: 600;
+}
+
+/* Capacity: same gray toolbar row as Backlog (.backlog-toolbar + clusters) */
+.capacity-toolbar.backlog-toolbar {
+  align-items: center;
+}
+
+.capacity-view-control {
+  display: inline-flex;
+  align-items: stretch;
+  box-sizing: border-box;
+  min-height: 30px;
+  border: 1px solid #b9b9c0;
+  border-radius: 6px;
+  background: #fff;
+}
+
+.capacity-view-control:has(.capacity-view-select-inner:disabled) {
+  opacity: 0.55;
+}
+
+.capacity-view-prefix {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  padding: 0 6px 0 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #33334f;
+  border-right: 1px solid #d8d8e0;
+}
+
+.capacity-view-select-inner {
+  flex: 1 1 auto;
+  min-width: 6.5rem;
+  margin: 0;
+  padding: 6px 28px 6px 8px;
+  border: none;
+  border-radius: 0 5px 5px 0;
+  background: transparent;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  box-sizing: border-box;
+}
+
+.capacity-view-select-inner:focus {
+  outline: none;
+}
+
+.capacity-view-control:focus-within {
+  box-shadow: 0 0 0 1px #7d7db6;
 }
 
 .table-wrap {
   overflow: auto;
   max-width: 100%;
+  max-height: calc(100vh - 360px);
   position: relative;
   z-index: 1;
+}
+
+@supports (height: 100dvh) {
+  .table-wrap {
+    max-height: calc(100dvh - 360px);
+  }
 }
 
 .table-wrap.table-wrap-blur {
@@ -122,6 +338,46 @@ body {
 .capacity-content {
   position: relative;
   min-height: 120px;
+}
+
+#capacityTableWrap {
+  padding-bottom: 40px; /* Keep visual space for + row action */
+}
+
+.capacity-summary-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 8px;
+  margin: 0 0 10px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  background: #f0f0f4;
+  border: 1px solid #e0e0e8;
+}
+
+.capacity-summary-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 8px;
+  font-size: 12px;
+  border-radius: 6px;
+  border: 1px solid #cfcfd8;
+  background: #fff;
+  color: #2a2a38;
+}
+
+.capacity-summary-empty {
+  font-size: 12px;
+  color: #5a5a72;
+}
+
+#capacityTable tbody tr.capacity-role-group-start td {
+  border-top: 2px solid #b9b9c8;
+}
+
+#capacityTable tbody td.capacity-col-member.capacity-member-cell--empty {
+  background: #fffbf5;
+  box-shadow: inset 0 0 0 1px #e8d4bf;
 }
 
 .plan-overlay {
@@ -201,51 +457,101 @@ body {
   min-width: 110px;
 }
 
-#capacityTable th,
-#capacityTable td {
-  min-width: 84px;
+/* Capacity: override .grid-table min-width so columns can shrink to content */
+#capacityTable.grid-table th,
+#capacityTable.grid-table td {
+  min-width: 0;
+  width: auto;
+  max-width: none;
   padding: 5px 6px;
+  box-sizing: border-box;
 }
 
-/* Compact view: width follows columns; no stretch to fill the panel */
-#capacityTable.grid-table.capacity-view-compact {
+/* Capacity table: never stretch to panel width; shrink to columns, align left (scroll in .table-wrap) */
+#capacityTable.grid-table {
   width: max-content;
   min-width: max-content;
-}
-
-/* Full view: table fills panel width; extra width goes to period columns */
-#capacityTable.grid-table.capacity-view-full {
-  width: 100%;
-  min-width: 100%;
   table-layout: auto;
 }
 
 #capacityTable.grid-table.capacity-view-full .period-subcol-wide,
 #capacityTable.grid-table.capacity-view-full .period-value-cell-wide {
-  max-width: none;
+  max-width: 9rem;
   width: auto;
-  min-width: 96px;
+  min-width: 4.5rem;
 }
 
 #capacityTable.grid-table.capacity-view-full .period-subcol-short,
 #capacityTable.grid-table.capacity-view-full .period-value-cell-short {
-  max-width: none;
+  max-width: 5rem;
   width: auto;
-  min-width: 82px;
+  min-width: 3rem;
 }
 
-#backlogTable.backlog-import-table th,
-#backlogTable.backlog-import-table td {
-  min-width: 74px;
-  padding: 4px 6px;
-  font-size: 12px;
+/* Compact: same caps as full (base rules above are looser); avoids wide metric cols */
+#capacityTable.grid-table.capacity-view-compact .period-subcol-wide,
+#capacityTable.grid-table.capacity-view-compact .period-value-cell-wide {
+  max-width: 9rem;
+  width: auto;
+  min-width: 2.25rem;
 }
 
-#backlogTable.backlog-import-table.backlog-import-by-team,
-#backlogTable.backlog-import-table.backlog-import-by-roles,
-#backlogTable.backlog-import-table.backlog-import-by-member {
+#capacityTable.grid-table.capacity-view-compact .period-subcol-short,
+#capacityTable.grid-table.capacity-view-compact .period-value-cell-short {
+  max-width: 5rem;
+  width: auto;
+  min-width: 2rem;
+}
+
+#capacityTable.grid-table.capacity-view-compact thead tr:last-child .period-subcol-wide,
+#capacityTable.grid-table.capacity-view-compact thead tr:last-child .period-subcol-short {
+  font-size: 11px;
+  line-height: 1.2;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+  padding: 3px 4px;
+}
+
+/* Chrome/Edge: number inputs have a large default intrinsic width even with width:auto */
+#capacityTable input.cell-input[type="number"] {
+  width: auto;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+@supports (field-sizing: content) {
+  #capacityTable input.cell-input[type="number"] {
+    field-sizing: content;
+    min-width: 2.25rem;
+  }
+}
+
+@supports not (field-sizing: content) {
+  #capacityTable input.cell-input[type="number"] {
+    width: 4rem;
+    max-width: 100%;
+  }
+}
+
+/* Backlog + grid-table: beat .grid-table { min-width: 100% } and th/td { min-width: 110px } */
+#backlogTable.grid-table.backlog-import-table.backlog-import-by-team,
+#backlogTable.grid-table.backlog-import-table.backlog-import-by-roles,
+#backlogTable.grid-table.backlog-import-table.backlog-import-by-member {
   width: max-content;
   min-width: max-content;
+  max-width: none;
+  table-layout: auto;
+}
+
+#backlogTable.grid-table.backlog-import-table th,
+#backlogTable.grid-table.backlog-import-table td {
+  min-width: 0;
+  width: auto;
+  max-width: none;
+  padding: 4px 6px;
+  font-size: 12px;
+  box-sizing: border-box;
 }
 
 #backlogTable.backlog-import-table th.backlog-col-select,
@@ -261,14 +567,25 @@ body {
 
 #backlogTable.backlog-import-table th.backlog-col-key,
 #backlogTable.backlog-import-table td.backlog-col-key {
-  min-width: 152px;
-  width: 152px;
+  min-width: 0;
+  width: auto;
+  max-width: 11rem;
+  white-space: nowrap;
 }
 
-#backlogTable.backlog-import-table th.backlog-col-summary,
-#backlogTable.backlog-import-table td.backlog-col-summary {
-  min-width: 300px;
+#backlogTable.grid-table.backlog-import-table th.backlog-col-summary,
+#backlogTable.grid-table.backlog-import-table td.backlog-col-summary {
   width: 300px;
+  min-width: 300px;
+  max-width: 300px;
+  white-space: normal;
+  vertical-align: top;
+}
+
+#backlogTable.backlog-import-table tr.backlog-row-role-invalid .backlog-role-split .cell-input,
+#backlogTable.backlog-import-table tr.backlog-row-role-invalid .backlog-role-estimation .cell-input {
+  color: #b71c1c;
+  font-weight: 600;
 }
 
 #backlogTable.backlog-import-table th.backlog-col-issuetype,
@@ -277,20 +594,59 @@ body {
 #backlogTable.backlog-import-table td.backlog-col-status,
 #backlogTable.backlog-import-table th.backlog-col-priority,
 #backlogTable.backlog-import-table td.backlog-col-priority {
-  min-width: 84px;
-  width: 84px;
+  min-width: 0;
+  width: auto;
+  max-width: 10rem;
+  white-space: nowrap;
 }
 
 #backlogTable.backlog-import-table th.backlog-col-estimation,
 #backlogTable.backlog-import-table td.backlog-col-estimation {
-  min-width: 72px;
-  width: 72px;
+  min-width: 0;
+  width: auto;
+  white-space: nowrap;
 }
 
 #backlogTable.backlog-import-table th.backlog-col-period,
 #backlogTable.backlog-import-table td.backlog-col-period {
-  min-width: 120px;
-  width: 120px;
+  min-width: 0;
+  width: auto;
+  white-space: nowrap;
+}
+
+/* Sticky first columns for horizontal scroll */
+#backlogTable.backlog-import-table thead th.backlog-col-select,
+#backlogTable.backlog-import-table tbody td.backlog-col-select {
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  background: #fff;
+  box-shadow: 1px 0 0 #d9d9de;
+}
+
+#backlogTable.backlog-import-table thead th.backlog-col-key,
+#backlogTable.backlog-import-table tbody td.backlog-col-key {
+  position: sticky;
+  left: 32px;
+  z-index: 1;
+  background: #fff;
+  box-shadow: 1px 0 0 #d9d9de;
+}
+
+#backlogTable.backlog-import-table thead th.backlog-col-select {
+  z-index: 4;
+  background: #f1f1f5;
+}
+
+#backlogTable.backlog-import-table thead th.backlog-col-key {
+  z-index: 3;
+  background: #f1f1f5;
+}
+
+#backlogTable.backlog-import-table.backlog-density-compact th,
+#backlogTable.backlog-import-table.backlog-density-compact td {
+  padding: 2px 4px;
+  font-size: 11px;
 }
 
 #backlogTable.backlog-import-table th.backlog-member-by-roles-header {
@@ -299,34 +655,36 @@ body {
 }
 
 #backlogTable.backlog-import-table th.backlog-role-group {
-  min-width: 136px;
+  min-width: 0;
+  width: auto;
+  max-width: 12rem;
 }
 
 #backlogTable.backlog-import-table th.backlog-role-split,
 #backlogTable.backlog-import-table td.backlog-role-split {
-  min-width: 68px;
-  width: 68px;
+  min-width: 0;
+  width: auto;
+  white-space: nowrap;
 }
 
 #backlogTable.backlog-import-table th.backlog-role-estimation,
 #backlogTable.backlog-import-table td.backlog-role-estimation {
-  min-width: 68px;
-  width: 68px;
+  min-width: 0;
+  width: auto;
+  white-space: nowrap;
 }
 
 #backlogTable.backlog-import-table th.backlog-role-member,
 #backlogTable.backlog-import-table td.backlog-role-member {
-  min-width: 120px;
-  width: 120px;
+  min-width: 0;
+  width: auto;
+  max-width: 14rem;
+  white-space: nowrap;
 }
 
 /* SP + By team (full, quarters only): two-row thead; see byTeam.js useSpTeamSimplifiedHeader */
-#capacityTable.capacity-sp-by-team-layout.capacity-view-full thead tr:first-child th:nth-child(-n + 5) {
+#capacityTable.capacity-sp-by-team-layout.capacity-view-full thead tr:first-child th:nth-child(-n + 4) {
   vertical-align: middle;
-}
-
-#capacityTable {
-  min-width: 100%;
 }
 
 #capacityTable th:nth-child(1),
@@ -337,55 +695,161 @@ body {
 
 #capacityTable thead tr:first-child th:nth-child(2),
 #capacityTable tbody td:nth-child(2) {
-  width: 190px;
-  min-width: 190px;
-  max-width: 190px;
+  width: auto;
+  min-width: 0;
+  max-width: 18rem;
+  white-space: nowrap;
 }
 
 #capacityTable thead tr:first-child th:nth-child(3),
 #capacityTable tbody td:nth-child(3) {
-  width: 110px;
-  min-width: 110px;
-  max-width: 110px;
-}
-
-/* Act: slightly wider than label + row delete control */
-#capacityTable thead tr:first-child th:nth-child(4),
-#capacityTable tbody td:nth-child(4) {
-  width: 2.75rem;
-  min-width: 2.5rem;
-  max-width: 3rem;
-  padding-left: 4px;
-  padding-right: 4px;
-  text-align: center;
-  vertical-align: middle;
+  width: auto;
+  min-width: 0;
   white-space: nowrap;
 }
 
-#capacityTable td.capacity-action-cell {
-  padding: 4px;
-}
-
-/* Load (%): native select needs room for "100%" + chevron */
-#capacityTable thead tr:first-child th:nth-child(5),
-#capacityTable tbody td:nth-child(5) {
-  width: 5rem;
-  min-width: 5rem;
+/* Load (%): native select needs room for "100%" + chevron; highlight only when load < 100% */
+#capacityTable thead tr:first-child th:nth-child(4),
+#capacityTable tbody td:nth-child(4) {
+  width: auto;
+  min-width: 4.25rem;
   max-width: 6rem;
   text-align: center;
+  white-space: nowrap;
+}
+
+#capacityTable thead tr:first-child th:nth-child(4) {
+  background: #f1f1f5;
+}
+
+#capacityTable tbody td:nth-child(4) {
+  background: #fff;
+}
+
+#capacityTable tbody td.capacity-col-load.capacity-load-cell:not(.capacity-load-cell--reduced),
+#capacityTable tbody td:nth-child(4):not(.capacity-load-cell--reduced) {
+  background: #fff;
+}
+
+#capacityTable tbody td:nth-child(4).capacity-load-cell--reduced {
   background: #fff3f0;
 }
 
-#capacityTable tbody td:nth-child(5) .cell-select {
+#capacityTable tbody td:nth-child(4) .cell-select {
   min-width: 0;
   box-sizing: border-box;
 }
 
-#capacityTable thead tr:first-child th:nth-child(6),
-#capacityTable tbody td:nth-child(6) {
-  width: 78px;
-  min-width: 78px;
-  max-width: 78px;
+/* Sticky row select / Member / Role / Load while scrolling periods horizontally */
+#capacityTable.capacity-sticky-enabled {
+  --cap-col-idx: 42px;
+  --cap-col-member: 9rem;
+  --cap-col-role: 6.5rem;
+  --cap-col-act: 0px;
+}
+
+#capacityTable.capacity-sticky-enabled thead tr .capacity-col-idx,
+#capacityTable.capacity-sticky-enabled tbody tr .capacity-col-idx {
+  position: sticky;
+  left: 0;
+  z-index: 3;
+  width: var(--cap-col-idx);
+  min-width: var(--cap-col-idx);
+  max-width: var(--cap-col-idx);
+  background: #fff;
+  box-shadow: 1px 0 0 #d9d9de;
+}
+
+#capacityTable.capacity-sticky-enabled thead tr .capacity-col-idx {
+  z-index: 5;
+  background: #f1f1f5;
+}
+
+#capacityTable.capacity-sticky-enabled thead tr .capacity-col-member,
+#capacityTable.capacity-sticky-enabled tbody tr .capacity-col-member {
+  position: sticky;
+  left: var(--cap-col-idx);
+  z-index: 3;
+  width: var(--cap-col-member);
+  min-width: 7rem;
+  max-width: 11rem;
+  background: #fff;
+  box-shadow: 1px 0 0 #d9d9de;
+}
+
+#capacityTable.capacity-sticky-enabled thead tr .capacity-col-member {
+  z-index: 5;
+  background: #f1f1f5;
+}
+
+#capacityTable.capacity-sticky-enabled tbody tr td.capacity-col-member.capacity-member-cell--empty {
+  background: #fffbf5;
+}
+
+#capacityTable.capacity-sticky-enabled thead tr .capacity-col-role,
+#capacityTable.capacity-sticky-enabled tbody tr .capacity-col-role {
+  position: sticky;
+  left: calc(var(--cap-col-idx) + var(--cap-col-member));
+  z-index: 3;
+  width: var(--cap-col-role);
+  min-width: 5rem;
+  max-width: 8rem;
+  background: #fff;
+  box-shadow: 1px 0 0 #d9d9de;
+}
+
+#capacityTable.capacity-sticky-enabled thead tr .capacity-col-role {
+  z-index: 5;
+  background: #f1f1f5;
+}
+
+#capacityTable.capacity-sticky-enabled thead tr .capacity-col-act,
+#capacityTable.capacity-sticky-enabled tbody tr .capacity-col-act {
+  position: sticky;
+  left: calc(var(--cap-col-idx) + var(--cap-col-member) + var(--cap-col-role));
+  z-index: 3;
+  width: var(--cap-col-act);
+  min-width: 2.5rem;
+  max-width: 3rem;
+  background: #fff;
+  box-shadow: 1px 0 0 #d9d9de;
+}
+
+#capacityTable.capacity-sticky-enabled thead tr .capacity-col-act {
+  z-index: 5;
+  background: #f1f1f5;
+}
+
+#capacityTable.capacity-sticky-enabled thead tr .capacity-col-load,
+#capacityTable.capacity-sticky-enabled tbody tr .capacity-col-load {
+  position: sticky;
+  left: calc(var(--cap-col-idx) + var(--cap-col-member) + var(--cap-col-role));
+  z-index: 3;
+  min-width: 4.25rem;
+  max-width: 5.5rem;
+  background: #fff;
+  box-shadow: 1px 0 0 #d9d9de;
+}
+
+#capacityTable.capacity-sticky-enabled thead tr .capacity-col-load {
+  z-index: 5;
+  background: #f1f1f5;
+}
+
+#capacityTable.capacity-sticky-enabled tbody tr .capacity-col-load.capacity-load-cell--reduced {
+  background: #fff3f0;
+}
+
+#capacityTable.capacity-sticky-enabled thead tr:first-child th:nth-child(2),
+#capacityTable.capacity-sticky-enabled tbody td:nth-child(2) {
+  max-width: 11rem;
+}
+
+#capacityTable thead tr:first-child th:nth-child(5),
+#capacityTable tbody td:nth-child(5) {
+  width: auto;
+  min-width: 0;
+  white-space: nowrap;
 }
 
 #capacityTable .period-subcol {
@@ -394,22 +858,39 @@ body {
   white-space: normal;
 }
 
+/* Full view: keep period subheaders regular, not bold-accented */
+#capacityTable.capacity-view-full thead .period-subcol {
+  font-weight: 400;
+}
+
 #capacityTable .period-value-cell {
   white-space: nowrap;
 }
 
-#capacityTable .period-subcol-short,
-#capacityTable .period-value-cell-short {
-  width: 82px;
-  min-width: 82px;
-  max-width: 82px;
+#capacityTable .period-subcol-short {
+  width: auto;
+  min-width: 3rem;
+  max-width: 6rem;
 }
 
-#capacityTable .period-subcol-wide,
+#capacityTable .period-value-cell-short {
+  width: auto;
+  min-width: 3rem;
+  max-width: 5rem;
+  white-space: nowrap;
+}
+
+#capacityTable .period-subcol-wide {
+  width: auto;
+  min-width: 4.5rem;
+  max-width: 11rem;
+}
+
 #capacityTable .period-value-cell-wide {
-  width: 96px;
-  min-width: 96px;
-  max-width: 96px;
+  width: auto;
+  min-width: 4.5rem;
+  max-width: 9rem;
+  white-space: nowrap;
 }
 
 .period-head {
@@ -429,6 +910,7 @@ body {
 .subcol-selected {
   text-decoration: underline;
   text-underline-offset: 2px;
+  font-weight: 400;
 }
 
 .cell-icon-btn {
@@ -570,6 +1052,64 @@ a.toolbar-help-link {
   stroke-width: 1.8;
   stroke-linecap: round;
   stroke-linejoin: round;
+}
+
+.toolbar-settings-icon-btn {
+  width: 24px;
+  height: 24px;
+  padding: 2px;
+  border: 1px solid #b9b9c0;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #3d3d4a;
+}
+
+.toolbar-export-btn {
+  width: 24px;
+  height: 24px;
+  padding: 2px;
+  border: 1px solid #b9b9c0;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #3d3d4a;
+}
+
+.toolbar-menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 6px);
+  min-width: 140px;
+  padding: 4px;
+  border: 1px solid #cfcfd8;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  z-index: 20;
+}
+
+.toolbar-menu[hidden] {
+  display: none;
+}
+
+.toolbar-menu-item {
+  border: none;
+  background: transparent;
+  text-align: left;
+  font: inherit;
+  font-size: 13px;
+  color: #222235;
+  padding: 6px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.toolbar-menu-item:hover,
+.toolbar-menu-item:focus-visible {
+  background: #f0f0f6;
+  outline: none;
 }
 
 #bulkRowEstimationInput {
@@ -1001,6 +1541,61 @@ progress {
   background: transparent;
   font: inherit;
   color: inherit;
+}
+
+/* Shrink columns to content: avoid 100%-wide controls forcing extra cell width */
+#capacityTable .cell-input,
+#capacityTable .cell-select {
+  width: auto;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+#backlogTable.backlog-import-table .cell-input,
+#backlogTable.backlog-import-table .cell-select {
+  width: auto;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+#backlogTable.backlog-import-table td.backlog-col-summary .cell-input {
+  width: 100%;
+  max-width: 100%;
+  white-space: normal;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+/* Backlog: text/number inputs default to a wide intrinsic size in Chromium */
+#backlogTable.backlog-import-table td:not(.backlog-col-summary) input.cell-input[type="number"] {
+  width: auto;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+@supports (field-sizing: content) {
+  #backlogTable.backlog-import-table td:not(.backlog-col-summary) input.cell-input {
+    field-sizing: content;
+    width: auto;
+    min-width: 2.25rem;
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+}
+
+@supports not (field-sizing: content) {
+  #backlogTable.backlog-import-table td:not(.backlog-col-summary) input.cell-input[type="number"] {
+    width: 4.5rem;
+    max-width: 100%;
+  }
+
+  #backlogTable.backlog-import-table td:not(.backlog-col-summary) input.cell-input[type="text"] {
+    width: 12ch;
+    max-width: 100%;
+  }
 }
 
 .cell-input:focus {

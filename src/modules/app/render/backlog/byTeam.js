@@ -37,7 +37,9 @@ export function renderImportBacklogByTeam({
     const row = document.createElement("tr");
     const cell = document.createElement("td");
     cell.colSpan = totalColumns;
-    cell.textContent = "No issues yet. Add manually or import from Jira.";
+    cell.textContent =
+      "No issues in this plan yet. Use Import backlog from Jira (JQL), or add rows after import. " +
+      "Pick a Period on each issue so demand counts toward Capacity.";
     row.appendChild(cell);
     tbody.appendChild(row);
     refs.backlogTable.appendChild(tbody);
@@ -61,9 +63,11 @@ export function renderImportBacklogByTeam({
       const td = document.createElement("td");
       td.classList.add(`backlog-col-${field.toLowerCase()}`);
       const cellValue = field === "estimation" ? getBacklogEstimationForPlan(backlogRow, plan) : backlogRow[field];
+      const isReadOnlyField = ["key", "summary", "status", "priority", "issueType"].includes(field);
       td.appendChild(
         buildCellInput({
           value: cellValue,
+          readOnly: isReadOnlyField,
           dataset: { section: "backlog", rowId: backlogRow.id, field }
         })
       );

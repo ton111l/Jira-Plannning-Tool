@@ -1,6 +1,10 @@
 export function cacheRefs(refs) {
   refs.createPlanBtn = document.getElementById("createPlanBtn");
   refs.planSelect = document.getElementById("planSelect");
+  refs.planExportBtn = document.getElementById("planExportBtn");
+  refs.planExportMenu = document.getElementById("planExportMenu");
+  refs.planExportJsonBtn = document.getElementById("planExportJsonBtn");
+  refs.planExportXlsxBtn = document.getElementById("planExportXlsxBtn");
   refs.settingsBtn = document.getElementById("settingsBtn");
   refs.teamNameInput = null;
   refs.tabButtons = Array.from(document.querySelectorAll(".tab"));
@@ -8,7 +12,15 @@ export function cacheRefs(refs) {
   refs.capacityWrapper = document.querySelector(".capacity-wrapper");
   refs.capacityPanel = document.getElementById("capacityPanel");
   refs.capacityTableWrap = document.getElementById("capacityTableWrap");
+  refs.capacityToolbar = document.getElementById("capacityToolbar");
   refs.capacityOverlay = document.getElementById("capacityOverlay");
+  refs.capacityQuickFilter = document.getElementById("capacityQuickFilter");
+  refs.capacityBulkActions = document.getElementById("capacityBulkActions");
+  refs.capacityDeleteSelectedBtn = document.getElementById("capacityDeleteSelectedBtn");
+  refs.capacityStatsBar = document.getElementById("capacityStatsBar");
+  refs.capacityTotalCount = document.getElementById("capacityTotalCount");
+  refs.capacityFilteredCount = document.getElementById("capacityFilteredCount");
+  refs.capacitySelectedCount = document.getElementById("capacitySelectedCount");
   refs.createPlanOverlayBtn = document.getElementById("createPlanOverlayBtn");
   refs.backlogPanel = document.getElementById("backlogPanel");
   refs.capacityTable = document.getElementById("capacityTable");
@@ -19,7 +31,16 @@ export function cacheRefs(refs) {
   refs.capacityTableViewModeSelect = document.getElementById("capacityTableViewModeSelect");
   refs.addQuarterBtn = document.getElementById("addQuarterBtn");
   refs.openImportModalBtn = document.getElementById("openImportModalBtn");
+  refs.backlogToolbar = document.getElementById("backlogToolbar");
   refs.backlogBulkActions = document.getElementById("backlogBulkActions");
+  refs.backlogQuickFilter = document.getElementById("backlogQuickFilter");
+  refs.backlogDensitySelect = document.getElementById("backlogDensitySelect");
+  refs.backlogBulkPeriodSelect = document.getElementById("backlogBulkPeriodSelect");
+  refs.backlogStatsBar = document.getElementById("backlogStatsBar");
+  refs.backlogTotalCount = document.getElementById("backlogTotalCount");
+  refs.backlogFilteredCount = document.getElementById("backlogFilteredCount");
+  refs.backlogSelectedCount = document.getElementById("backlogSelectedCount");
+  refs.backlogSplitSummary = document.getElementById("backlogSplitSummary");
   refs.backlogDeleteSelectedBtn = document.getElementById("backlogDeleteSelectedBtn");
   refs.importOverlayBtn = document.getElementById("importOverlayBtn");
   refs.manualOverlayBtn = null;

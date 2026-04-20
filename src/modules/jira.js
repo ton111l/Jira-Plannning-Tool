@@ -12,6 +12,31 @@ function normalizeBaseUrl(baseUrl) {
   return String(baseUrl || "").trim().replace(/\/+$/, "");
 }
 
+function canOpenBrowserTab() {
+  return typeof chrome !== "undefined" && typeof chrome.tabs?.create === "function";
+}
+
+/**
+ * Open Jira in a real browser tab for re-login/cookie refresh.
+ * Returns true when a tab open was requested.
+ */
+export async function openJiraAuthTab(baseUrl) {
+  const normalized = normalizeBaseUrl(baseUrl);
+  if (!normalized) {
+    return false;
+  }
+  const targetUrl = `${normalized}/issues/?jql=`;
+  if (canOpenBrowserTab()) {
+    await chrome.tabs.create({ url: targetUrl, active: true });
+    return true;
+  }
+  if (typeof window !== "undefined" && typeof window.open === "function") {
+    window.open(targetUrl, "_blank", "noopener,noreferrer");
+    return true;
+  }
+  return false;
+}
+
 async function readResponseBodySnippet(response, limit = 400) {
   try {
     const text = await response.text();
@@ -460,6 +485,7 @@ export async function importIssuesFromJira({ baseUrl, jql, maxResults = 200, est
   const estimationField = String(estimationFieldName || "").trim() || DEFAULT_ESTIMATION_FIELD;
   const normalizedJql = String(jql).trim();
 
+  let bridgeFailure = null;
   if (isJiraBridgeAvailable()) {
     try {
       if (typeof onProgress === "function") {
@@ -476,11 +502,17 @@ export async function importIssuesFromJira({ baseUrl, jql, maxResults = 200, est
       }
       return bridgeResult;
     } catch (bridgeError) {
-      if (bridgeError?.code !== "BRIDGE_UNAVAILABLE") {
-        throw bridgeError;
-      }
+      bridgeFailure = bridgeError;
       if (typeof onProgress === "function") {
-        onProgress({ phase: "bridge_unavailable", value: 22 });
+        onProgress({ phase: "bridge_fallback", value: 22 });
+      }
+      if (bridgeError?.code === "BRIDGE_UNAVAILABLE") {
+        // Continue into API fallback path below.
+      } else {
+        console.warn("[Jira Import] Bridge failed; trying Search API fallback.", {
+          code: bridgeError?.code,
+          message: String(bridgeError?.message || bridgeError || "")
+        });
       }
     }
   }
@@ -491,8 +523,20 @@ export async function importIssuesFromJira({ baseUrl, jql, maxResults = 200, est
     const searchMessage = String(error?.message || error || "");
     const isFetchTransportError = searchMessage.toLowerCase().includes("failed to fetch");
     if (isFetchTransportError) {
+      if (bridgeFailure) {
+        throw new Error(
+          `Import failed in both bridge and Search API fallback. Bridge: ${String(bridgeFailure?.message || bridgeFailure)}. ` +
+            "Search API: Network/CORS error. Open Jira in this browser profile and make sure the Jira session is active."
+        );
+      }
       throw new Error(
         "Network/CORS error while contacting Jira. Open the tool via the browser extension tab and make sure Jira session is active."
+      );
+    }
+    if (bridgeFailure) {
+      throw new Error(
+        `Import failed in both bridge and Search API fallback. Bridge: ${String(bridgeFailure?.message || bridgeFailure)}. ` +
+          `Search API: ${searchMessage || "unknown error"}.`
       );
     }
     throw error;

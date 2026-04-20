@@ -1,12 +1,17 @@
+import { countBacklogRowsWithInvalidRoleSplits } from "../services/backlogRoleSplitValidation.js";
+
 export function renderTabs({ refs, appState }) {
   refs.tabButtons.forEach((button) => {
     const isActive = button.dataset.tab === appState.activeTab;
     button.classList.toggle("tab-active", isActive);
+    button.setAttribute("aria-selected", isActive ? "true" : "false");
   });
   const isCapacityTab = appState.activeTab === "capacity";
   refs.capacityWrapper.style.display = isCapacityTab ? "block" : "none";
   refs.capacityPanel.classList.toggle("panel-active", isCapacityTab);
   refs.backlogPanel.classList.toggle("panel-active", !isCapacityTab);
+  refs.capacityPanel.setAttribute("aria-hidden", isCapacityTab ? "false" : "true");
+  refs.backlogPanel.setAttribute("aria-hidden", isCapacityTab ? "true" : "false");
   refs.addCapacityRowBtn.style.display = isCapacityTab ? "inline-flex" : "none";
 }
 
@@ -283,13 +288,54 @@ export function renderCapacityViewMode({ refs, plan }) {
   refs.capacityTableViewModeSelect.value = plan?.capacityTableViewMode === "compact" ? "compact" : "full";
 }
 
-export function renderCapacityOverlay({ refs, plan }) {
+/**
+ * Hint text, export controls, and per-period totals strip for the Capacity tab.
+ */
+export function renderCapacityChrome({
+  refs,
+  plan
+}) {
+  const toolbar = refs.capacityToolbar;
+  if (!toolbar) {
+    return;
+  }
+
   const hasPlan = Boolean(plan);
+  const hasPeriods = Boolean(plan?.periods?.length);
+
+  toolbar.hidden = !hasPlan;
+
+  if (!hasPlan || !hasPeriods) {
+    return;
+  }
+}
+
+export function renderPlanExportControl({ refs, plan }) {
+  if (!refs.planExportBtn) {
+    return;
+  }
+  void plan;
+  refs.planExportBtn.disabled = false;
+  refs.planExportBtn.setAttribute("aria-expanded", "false");
+  if (refs.planExportMenu) {
+    refs.planExportMenu.hidden = true;
+  }
+}
+
+export function renderCapacityOverlay({ refs, plan }) {
+  const selectedPlanId = String(refs.planSelect?.value || plan?.id || "").trim();
+  const hasPlan = Boolean(plan) && Boolean(selectedPlanId) && !(refs.planSelect?.hidden);
   const hasPeriods = Boolean(plan?.periods?.length);
   const showOverlay = !hasPlan || !hasPeriods;
 
   refs.capacityOverlay.classList.toggle("active", showOverlay);
   refs.capacityTableWrap.classList.toggle("table-wrap-blur", showOverlay);
+  if (refs.capacityToolbar) {
+    refs.capacityToolbar.classList.toggle("table-wrap-blur", showOverlay);
+  }
+  if (refs.capacityStatsBar) {
+    refs.capacityStatsBar.style.display = showOverlay ? "none" : "";
+  }
   refs.addCapacityRowBtn.disabled = !hasPlan || !hasPeriods;
   refs.addQuarterBtn.disabled = !hasPlan || !hasPeriods;
 
@@ -313,14 +359,20 @@ export function renderCapacityOverlay({ refs, plan }) {
 }
 
 export function renderBacklogOverlay({ refs, plan }) {
-  const hasPlan = Boolean(plan);
+  const selectedPlanId = String(refs.planSelect?.value || plan?.id || "").trim();
+  const hasPlan = Boolean(plan) && Boolean(selectedPlanId) && !(refs.planSelect?.hidden);
   const hasBacklogRows = Boolean(plan?.backlogRows?.length);
   const showOverlay = !hasPlan || !hasBacklogRows;
   refs.backlogOverlay.classList.toggle("active", showOverlay);
   refs.backlogTableWrap.classList.toggle("table-wrap-blur", showOverlay);
-  refs.openImportModalBtn.style.display = showOverlay ? "none" : "inline-block";
-  if (refs.backlogBulkActions) {
-    refs.backlogBulkActions.hidden = showOverlay;
+  if (refs.backlogToolbar) {
+    refs.backlogToolbar.style.display = showOverlay ? "none" : "";
+  }
+  if (refs.backlogStatsBar) {
+    refs.backlogStatsBar.style.display = showOverlay ? "none" : "";
+  }
+  if (refs.openImportModalBtn) {
+    refs.openImportModalBtn.style.display = "";
   }
 
   if (!showOverlay) {
@@ -335,6 +387,72 @@ export function renderBacklogOverlay({ refs, plan }) {
   refs.importOverlayBtn.textContent = "Import backlog from Jira";
   refs.importOverlayBtn.title = "Import backlog from Jira";
   refs.importOverlayBtn.dataset.action = "import";
+}
+
+export function syncBacklogSplitSummary({ refs, plan }) {
+  const el = refs.backlogSplitSummary;
+  if (!el) {
+    return;
+  }
+  if (!plan?.backlogRows?.length) {
+    el.hidden = true;
+    el.textContent = "";
+    el.classList.remove("backlog-split-summary--warn");
+    return;
+  }
+  const n = countBacklogRowsWithInvalidRoleSplits(plan);
+  if (n === 0) {
+    el.hidden = true;
+    el.textContent = "";
+    el.classList.remove("backlog-split-summary--warn");
+    return;
+  }
+  el.hidden = false;
+  el.classList.add("backlog-split-summary--warn");
+  el.textContent =
+    n === 1
+      ? "1 row has invalid role splits (split total over 100% or role points over the row estimate)."
+      : `${n} rows have invalid role splits (split total over 100% or role points over the row estimate).`;
+}
+
+export function syncBacklogBulkPeriodSelectOptions({ refs, plan }) {
+  const sel = refs.backlogBulkPeriodSelect;
+  if (!sel) {
+    return;
+  }
+  if (!plan?.periods?.length) {
+    sel.innerHTML = "";
+    const ph = document.createElement("option");
+    ph.value = "";
+    ph.textContent = "No periods in plan";
+    sel.appendChild(ph);
+    return;
+  }
+  const prev = sel.value;
+  sel.innerHTML = "";
+  const ph0 = document.createElement("option");
+  ph0.value = "";
+  ph0.textContent = "Choose period…";
+  sel.appendChild(ph0);
+  for (const p of plan.periods) {
+    const o = document.createElement("option");
+    o.value = p.id;
+    o.textContent = p.label || p.id;
+    sel.appendChild(o);
+  }
+  if (prev && [...sel.options].some((o) => o.value === prev)) {
+    sel.value = prev;
+  } else {
+    sel.value = "";
+  }
+}
+
+export function syncBacklogToolbarState({ refs, plan }) {
+  syncBacklogSplitSummary({ refs, plan });
+  syncBacklogBulkPeriodSelectOptions({ refs, plan });
+  if (refs.backlogDensitySelect && plan) {
+    refs.backlogDensitySelect.value = plan.backlogTableViewMode === "compact" ? "compact" : "full";
+  }
 }
 
 export function positionFabQuarter({ refs, capacityContentEl }) {
