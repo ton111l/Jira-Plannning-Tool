@@ -71,6 +71,11 @@ export function cacheRefs(refs) {
 
   refs.settingsDialog = document.getElementById("settingsDialog");
   refs.settingsForm = document.getElementById("settingsForm");
+  refs.settingsPlanningGrid = document.getElementById("settingsPlanningGrid");
+  refs.settingsUseSprintsCheckbox = document.getElementById("settingsUseSprintsCheckbox");
+  refs.settingsSprintSettingsBtn = document.getElementById("settingsSprintSettingsBtn");
+  refs.settingsUseBuffersCheckbox = document.getElementById("settingsUseBuffersCheckbox");
+  refs.settingsBufferSettingsBtn = document.getElementById("settingsBufferSettingsBtn");
   refs.estimationTypeSelect = document.getElementById("estimationTypeSelect");
   refs.settingsTeamEstimationWrap = document.getElementById("settingsTeamEstimationWrap");
   refs.settingsTeamEstimationModeSelect = document.getElementById("settingsTeamEstimationModeSelect");

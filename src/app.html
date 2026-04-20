@@ -304,6 +304,28 @@
           <h3>Settings</h3>
         </div>
         <div class="settings-form-body">
+          <div id="settingsPlanningGrid" class="sprint-planning-grid" hidden>
+            <label class="checkbox-label">
+              <input type="checkbox" id="settingsUseSprintsCheckbox" />
+              Use Sprints Planning
+            </label>
+            <button
+              type="button"
+              id="settingsSprintSettingsBtn"
+              class="btn btn-secondary sprint-settings-btn"
+              disabled
+            >Sprints settings</button>
+            <label class="checkbox-label">
+              <input type="checkbox" id="settingsUseBuffersCheckbox" />
+              Use Buffers
+            </label>
+            <button
+              type="button"
+              id="settingsBufferSettingsBtn"
+              class="btn btn-secondary sprint-settings-btn"
+              disabled
+            >Buffer settings</button>
+          </div>
         <label for="estimationTypeSelect" class="label-with-help">
           Estimation type
           <span
