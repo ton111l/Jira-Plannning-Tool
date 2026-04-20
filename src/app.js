@@ -292,7 +292,36 @@ function renderTeamName() {
 }
 
 function renderSettings() {
-  renderSettingsView({ refs, plan: getActivePlan(), appState });
+  renderSettingsView({ refs, plan: getActivePlan(), appState, syncSettingsPlanningRow });
+}
+
+function isSettingsDialogOpen() {
+  return Boolean(refs.settingsDialog?.open);
+}
+
+function syncSettingsPlanningRow() {
+  if (!refs.settingsPlanningGrid || refs.settingsPlanningGrid.hidden) {
+    return;
+  }
+  handleSettingsUseSprintsChange();
+  handleSettingsUseBuffersChange();
+}
+
+function removeSprintsFromPlan(plan) {
+  const anchorPeriod = plan.periods.find((p) => p.kind === "quarter" || !p.kind);
+  if (!anchorPeriod) return;
+  plan.periods = plan.periods.filter(
+    (p) => !(p.kind === "sprint" && p.anchorQuarter === anchorPeriod.anchorQuarter && p.anchorYear === anchorPeriod.anchorYear)
+  );
+  plan.capacityRows.forEach((row) => {
+    Object.keys(row.periodValues).forEach((pid) => {
+      if (!plan.periods.find((p) => p.id === pid)) {
+        delete row.periodValues[pid];
+      }
+    });
+    recomputeCapacityRow(row, plan.periods, getPlanEstimationType(plan));
+  });
+  ensureTeamPeriodValues(plan);
 }
 
 const DEFAULT_STORY_POINTS_JIRA_FIELD = "customfield_10016";
@@ -436,6 +465,39 @@ function handleCreatePlanUseBuffersChange() {
   refs.createPlanBufferSettingsBtn.disabled = !enabled;
 }
 
+function handleSettingsUseSprintsChange() {
+  if (!refs.settingsUseSprintsCheckbox) {
+    return;
+  }
+  const enabled = refs.settingsUseSprintsCheckbox.checked;
+  if (refs.settingsSprintSettingsBtn) {
+    refs.settingsSprintSettingsBtn.disabled = !enabled;
+  }
+  const plan = getActivePlan();
+  const hasSprints = plan?.periods?.some((p) => p.kind === "sprint") ?? false;
+  if (refs.settingsWorkingDaysInput) {
+    refs.settingsWorkingDaysInput.disabled = enabled || hasSprints;
+  }
+  const personDaysOption = refs.estimationTypeSelect?.querySelector('option[value="person_days"]');
+  if (personDaysOption) {
+    personDaysOption.disabled = enabled || hasSprints;
+  }
+  if (enabled && !hasSprints) {
+    refs.estimationTypeSelect.value = "story_points";
+    handleSettingsEstimationTypeChange();
+  }
+}
+
+function handleSettingsUseBuffersChange() {
+  if (!refs.settingsUseBuffersCheckbox) {
+    return;
+  }
+  const enabled = refs.settingsUseBuffersCheckbox.checked;
+  if (refs.settingsBufferSettingsBtn) {
+    refs.settingsBufferSettingsBtn.disabled = !enabled;
+  }
+}
+
 function buildSprintSettingsRow(sprintNumber) {
   const tr = document.createElement("tr");
 
@@ -496,7 +558,42 @@ function updateSprintDeleteButton() {
 }
 
 function openSprintSettingsDialog() {
-  if (refs.sprintSettingsTbody.rows.length === 0) {
+  refs.sprintSettingsTbody.innerHTML = "";
+  if (isSettingsDialogOpen()) {
+    const plan = getActivePlan();
+    const anchor = plan?.periods?.find((p) => p.kind === "quarter" || !p.kind);
+    const sprints = anchor
+      ? plan.periods.filter(
+          (p) =>
+            p.kind === "sprint" &&
+            p.anchorQuarter === anchor.anchorQuarter &&
+            p.anchorYear === anchor.anchorYear
+        )
+      : [];
+    sprints.sort((a, b) => (a.sprintIndex ?? 0) - (b.sprintIndex ?? 0));
+    const refRow = plan?.capacityRows?.[0];
+    sprints.forEach((sp, idx) => {
+      const tr = buildSprintSettingsRow(idx + 1);
+      const input = tr.querySelector(".sprint-settings-days-input");
+      const wd = sanitizeNonNegative(refRow?.periodValues?.[sp.id]?.workingDays ?? 0);
+      if (input && wd > 0) {
+        input.value = String(wd);
+      }
+      refs.sprintSettingsTbody.appendChild(tr);
+    });
+    if (refs.sprintSettingsTbody.rows.length === 0) {
+      refs.sprintSettingsTbody.appendChild(buildSprintSettingsRow(1));
+    }
+  } else if (pendingSprintConfig?.length) {
+    pendingSprintConfig.forEach((sc, idx) => {
+      const tr = buildSprintSettingsRow(idx + 1);
+      const input = tr.querySelector(".sprint-settings-days-input");
+      if (input && sc.workingDays > 0) {
+        input.value = String(sc.workingDays);
+      }
+      refs.sprintSettingsTbody.appendChild(tr);
+    });
+  } else {
     refs.sprintSettingsTbody.appendChild(buildSprintSettingsRow(1));
   }
   updateSprintDeleteButton();
@@ -566,7 +663,24 @@ function updateBufferDeleteButton() {
 }
 
 function openBufferSettingsDialog() {
-  if (refs.bufferSettingsTbody.rows.length === 0) {
+  refs.bufferSettingsTbody.innerHTML = "";
+  if (isSettingsDialogOpen()) {
+    const plan = getActivePlan();
+    const pct = plan ? sanitizeNonNegative(plan.allBuffersPercent ?? 0) : 0;
+    const tr = buildBufferSettingsRow(1);
+    const percentInput = tr.querySelector(".sprint-settings-days-input");
+    if (percentInput && pct > 0) {
+      percentInput.value = String(pct);
+    }
+    refs.bufferSettingsTbody.appendChild(tr);
+  } else if (pendingBufferTotalPercent > 0) {
+    const tr = buildBufferSettingsRow(1);
+    const percentInput = tr.querySelector(".sprint-settings-days-input");
+    if (percentInput) {
+      percentInput.value = String(pendingBufferTotalPercent);
+    }
+    refs.bufferSettingsTbody.appendChild(tr);
+  } else {
     refs.bufferSettingsTbody.appendChild(buildBufferSettingsRow(1));
   }
   updateBufferDeleteButton();
@@ -591,7 +705,7 @@ function handleBufferSettingsInput() {
   updateAllBuffersTotal();
 }
 
-function submitSprintSettings(event) {
+async function submitSprintSettings(event) {
   event.preventDefault();
   if (event.submitter?.value === "cancel") {
     refs.sprintSettingsDialog.close();
@@ -599,7 +713,7 @@ function submitSprintSettings(event) {
   }
 
   const rows = Array.from(refs.sprintSettingsTbody.querySelectorAll("tr"));
-  pendingSprintConfig = rows.map((tr, idx) => {
+  const sprintConfig = rows.map((tr, idx) => {
     const input = tr.querySelector(".sprint-settings-days-input");
     return {
       sprintIndex: idx + 1,
@@ -607,16 +721,45 @@ function submitSprintSettings(event) {
     };
   });
 
+  if (isSettingsDialogOpen()) {
+    const plan = getActivePlan();
+    if (plan && sprintConfig.length) {
+      applySprintConfigToPlan(plan, sprintConfig);
+      touchPlan(plan);
+      refs.sprintSettingsDialog.close();
+      renderSettings();
+      await persistAndRender("Sprint settings updated.", "success");
+    } else {
+      refs.sprintSettingsDialog.close();
+    }
+    return;
+  }
+
+  pendingSprintConfig = sprintConfig;
   refs.sprintSettingsDialog.close();
 }
 
-function submitBufferSettings(event) {
+async function submitBufferSettings(event) {
   event.preventDefault();
   if (event.submitter?.value === "cancel") {
     refs.bufferSettingsDialog.close();
     return;
   }
   pendingBufferTotalPercent = sanitizeNonNegative(refs.bufferSettingsTotalPercentInput.value || 0);
+  if (isSettingsDialogOpen()) {
+    const plan = getActivePlan();
+    if (plan) {
+      plan.useBuffers = Boolean(refs.settingsUseBuffersCheckbox?.checked);
+      plan.allBuffersPercent = plan.useBuffers ? pendingBufferTotalPercent : 0;
+      touchPlan(plan);
+      refs.bufferSettingsDialog.close();
+      renderSettings();
+      await persistAndRender("Buffer settings updated.", "success");
+    } else {
+      refs.bufferSettingsDialog.close();
+    }
+    return;
+  }
   refs.bufferSettingsDialog.close();
 }
 
@@ -664,6 +807,7 @@ function applySprintConfigToPlan(plan, sprintConfig) {
     });
     recomputeCapacityRow(row, plan.periods, estimationType);
   });
+  plan.useSprintsPlanning = true;
 }
 
 function handleImportJiraBaseUrlBlur() {
@@ -812,10 +956,35 @@ async function handleCreatePlan() {
   refs.createPlanTeamEstimationModeSelect.value = periodTeamSettings?.teamEstimationMode || "average";
   refs.createPlanTeamEstimationValueInput.value = String(periodTeamSettings?.teamEstimationPerDay ?? "");
   handleCreatePlanEstimationTypeChange();
-  refs.createPlanUseSprintsCheckbox.checked = false;
-  refs.createPlanUseBuffersCheckbox.checked = false;
-  pendingSprintConfig = null;
-  pendingBufferTotalPercent = 0;
+  if (activePlan) {
+    refs.createPlanUseBuffersCheckbox.checked = Boolean(activePlan.useBuffers);
+    pendingBufferTotalPercent = sanitizeNonNegative(activePlan.allBuffersPercent ?? 0);
+    refs.createPlanUseSprintsCheckbox.checked = Boolean(activePlan.useSprintsPlanning);
+    const anchor = activePlan.periods?.find((p) => p.kind === "quarter" || !p.kind);
+    const sprints = anchor
+      ? activePlan.periods.filter(
+          (p) =>
+            p.kind === "sprint" &&
+            p.anchorQuarter === anchor.anchorQuarter &&
+            p.anchorYear === anchor.anchorYear
+        )
+      : [];
+    sprints.sort((a, b) => (a.sprintIndex ?? 0) - (b.sprintIndex ?? 0));
+    if (sprints.length && activePlan.useSprintsPlanning) {
+      const refRow = activePlan.capacityRows?.[0];
+      pendingSprintConfig = sprints.map((sp) => ({
+        sprintIndex: sp.sprintIndex,
+        workingDays: sanitizeNonNegative(refRow?.periodValues?.[sp.id]?.workingDays ?? 0)
+      }));
+    } else {
+      pendingSprintConfig = null;
+    }
+  } else {
+    refs.createPlanUseBuffersCheckbox.checked = false;
+    pendingBufferTotalPercent = 0;
+    refs.createPlanUseSprintsCheckbox.checked = false;
+    pendingSprintConfig = null;
+  }
   handleCreatePlanUseSprintsChange();
   handleCreatePlanUseBuffersChange();
   refs.createPlanDialog.showModal();
@@ -862,6 +1031,7 @@ async function submitCreatePlan(event) {
     resourceGroupingType,
     useBuffers,
     allBuffersPercent,
+    useSprintsPlanning: refs.createPlanUseSprintsCheckbox.checked,
     estimationFieldName: "",
     defaultWorkingDays
   });
@@ -882,6 +1052,7 @@ async function submitCreatePlan(event) {
   if (refs.createPlanUseSprintsCheckbox.checked && pendingSprintConfig?.length) {
     applySprintConfigToPlan(plan, pendingSprintConfig);
   }
+  plan.useSprintsPlanning = Boolean(refs.createPlanUseSprintsCheckbox.checked);
   pendingSprintConfig = null;
   pendingBufferTotalPercent = 0;
 
@@ -1848,6 +2019,18 @@ async function saveSettings(event) {
     return;
   }
   applyDefaultRoleSplitsToBacklogRows(activePlan);
+  if (refs.settingsUseSprintsCheckbox) {
+    activePlan.useSprintsPlanning = Boolean(refs.settingsUseSprintsCheckbox.checked);
+    if (!activePlan.useSprintsPlanning) {
+      removeSprintsFromPlan(activePlan);
+    }
+  }
+  if (refs.settingsUseBuffersCheckbox) {
+    activePlan.useBuffers = Boolean(refs.settingsUseBuffersCheckbox.checked);
+    if (!activePlan.useBuffers) {
+      activePlan.allBuffersPercent = 0;
+    }
+  }
   activePlan.defaultWorkingDays = defaultWorkingDays;
   activePlan.defaultLoadPercent = defaultLoadPercent;
   activePlan.capacityRows.forEach((row) => {
@@ -1891,6 +2074,8 @@ function bindEvents() {
       handleImportJiraBaseUrlBlur,
       handleSettingsEstimationTypeChange,
       handleSettingsResourceGroupingChange,
+      handleSettingsUseSprintsChange,
+      handleSettingsUseBuffersChange,
       handleCreatePlanEstimationTypeChange,
       handleCreatePlanUseSprintsChange,
       handleCreatePlanUseBuffersChange,
@@ -1993,6 +2178,9 @@ async function init() {
     }
     if (typeof plan.useBuffers !== "boolean") {
       plan.useBuffers = false;
+    }
+    if (typeof plan.useSprintsPlanning !== "boolean") {
+      plan.useSprintsPlanning = Boolean(plan.periods?.some((p) => p.kind === "sprint"));
     }
     if (typeof plan.allBuffersPercent !== "number" || Number.isNaN(plan.allBuffersPercent)) {
       plan.allBuffersPercent = 0;

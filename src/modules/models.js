@@ -109,6 +109,8 @@ export function createPlan({
   resourceGroupingType = "by_team",
   useBuffers = false,
   allBuffersPercent = 0,
+  /** User intent: sprint columns; true if plan has sprint periods until explicitly turned off in Settings. */
+  useSprintsPlanning = false,
   jiraBaseUrl = "",
   estimationFieldName = "",
   defaultWorkingDays = 0,
@@ -138,6 +140,7 @@ export function createPlan({
     resourceGroupingType: String(resourceGroupingType || "by_roles"),
     useBuffers: Boolean(useBuffers),
     allBuffersPercent: Number(allBuffersPercent) >= 0 ? Number(allBuffersPercent) : 0,
+    useSprintsPlanning: Boolean(useSprintsPlanning),
     jiraBaseUrl: String(jiraBaseUrl || "").trim().replace(/\/+$/, ""),
     estimationFieldName: String(estimationFieldName || "").trim(),
     /** Last-used Jira field semantic type in Import dialog; also default for next open. */
