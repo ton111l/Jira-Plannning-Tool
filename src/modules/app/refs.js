@@ -62,6 +62,8 @@ export function cacheRefs(refs) {
   refs.confirmImportBtn = document.getElementById("confirmImportBtn");
   refs.issuesCount = document.getElementById("issuesCount");
   refs.importProgress = document.getElementById("importProgress");
+  refs.importJiraEstimationKindStoryPoints = document.getElementById("importJiraEstimationKindStoryPoints");
+  refs.importJiraEstimationKindPersonDays = document.getElementById("importJiraEstimationKindPersonDays");
   refs.importJiraEstimationFieldWrap = document.getElementById("importJiraEstimationFieldWrap");
   refs.importJiraEstimationFieldLabel = document.getElementById("importJiraEstimationFieldLabel");
   refs.importJiraEstimationFieldHelp = document.getElementById("importJiraEstimationFieldHelp");

@@ -65,6 +65,14 @@ export function bindEvents({
       handlers.syncImportButtonState();
     });
   }
+  if (refs.importJiraEstimationKindStoryPoints && refs.importJiraEstimationKindPersonDays) {
+    const onImportEstimationKindChange = () => {
+      handlers.syncImportEstimationFieldUi?.();
+      handlers.syncImportButtonState?.();
+    };
+    refs.importJiraEstimationKindStoryPoints.addEventListener("change", onImportEstimationKindChange);
+    refs.importJiraEstimationKindPersonDays.addEventListener("change", onImportEstimationKindChange);
+  }
   refs.estimationTypeSelect.addEventListener("change", handlers.handleSettingsEstimationTypeChange);
   if (refs.settingsUseSprintsCheckbox) {
     refs.settingsUseSprintsCheckbox.addEventListener("change", handlers.handleSettingsUseSprintsChange);

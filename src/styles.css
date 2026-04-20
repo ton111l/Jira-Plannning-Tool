@@ -259,15 +259,6 @@ body {
   box-sizing: border-box;
 }
 
-#backlogTable.backlog-import-table th.backlog-effective-header {
-  min-width: 130px;
-  white-space: nowrap;
-}
-
-#backlogTable.backlog-import-table th.backlog-effective-header .label-with-help {
-  gap: 4px;
-}
-
 #backlogTable.backlog-import-table th.backlog-col-key,
 #backlogTable.backlog-import-table td.backlog-col-key {
   min-width: 152px;
@@ -302,6 +293,11 @@ body {
   width: 120px;
 }
 
+#backlogTable.backlog-import-table th.backlog-member-by-roles-header {
+  text-align: center;
+  font-weight: 600;
+}
+
 #backlogTable.backlog-import-table th.backlog-role-group {
   min-width: 136px;
 }
@@ -316,6 +312,12 @@ body {
 #backlogTable.backlog-import-table td.backlog-role-estimation {
   min-width: 68px;
   width: 68px;
+}
+
+#backlogTable.backlog-import-table th.backlog-role-member,
+#backlogTable.backlog-import-table td.backlog-role-member {
+  min-width: 120px;
+  width: 120px;
 }
 
 /* SP + By team (full, quarters only): two-row thead; see byTeam.js useSpTeamSimplifiedHeader */
@@ -619,6 +621,52 @@ a.toolbar-help-link {
   padding: 14px;
 }
 
+/* Settings: scroll middle section; keep title + Close/Save visible on short viewports */
+#settingsDialog.modal--settings {
+  width: min(520px, calc(100vw - 24px));
+  max-width: 100%;
+  overflow: hidden;
+}
+
+#settingsForm.settings-form {
+  display: flex;
+  flex-direction: column;
+  max-height: min(92vh, 100dvh);
+  min-height: 0;
+  padding: 0;
+  gap: 0;
+  overflow: hidden;
+}
+
+.settings-form-header {
+  flex-shrink: 0;
+  padding: 14px 14px 6px;
+}
+
+.settings-form-header h3 {
+  margin: 0;
+}
+
+.settings-form-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  padding: 0 14px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.settings-form-footer.modal-actions {
+  flex-shrink: 0;
+  margin-top: 0;
+  padding: 12px 14px 14px;
+  border-top: 1px solid #dcdce4;
+  background: #fbfbfc;
+}
+
 #settingsForm label {
   font-weight: 600;
 }
@@ -814,6 +862,35 @@ a.toolbar-help-link {
   justify-content: space-between;
   align-items: center;
   gap: 10px;
+}
+
+.import-estimation-kind-fieldset {
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--border-color, #ccc);
+  border-radius: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.import-estimation-kind-fieldset legend {
+  padding: 0 6px;
+  font-weight: 600;
+}
+
+.import-estimation-kind-hint {
+  margin: 0;
+  font-size: 12px;
+  opacity: 0.9;
+  line-height: 1.35;
+}
+
+.import-estimation-kind-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
 }
 
 #importJiraEstimationFieldWrap,

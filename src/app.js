@@ -326,36 +326,42 @@ function removeSprintsFromPlan(plan) {
 
 const DEFAULT_STORY_POINTS_JIRA_FIELD = "customfield_10016";
 
-function resolveImportEstimationFieldName(plan, rawTrimmed) {
-  const type = getPlanEstimationType(plan);
-  if (type === "person_days") {
+function getImportDialogEstimationKind() {
+  if (refs.importJiraEstimationKindPersonDays?.checked) {
+    return "person_days";
+  }
+  return "story_points";
+}
+
+/** Resolves which Jira field to request based on the Import dialog field type (not plan Settings). */
+function resolveImportEstimationFieldNameForImport(importKind, rawTrimmed) {
+  if (importKind === "person_days") {
     return rawTrimmed || "timeoriginalestimate";
   }
   return rawTrimmed || DEFAULT_STORY_POINTS_JIRA_FIELD;
 }
 
 function syncImportEstimationFieldUi() {
-  const plan = getActivePlan();
   const input = refs.importJiraEstimationFieldInput;
   const label = refs.importJiraEstimationFieldLabel;
   const help = refs.importJiraEstimationFieldHelp;
   if (!input || !label || !help) {
     return;
   }
-  const type = plan ? getPlanEstimationType(plan) : "story_points";
+  const type = getImportDialogEstimationKind();
   if (type === "person_days") {
     label.textContent = "Jira estimation field";
     input.placeholder = "timeoriginalestimate";
     help.setAttribute(
       "data-tooltip",
-      "Jira field id for backlog estimate in Man-days mode (e.g. timeoriginalestimate for Original estimate in seconds, or a custom number field). Leave empty to use timeoriginalestimate."
+      "Jira field id for Man-days / time (e.g. timeoriginalestimate for Original estimate in seconds, or a custom number field). Leave empty to use timeoriginalestimate."
     );
   } else {
     label.textContent = "Jira Story Points field";
     input.placeholder = "customfield_10016";
     help.setAttribute(
       "data-tooltip",
-      "Custom field id used for Story Points in your Jira (often customfield_…). Required when Estimation type is Story Points."
+      "Custom field id used for Story Points in your Jira (often customfield_…). Required when field type is Story Points."
     );
   }
 }
@@ -397,13 +403,14 @@ function syncImportButtonState() {
   const hasJql = Boolean(refs.jqlInput.value.trim());
   const hasBaseUrl = Boolean(normalizeJiraBaseUrlInput(refs.importJiraBaseUrlInput.value));
   const fieldRaw = String(refs.importJiraEstimationFieldInput?.value || "").trim();
-  const needsStoryPointsField = plan && getPlanEstimationType(plan) === "story_points";
-  const hasEstimationField = !needsStoryPointsField || Boolean(fieldRaw);
+  const importKind = getImportDialogEstimationKind();
+  const needsStoryPointsFieldId = importKind === "story_points";
+  const hasEstimationField = !needsStoryPointsFieldId || Boolean(fieldRaw);
   const canImport = Boolean(plan) && hasJql && hasBaseUrl && hasEstimationField;
   refs.confirmImportBtn.classList.toggle("btn-disabled", !canImport);
   refs.confirmImportBtn.title = canImport
     ? "Import backlog from Jira"
-    : "Enter Jira Base URL, JQL, and (for Story Points) Jira Story Points field id.";
+    : "Enter Jira Base URL, JQL, and (when field type is Story Points) the Jira custom field id.";
 }
 
 function handleSettingsEstimationTypeChange() {
@@ -1488,11 +1495,8 @@ async function handleCapacityTableClick(event) {
   }
 }
 
-/** Split (%) and team allocation use type=number; defer full render until change (blur) so multi-digit entry works. */
+/** Split (%) uses type=number; defer full render until change (blur) so multi-digit entry works. */
 function isBacklogDeferredNumericField(field) {
-  if (field === "teamAllocationPercent") {
-    return true;
-  }
   const f = String(field || "");
   return f.startsWith("split_") && f.endsWith("_pct");
 }
@@ -1587,11 +1591,29 @@ async function handleTableInput(event) {
     if (!row || field === "source") {
       return;
     }
-    row[field] = target.value;
+    if (field === "targetCapacityRowIdByRole") {
+      const rid = target.dataset.roleId;
+      if (!rid) {
+        return;
+      }
+      if (!row.targetCapacityRowIdByRoleId || typeof row.targetCapacityRowIdByRoleId !== "object") {
+        row.targetCapacityRowIdByRoleId = {};
+      }
+      row.targetCapacityRowIdByRoleId[rid] = target.value;
+    } else if (field === "estimation") {
+      row.estimation = target.value;
+      const trimmed = String(target.value ?? "").trim();
+      row.estimationKind = trimmed ? getPlanEstimationType(plan) : "";
+    } else {
+      row[field] = target.value;
+    }
   }
 
   touchPlan(plan);
-  if (section === "backlog" && (field === "targetPeriodId" || field === "targetCapacityRowId")) {
+  if (
+    section === "backlog" &&
+    (field === "targetPeriodId" || field === "targetCapacityRowId" || field === "targetCapacityRowIdByRole")
+  ) {
     await persistAndRender();
     return;
   }
@@ -1676,14 +1698,17 @@ async function handleImportDialogClose() {
   const draftJql = refs.jqlInput.value.trim();
   const draftBaseUrl = normalizeJiraBaseUrlInput(refs.importJiraBaseUrlInput.value);
   const draftField = String(refs.importJiraEstimationFieldInput?.value || "").trim();
+  const draftKind = getImportDialogEstimationKind();
   const baseUrlChanged = String(plan.jiraBaseUrl || "") !== draftBaseUrl;
   const fieldChanged = String(plan.estimationFieldName || "") !== draftField;
-  if (String(plan.lastImportJql || "") === draftJql && !baseUrlChanged && !fieldChanged) {
+  const kindChanged = String(plan.importEstimationFieldKind || "") !== draftKind;
+  if (String(plan.lastImportJql || "") === draftJql && !baseUrlChanged && !fieldChanged && !kindChanged) {
     return;
   }
   plan.lastImportJql = draftJql;
   plan.jiraBaseUrl = draftBaseUrl;
   plan.estimationFieldName = draftField;
+  plan.importEstimationFieldKind = draftKind;
   touchPlan(plan);
   await saveState(appState);
 }
@@ -1697,6 +1722,7 @@ async function submitImport(event) {
       plan.lastImportJql = refs.jqlInput.value.trim();
       plan.jiraBaseUrl = normalizeJiraBaseUrlInput(refs.importJiraBaseUrlInput.value);
       plan.estimationFieldName = String(refs.importJiraEstimationFieldInput?.value || "").trim();
+      plan.importEstimationFieldKind = getImportDialogEstimationKind();
       touchPlan(plan);
     }
     await saveState(appState);
@@ -1726,19 +1752,21 @@ async function submitImport(event) {
   }
 
   const rawField = String(refs.importJiraEstimationFieldInput?.value || "").trim();
-  if (getPlanEstimationType(plan) === "story_points" && !rawField) {
+  const importKind = getImportDialogEstimationKind();
+  if (importKind === "story_points" && !rawField) {
     refs.importJiraEstimationFieldInput?.classList.add("input-invalid");
     refs.importJiraEstimationFieldInput?.focus();
     syncImportButtonState();
-    setMessage("Enter Jira Story Points field id for import.", "error");
+    setMessage("Enter Jira Story Points field id when field type is Story Points.", "error");
     return;
   }
   refs.importJiraEstimationFieldInput?.classList.remove("input-invalid");
 
-  const estimationFieldName = resolveImportEstimationFieldName(plan, rawField);
+  const estimationFieldName = resolveImportEstimationFieldNameForImport(importKind, rawField);
   plan.jiraBaseUrl = jiraBaseUrl;
   plan.lastImportJql = jql;
   plan.estimationFieldName = rawField;
+  plan.importEstimationFieldKind = importKind;
   touchPlan(plan);
   await saveState(appState);
 
@@ -1776,6 +1804,7 @@ async function submitImport(event) {
       jql,
       jiraBaseUrl,
       estimationFieldName,
+      importEstimationFieldKind: importKind,
       searchMethod: imported?.meta?.searchMethod || "unknown",
       stats: importStats,
       sample: importedRows.slice(0, 5)
@@ -1812,11 +1841,13 @@ async function submitImport(event) {
         existing.issueType = jiraRow.issueType;
         existing.priority = jiraRow.priority;
         existing.estimation = jiraRow.estimation;
+        existing.estimationKind = importKind;
         existing.source = "jira";
       } else {
         addedCount += 1;
         const newRow = createBacklogRow({
           ...jiraRow,
+          estimationKind: importKind,
           key: normalizedImportedKey,
           targetPeriodId: ""
         });
@@ -2056,6 +2087,7 @@ function bindEvents() {
       submitSprintSettings,
       submitBufferSettings,
       syncImportButtonState,
+      syncImportEstimationFieldUi,
       handleTableInput,
       handleDeferredNumericInputKeydown,
       handleCapacityTableClick,
@@ -2127,6 +2159,16 @@ async function init() {
       if (row.targetCapacityRowId === undefined || row.targetCapacityRowId === null) {
         row.targetCapacityRowId = "";
       }
+      if (!row.targetCapacityRowIdByRoleId || typeof row.targetCapacityRowIdByRoleId !== "object") {
+        row.targetCapacityRowIdByRoleId = {};
+      }
+      if (
+        row.estimationKind &&
+        row.estimationKind !== "story_points" &&
+        row.estimationKind !== "person_days"
+      ) {
+        delete row.estimationKind;
+      }
     });
     if (!plan.estimationType) {
       plan.estimationType = appState.estimationType || "story_points";
@@ -2150,6 +2192,9 @@ async function init() {
     }
     if (typeof plan.estimationFieldName !== "string") {
       plan.estimationFieldName = String(appState.estimationFieldName || "");
+    }
+    if (plan.importEstimationFieldKind !== "story_points" && plan.importEstimationFieldKind !== "person_days") {
+      plan.importEstimationFieldKind = plan.estimationType === "person_days" ? "person_days" : "story_points";
     }
     if (typeof plan.lastImportJql !== "string") {
       plan.lastImportJql = "";
@@ -2179,7 +2224,7 @@ async function init() {
     }
     if (
       plan.estimationType === "story_points" &&
-      plan.resourceGroupingType === "by_roles" &&
+      (plan.resourceGroupingType === "by_roles" || plan.resourceGroupingType === "by_member") &&
       Array.isArray(plan.roleOptions) &&
       plan.roleOptions.length > 0
     ) {

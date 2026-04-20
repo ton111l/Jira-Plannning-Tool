@@ -95,7 +95,7 @@ export function renderSettings({ refs, plan, appState, syncSettingsPlanningRow }
 }
 
 /**
- * Visibility and content for "Default % SP by roles": only Story Points + **By roles** (uses live Settings form values).
+ * Visibility and content for "Default % SP by roles": Story Points + (**By roles** or **By member**) (uses live Settings form values).
  * Call when opening Settings and when Estimation type or Resource grouping changes.
  */
 export function syncSettingsDefaultRoleSplitSection(refs, plan, appState) {
@@ -112,10 +112,9 @@ export function syncSettingsDefaultRoleSplitSection(refs, plan, appState) {
     plan?.resourceGroupingType ||
     appState?.resourceGroupingType ||
     "by_team";
-  const show =
-    Boolean(plan) &&
-    estimationType === "story_points" &&
-    resourceGroupingType === "by_roles";
+  const usesRoleSplitDefaults =
+    resourceGroupingType === "by_roles" || resourceGroupingType === "by_member";
+  const show = Boolean(plan) && estimationType === "story_points" && usesRoleSplitDefaults;
   refs.settingsDefaultRoleSplitWrap.hidden = !show;
   if (show) {
     renderSettingsDefaultRoleSplitList(refs, plan);

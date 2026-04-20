@@ -240,6 +240,31 @@
           placeholder="project = ABC AND issuetype in (Story, Bug) ORDER BY priority DESC"
         ></textarea>
 
+        <fieldset class="import-estimation-kind-fieldset" id="importJiraEstimationKindFieldset">
+          <legend>Jira estimation field type</legend>
+          <p class="import-estimation-kind-hint">
+            Choose what the field id below represents. Rows imported as Story Points stay hidden in Man-days plan mode (and vice versa) until you re-import or re-enter the estimate.
+          </p>
+          <label class="import-estimation-kind-option">
+            <input
+              type="radio"
+              name="importJiraEstimationKind"
+              id="importJiraEstimationKindStoryPoints"
+              value="story_points"
+            />
+            Story Points (numeric points field)
+          </label>
+          <label class="import-estimation-kind-option">
+            <input
+              type="radio"
+              name="importJiraEstimationKind"
+              id="importJiraEstimationKindPersonDays"
+              value="person_days"
+            />
+            Man-days (time / original estimate field)
+          </label>
+        </fieldset>
+
         <div id="importJiraEstimationFieldWrap">
           <label for="importJiraEstimationFieldInput" class="label-with-help">
             <span id="importJiraEstimationFieldLabel">Jira Story Points field</span>
@@ -273,31 +298,34 @@
       </form>
     </dialog>
 
-    <dialog id="settingsDialog" class="modal">
-      <form method="dialog" id="settingsForm">
-        <h3>Settings</h3>
-        <div id="settingsPlanningGrid" class="sprint-planning-grid" hidden>
-          <label class="checkbox-label">
-            <input type="checkbox" id="settingsUseSprintsCheckbox" />
-            Use Sprints Planning
-          </label>
-          <button
-            type="button"
-            id="settingsSprintSettingsBtn"
-            class="btn btn-secondary sprint-settings-btn"
-            disabled
-          >Sprints settings</button>
-          <label class="checkbox-label">
-            <input type="checkbox" id="settingsUseBuffersCheckbox" />
-            Use Buffers
-          </label>
-          <button
-            type="button"
-            id="settingsBufferSettingsBtn"
-            class="btn btn-secondary sprint-settings-btn"
-            disabled
-          >Buffer settings</button>
+    <dialog id="settingsDialog" class="modal modal--settings">
+      <form method="dialog" id="settingsForm" class="settings-form">
+        <div class="settings-form-header">
+          <h3>Settings</h3>
         </div>
+        <div class="settings-form-body">
+          <div id="settingsPlanningGrid" class="sprint-planning-grid" hidden>
+            <label class="checkbox-label">
+              <input type="checkbox" id="settingsUseSprintsCheckbox" />
+              Use Sprints Planning
+            </label>
+            <button
+              type="button"
+              id="settingsSprintSettingsBtn"
+              class="btn btn-secondary sprint-settings-btn"
+              disabled
+            >Sprints settings</button>
+            <label class="checkbox-label">
+              <input type="checkbox" id="settingsUseBuffersCheckbox" />
+              Use Buffers
+            </label>
+            <button
+              type="button"
+              id="settingsBufferSettingsBtn"
+              class="btn btn-secondary sprint-settings-btn"
+              disabled
+            >Buffer settings</button>
+          </div>
         <label for="estimationTypeSelect" class="label-with-help">
           Estimation type
           <span
@@ -395,7 +423,7 @@
               class="help-tooltip"
               tabindex="0"
               aria-label="Help: Default split percent by role"
-              data-tooltip="One row per role (same list as Roles for this plan). Percents must sum to 100%. Enter the first role’s percent: the rest split the remainder equally (you can still edit any row). When a backlog row has an empty Split (%) for a role, this value is used. Applied when you save Settings, when adding issues, and on import for empty splits."
+              data-tooltip="Shown for Story Points when Resource grouping is By roles or By member. One row per role (same list as Roles for this plan). Percents must sum to 100%. Enter the first role’s percent: the rest split the remainder equally (you can still edit any row). When a backlog row has an empty Split (%) for a role, this value is used. Applied when you save Settings, when adding issues, and on import for empty splits."
             >?</span>
           </span>
           <div id="settingsDefaultRoleSplitList" class="settings-default-role-split-list"></div>
@@ -421,8 +449,9 @@
             Add role
           </button>
         </div>
+        </div>
 
-        <div class="modal-actions">
+        <div class="modal-actions settings-form-footer">
           <button type="submit" value="cancel" class="btn btn-secondary">Close</button>
           <button type="submit" id="saveSettingsBtn" value="default" class="btn">Save</button>
         </div>

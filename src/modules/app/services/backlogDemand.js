@@ -1,6 +1,9 @@
 import { createEmptyCapacityPeriodValues } from "../../models.js";
 import { getCapacityRoleKey } from "../roleCatalog.js";
-import { roleToFieldSuffix } from "../render/shared/backlogHelpers.js";
+import {
+  getBacklogEstimationNumericForPlan,
+  roleToFieldSuffix
+} from "../render/shared/backlogHelpers.js";
 
 function asNumber(value) {
   const n = Number(value);
@@ -17,8 +20,8 @@ export function getBacklogRowPeriodId(row, plan) {
 }
 
 /** Effective demand for one backlog row in By team mode (estimation × team allocation %). */
-export function getTeamModeEffectiveDemand(row) {
-  const est = asNumber(row?.estimation);
+export function getTeamModeEffectiveDemand(row, plan) {
+  const est = getBacklogEstimationNumericForPlan(row, plan);
   const alloc =
     row?.teamAllocationPercent === "" || row?.teamAllocationPercent === undefined
       ? 100
@@ -60,7 +63,7 @@ export function applyPlannedFromBacklog(plan, resourceGroupingType) {
         if (getBacklogRowPeriodId(brow, plan) !== period.id) {
           continue;
         }
-        const base = asNumber(brow.estimation);
+        const base = getBacklogEstimationNumericForPlan(brow, plan);
         for (const label of roleLabels) {
           const suffix = roleToFieldSuffix(label);
           const splitField = `split_${suffix}_pct`;
@@ -91,12 +94,43 @@ export function applyPlannedFromBacklog(plan, resourceGroupingType) {
         if (getBacklogRowPeriodId(brow, plan) !== period.id) {
           continue;
         }
-        const tid = String(brow.targetCapacityRowId ?? "").trim();
-        if (!tid || !plan.capacityRows.some((r) => r.id === tid)) {
-          continue;
+        const base = getBacklogEstimationNumericForPlan(brow, plan);
+        const map =
+          brow.targetCapacityRowIdByRoleId && typeof brow.targetCapacityRowIdByRoleId === "object"
+            ? brow.targetCapacityRowIdByRoleId
+            : {};
+        const hasPerRoleAssignment = (plan.roleOptions || []).some((opt) => {
+          if (!opt?.id) {
+            return false;
+          }
+          const capId = String(map[opt.id] ?? "").trim();
+          return capId && plan.capacityRows.some((r) => r.id === capId);
+        });
+
+        if (hasPerRoleAssignment) {
+          for (const opt of plan.roleOptions || []) {
+            if (!opt?.id) {
+              continue;
+            }
+            const suffix = roleToFieldSuffix(opt.label);
+            const pct = asNumber(brow[`split_${suffix}_pct`]);
+            const capId = String(map[opt.id] ?? "").trim();
+            if (!capId || !plan.capacityRows.some((r) => r.id === capId)) {
+              continue;
+            }
+            const part = Number(((base * pct) / 100).toFixed(2));
+            if (part <= 0) {
+              continue;
+            }
+            totalsByCapacityRowId.set(capId, (totalsByCapacityRowId.get(capId) || 0) + part);
+          }
+        } else {
+          const tid = String(brow.targetCapacityRowId ?? "").trim();
+          if (!tid || !plan.capacityRows.some((r) => r.id === tid)) {
+            continue;
+          }
+          totalsByCapacityRowId.set(tid, (totalsByCapacityRowId.get(tid) || 0) + base);
         }
-        const add = asNumber(brow.estimation);
-        totalsByCapacityRowId.set(tid, (totalsByCapacityRowId.get(tid) || 0) + add);
       }
       for (const crow of plan.capacityRows) {
         const t = totalsByCapacityRowId.get(crow.id);
@@ -112,7 +146,7 @@ export function applyPlannedFromBacklog(plan, resourceGroupingType) {
         if (getBacklogRowPeriodId(brow, plan) !== period.id) {
           continue;
         }
-        total += getTeamModeEffectiveDemand(brow);
+        total += getTeamModeEffectiveDemand(brow, plan);
       }
       const totalRounded = Number(total.toFixed(2));
       const n = plan.capacityRows.length;
