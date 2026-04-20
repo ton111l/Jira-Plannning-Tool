@@ -14,6 +14,18 @@ export function sanitizeLoadPercent(value) {
   return clamp(toNumber(value, 100), 0, 100);
 }
 
+/**
+ * Matches the Load (%) `<select>` in the UI: 10..100 in steps of 10; null/empty/invalid → 100.
+ * Use for row styling so a stored null does not look like 0% load (pink highlight).
+ */
+export function resolveLoadPercentStep(value) {
+  const n = Number(value);
+  if (Number.isFinite(n) && n >= 10 && n <= 100) {
+    return Math.round(n / 10) * 10;
+  }
+  return 100;
+}
+
 export function sanitizeNonNegative(value) {
   return Math.max(0, toNumber(value, 0));
 }

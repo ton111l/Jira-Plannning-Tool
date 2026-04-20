@@ -4,6 +4,7 @@
   getBacklogEstimationNumericForPlan,
   roleToFieldSuffix
 } from "../shared/backlogHelpers.js";
+import { refreshBacklogRoleSplitRowDom } from "../../services/backlogRoleSplitValidation.js";
 
 function buildMemberSelectForRole(plan, backlogRow, roleOption) {
   const select = document.createElement("select");
@@ -115,7 +116,9 @@ export function renderImportBacklogByMember({
     const row = document.createElement("tr");
     const cell = document.createElement("td");
     cell.colSpan = totalColumns;
-    cell.textContent = "No issues yet. Add manually or import from Jira.";
+    cell.textContent =
+      "No issues in this plan yet. Use Import backlog from Jira (JQL). For By member, assign Split (%) " +
+      "per role and pick a member row for each; choose Period for Capacity.";
     row.appendChild(cell);
     tbody.appendChild(row);
     refs.backlogTable.appendChild(tbody);
@@ -140,9 +143,11 @@ export function renderImportBacklogByMember({
       const td = document.createElement("td");
       td.classList.add(`backlog-col-${field.toLowerCase()}`);
       const cellValue = field === "estimation" ? getBacklogEstimationForPlan(backlogRow, plan) : backlogRow[field];
+      const isReadOnlyField = ["key", "summary", "status", "priority", "issueType"].includes(field);
       td.appendChild(
         buildCellInput({
           value: cellValue,
+          readOnly: isReadOnlyField,
           dataset: { section: "backlog", rowId: backlogRow.id, field }
         })
       );
@@ -181,6 +186,8 @@ export function renderImportBacklogByMember({
       memberTd.appendChild(buildMemberSelectForRole(plan, backlogRow, column.role));
       tr.appendChild(memberTd);
     });
+
+    refreshBacklogRoleSplitRowDom(tr, backlogRow, plan);
 
     tbody.appendChild(tr);
   });

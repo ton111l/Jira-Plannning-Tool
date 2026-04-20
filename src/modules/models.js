@@ -152,6 +152,8 @@ export function createPlan({
     defaultRoleSplitPctByRoleId: buildEqualDefaultRoleSplitPctByRoleId(roleOptions),
     /** Capacity table UI: Full (all columns) or Compact (hide Days off and Per member). */
     capacityTableViewMode: "full",
+    /** Backlog table view mode: full (default) or compact. */
+    backlogTableViewMode: "full",
     periods: [firstPeriod],
     teamPeriodValues: {
       [firstPeriod.id]: {

@@ -12,7 +12,7 @@ import { migrateLegacyRolesToCatalog } from "./modules/app/roleCatalog.js";
 import { resolveBacklogPeriodSelectValue } from "./modules/app/render/shared/backlogHelpers.js";
 import { calculatePlannedCapacity, sanitizeLoadPercent, sanitizeNonNegative } from "./modules/calculations.js";
 import { loadState, saveState } from "./modules/storage.js";
-import { importIssuesFromJira } from "./modules/jira.js";
+import { importIssuesFromJira, openJiraAuthTab } from "./modules/jira.js";
 import { ROLE_OPTIONS, ESTIMATION_TYPE_LABELS } from "./modules/app/constants.js";
 import { refs } from "./modules/app/runtime.js";
 import { cacheRefs as cacheAppRefs } from "./modules/app/refs.js";
@@ -20,20 +20,31 @@ import {
   positionFabQuarter as positionFabQuarterView,
   renderBacklogOverlay as renderBacklogOverlayView,
   renderCapacityOverlay as renderCapacityOverlayView,
+  renderCapacityChrome as renderCapacityChromeView,
   renderCapacityViewMode as renderCapacityViewModeView,
+  renderPlanExportControl as renderPlanExportControlView,
   renderPlanSelect as renderPlanSelectView,
   renderSettings as renderSettingsView,
   syncSettingsDefaultRoleSplitSection,
   distributeDefaultRoleSplitFromFirst,
   refreshDefaultRoleSplitTotal,
   renderTabs as renderTabsView,
-  renderTeamName as renderTeamNameView
+  renderTeamName as renderTeamNameView,
+  syncBacklogToolbarState,
+  syncBacklogSplitSummary
 } from "./modules/app/render/ui.js";
+import { downloadPlanExport } from "./modules/app/services/planExport.js";
+import { getCapacityNumericFieldTitle } from "./modules/app/render/capacity/headerLabels.js";
 import { bindEvents as bindAppEvents } from "./modules/app/events/bindEvents.js";
 import { openImportDialogAction } from "./modules/app/actions/backlog.js";
 import { applySettingsChanges } from "./modules/app/actions/settings.js";
 import { applyPlannedFromBacklog } from "./modules/app/services/backlogDemand.js";
 import { applyDefaultRoleSplitsToBacklogRows } from "./modules/app/services/backlogRoleSplits.js";
+import {
+  refreshBacklogRoleSplitRowDom,
+  syncBacklogRowRoleEstimationsFromSplits,
+  syncSplitPctFromRoleEstimationField
+} from "./modules/app/services/backlogRoleSplitValidation.js";
 import { renderBacklogTable as renderBacklogTableView } from "./modules/app/render/backlog/index.js";
 import { renderCapacityTable as renderCapacityTableView } from "./modules/app/render/capacity/index.js";
 import {
@@ -138,13 +149,23 @@ function renderPlanSelect() {
   renderPlanSelectView({ refs, appState, activePlan: getActivePlan() });
 }
 
-function buildCellInput({ value, dataset = {}, type = "text", readOnly = false, placeholder = "" }) {
+function buildCellInput({
+  value,
+  dataset = {},
+  type = "text",
+  readOnly = false,
+  placeholder = "",
+  title = ""
+}) {
   const input = document.createElement("input");
   input.className = "cell-input";
   input.type = type;
   input.value = value ?? "";
   input.readOnly = readOnly;
   input.placeholder = placeholder;
+  if (title) {
+    input.title = title;
+  }
   for (const [key, datasetValue] of Object.entries(dataset)) {
     input.dataset[key] = datasetValue;
   }
@@ -498,7 +519,7 @@ function handleSettingsUseBuffersChange() {
   }
 }
 
-function buildSprintSettingsRow(sprintNumber) {
+function buildSprintSettingsRow(sprintNumber, workingDays = "") {
   const tr = document.createElement("tr");
 
   const sprintTd = document.createElement("td");
@@ -509,11 +530,12 @@ function buildSprintSettingsRow(sprintNumber) {
   const daysTd = document.createElement("td");
   daysTd.className = "sprint-settings-cell";
   const daysInput = document.createElement("input");
-  daysInput.type = "number";
-  daysInput.min = "1";
-  daysInput.step = "1";
+  daysInput.type = "text";
+  daysInput.inputMode = "numeric";
+  daysInput.pattern = "[0-9]*";
   daysInput.className = "input sprint-settings-days-input";
   daysInput.setAttribute("aria-label", `Working days for sprint ${sprintNumber}`);
+  daysInput.value = String(workingDays ?? "").trim();
   daysTd.appendChild(daysInput);
   tr.appendChild(daysTd);
 
@@ -573,26 +595,16 @@ function openSprintSettingsDialog() {
     sprints.sort((a, b) => (a.sprintIndex ?? 0) - (b.sprintIndex ?? 0));
     const refRow = plan?.capacityRows?.[0];
     sprints.forEach((sp, idx) => {
-      const tr = buildSprintSettingsRow(idx + 1);
-      const input = tr.querySelector(".sprint-settings-days-input");
       const wd = sanitizeNonNegative(refRow?.periodValues?.[sp.id]?.workingDays ?? 0);
-      if (input && wd > 0) {
-        input.value = String(wd);
-      }
-      refs.sprintSettingsTbody.appendChild(tr);
+      refs.sprintSettingsTbody.appendChild(buildSprintSettingsRow(idx + 1, wd > 0 ? wd : ""));
     });
     if (refs.sprintSettingsTbody.rows.length === 0) {
       refs.sprintSettingsTbody.appendChild(buildSprintSettingsRow(1));
     }
-  } else if (pendingSprintConfig?.length) {
-    pendingSprintConfig.forEach((sc, idx) => {
-      const tr = buildSprintSettingsRow(idx + 1);
-      const input = tr.querySelector(".sprint-settings-days-input");
-      if (input && sc.workingDays > 0) {
-        input.value = String(sc.workingDays);
-      }
-      refs.sprintSettingsTbody.appendChild(tr);
-    });
+  } else if (Array.isArray(pendingSprintConfig) && pendingSprintConfig.length > 0) {
+      pendingSprintConfig.forEach((cfg, idx) => {
+        refs.sprintSettingsTbody.appendChild(buildSprintSettingsRow(idx + 1, cfg?.workingDays ?? ""));
+      });
   } else {
     refs.sprintSettingsTbody.appendChild(buildSprintSettingsRow(1));
   }
@@ -713,13 +725,25 @@ async function submitSprintSettings(event) {
   }
 
   const rows = Array.from(refs.sprintSettingsTbody.querySelectorAll("tr"));
-  const sprintConfig = rows.map((tr, idx) => {
+  const nextConfig = [];
+  for (let idx = 0; idx < rows.length; idx += 1) {
+    const tr = rows[idx];
     const input = tr.querySelector(".sprint-settings-days-input");
-    return {
+    const raw = String(input?.value ?? "").trim();
+    if (!/^\d+$/.test(raw) || Number(raw) < 1) {
+      if (input) {
+        input.focus();
+        input.select?.();
+      }
+      setMessage(`Working days for Sprint ${idx + 1} must be a positive whole number.`, "error");
+      return;
+    }
+    nextConfig.push({
       sprintIndex: idx + 1,
-      workingDays: sanitizeNonNegative(input?.value ?? 0)
-    };
-  });
+      workingDays: Number(raw)
+    });
+  }
+  const sprintConfig = nextConfig;
 
   if (isSettingsDialogOpen()) {
     const plan = getActivePlan();
@@ -785,9 +809,15 @@ function applySprintConfigToPlan(plan, sprintConfig) {
   });
 
   const anchorIdx = plan.periods.findIndex((p) => p.id === anchorPeriod.id);
-  plan.periods.splice(anchorIdx, 0, ...sprintPeriods);
+  if (anchorIdx >= 0) {
+    // Sprint mode should replace the anchor quarter, not keep both.
+    plan.periods.splice(anchorIdx, 1, ...sprintPeriods);
+  }
 
   ensureTeamPeriodValues(plan);
+  if (plan.teamPeriodValues?.[anchorPeriod.id]) {
+    delete plan.teamPeriodValues[anchorPeriod.id];
+  }
   sprintPeriods.forEach((sp) => {
     plan.teamPeriodValues[sp.id] = { teamEstimationMode: "average", teamEstimationPerDay: "" };
   });
@@ -796,6 +826,9 @@ function applySprintConfigToPlan(plan, sprintConfig) {
   const workingDaysByIndex = Object.fromEntries(sprintConfig.map((s) => [s.sprintIndex, s.workingDays]));
 
   plan.capacityRows.forEach((row) => {
+    if (row.periodValues?.[anchorPeriod.id]) {
+      delete row.periodValues[anchorPeriod.id];
+    }
     sprintPeriods.forEach((sp) => {
       const values = createEmptyCapacityPeriodValues();
       values.workingDays = workingDaysByIndex[sp.sprintIndex] ?? 0;
@@ -861,6 +894,7 @@ function dedupeBacklogRowsByKey(plan) {
 function render() {
   renderTabs();
   renderPlanSelect();
+  renderPlanExportControlView({ refs, plan: getActivePlan() });
   renderTeamName();
   const activePlanForDemand = getActivePlan();
   if (activePlanForDemand?.periods?.length && activePlanForDemand.capacityRows?.length) {
@@ -868,10 +902,21 @@ function render() {
   }
   renderCapacityTable();
   renderCapacityViewModeView({ refs, plan: getActivePlan() });
+  renderCapacityChromeView({
+    refs,
+    plan: getActivePlan(),
+    estimationType: getPlanEstimationType(),
+    resourceGroupingType: getPlanResourceGroupingType(),
+    estimationLabel: getEstimationUnitLabel()
+  });
   renderCapacityOverlay();
+  applyCapacityQuickFilter();
+  updateCapacityBulkActionsState();
   renderBacklogTable();
   renderBacklogOverlay();
   updateBacklogBulkActionsState();
+  syncBacklogToolbarState({ refs, plan: getActivePlan() });
+  applyBacklogQuickFilter();
   positionFabQuarter();
 }
 
@@ -1216,12 +1261,187 @@ function syncBacklogSelectAllState() {
   selectAll.indeterminate = checked > 0 && checked < n;
 }
 
+function syncCapacitySelectAllState() {
+  const table = refs.capacityTable;
+  const selectAll = table.querySelector('[data-capacity-select="all"]');
+  if (!selectAll) {
+    return;
+  }
+  const boxes = [...table.querySelectorAll('tbody input[data-capacity-select="row"]')];
+  const n = boxes.length;
+  const checked = boxes.filter((b) => b.checked).length;
+  selectAll.checked = n > 0 && checked === n;
+  selectAll.indeterminate = checked > 0 && checked < n;
+}
+
+function applyCapacityQuickFilter() {
+  const input = refs.capacityQuickFilter;
+  if (!input) {
+    syncCapacityStatsBar();
+    return;
+  }
+  const q = String(input.value || "")
+    .trim()
+    .toLowerCase();
+  const bodyRows = refs.capacityTable?.querySelectorAll("tbody tr");
+  if (!bodyRows?.length) {
+    syncCapacityStatsBar();
+    return;
+  }
+  bodyRows.forEach((tr) => {
+    const onlyCell = tr.querySelector("td[colspan]");
+    if (onlyCell) {
+      tr.style.display = "";
+      return;
+    }
+    if (!q) {
+      tr.style.display = "";
+      return;
+    }
+    const memberInput = tr.querySelector('input.cell-input[data-field="memberName"]');
+    const roleSelect = tr.querySelector('select.cell-select[data-field="roleId"]');
+    const member = String(memberInput?.value || "").toLowerCase();
+    const roleLabel = String(roleSelect?.selectedOptions?.[0]?.textContent || "").toLowerCase();
+    const roleValue = String(roleSelect?.value || "").toLowerCase();
+    tr.style.display = member.includes(q) || roleLabel.includes(q) || roleValue.includes(q) ? "" : "none";
+  });
+  syncCapacityStatsBar();
+}
+
+function syncCapacityStatsBar() {
+  const bodyRows = [...(refs.capacityTable?.querySelectorAll("tbody tr") || [])];
+  const dataRows = bodyRows.filter((tr) => !tr.querySelector("td[colspan]"));
+  const totalRows = dataRows.length;
+  const filteredRows = dataRows.filter((tr) => tr.style.display !== "none").length;
+  const selectedRows = dataRows.filter((tr) => {
+    const rowCb = tr.querySelector('input[data-capacity-select="row"]');
+    return Boolean(rowCb?.checked);
+  }).length;
+  if (refs.capacityTotalCount) {
+    refs.capacityTotalCount.textContent = `Total rows: ${totalRows}`;
+  }
+  if (refs.capacityFilteredCount) {
+    refs.capacityFilteredCount.textContent = `Filtered rows: ${filteredRows}`;
+  }
+  if (refs.capacitySelectedCount) {
+    refs.capacitySelectedCount.textContent = `Selected rows: ${selectedRows}`;
+  }
+}
+
+function updateCapacityBulkActionsState() {
+  if (!refs.capacityDeleteSelectedBtn) {
+    return;
+  }
+  const n = refs.capacityTable.querySelectorAll('input[data-capacity-select="row"]:checked').length;
+  refs.capacityDeleteSelectedBtn.disabled = n === 0;
+  syncCapacityStatsBar();
+}
+
+function handleCapacitySelectionChange(event) {
+  const t = event.target;
+  if (!(t instanceof HTMLInputElement) || t.type !== "checkbox") {
+    return;
+  }
+  if (t.dataset.capacitySelect === "all") {
+    const checked = t.checked;
+    refs.capacityTable.querySelectorAll('input[data-capacity-select="row"]').forEach((cb) => {
+      cb.checked = checked;
+    });
+    t.indeterminate = false;
+    updateCapacityBulkActionsState();
+    return;
+  }
+  if (t.dataset.capacitySelect === "row") {
+    syncCapacitySelectAllState();
+    updateCapacityBulkActionsState();
+  }
+}
+
+async function handleDeleteSelectedCapacityRows() {
+  const plan = getActivePlan();
+  if (!plan?.capacityRows?.length) {
+    return;
+  }
+  const selectedIds = new Set(
+    [...refs.capacityTable.querySelectorAll('input[data-capacity-select="row"]:checked')].map(
+      (cb) => cb.dataset.rowId
+    )
+  );
+  if (!selectedIds.size) {
+    return;
+  }
+  openDeleteConfirmDialog(`Delete ${selectedIds.size} selected capacity row(s)?`, async () => {
+    const activePlan = getActivePlan();
+    if (!activePlan?.capacityRows?.length) {
+      return;
+    }
+    const before = activePlan.capacityRows.length;
+    activePlan.capacityRows = activePlan.capacityRows.filter((row) => !selectedIds.has(row.id));
+    const removed = before - activePlan.capacityRows.length;
+    if (!removed) {
+      return;
+    }
+    touchPlan(activePlan);
+    await persistAndRender(`${removed} capacity row(s) deleted.`, "success");
+  });
+}
+
+function applyBacklogQuickFilter() {
+  const input = refs.backlogQuickFilter;
+  if (!input) {
+    syncBacklogStatsBar();
+    return;
+  }
+  const q = String(input.value || "")
+    .trim()
+    .toLowerCase();
+  const bodyRows = refs.backlogTable?.querySelectorAll("tbody tr");
+  if (!bodyRows?.length) {
+    syncBacklogStatsBar();
+    return;
+  }
+  bodyRows.forEach((tr) => {
+    const onlyCell = tr.querySelector("td[colspan]");
+    if (onlyCell) {
+      tr.style.display = "";
+      return;
+    }
+    if (!q) {
+      tr.style.display = "";
+      return;
+    }
+    const keyInp = tr.querySelector('input.cell-input[data-field="key"]');
+    const sumInp = tr.querySelector('input.cell-input[data-field="summary"]');
+    const k = String(keyInp?.value || "").toLowerCase();
+    const s = String(sumInp?.value || "").toLowerCase();
+    tr.style.display = k.includes(q) || s.includes(q) ? "" : "none";
+  });
+  syncBacklogStatsBar();
+}
+
 function updateBacklogBulkActionsState() {
   if (!refs.backlogDeleteSelectedBtn) {
     return;
   }
   const n = refs.backlogTable.querySelectorAll('input[data-backlog-select="row"]:checked').length;
   refs.backlogDeleteSelectedBtn.disabled = n === 0;
+  syncBacklogStatsBar();
+}
+
+function syncBacklogStatsBar() {
+  const boxes = [...(refs.backlogTable?.querySelectorAll('tbody input[data-backlog-select="row"]') || [])];
+  const totalItems = boxes.length;
+  const selectedItems = boxes.filter((cb) => cb.checked).length;
+  const filteredItems = boxes.filter((cb) => cb.closest("tr")?.style.display !== "none").length;
+  if (refs.backlogTotalCount) {
+    refs.backlogTotalCount.textContent = `Total items: ${totalItems}`;
+  }
+  if (refs.backlogFilteredCount) {
+    refs.backlogFilteredCount.textContent = `Filtered items: ${filteredItems}`;
+  }
+  if (refs.backlogSelectedCount) {
+    refs.backlogSelectedCount.textContent = `Selected items: ${selectedItems}`;
+  }
 }
 
 function handleBacklogSelectionChange(event) {
@@ -1236,12 +1456,117 @@ function handleBacklogSelectionChange(event) {
     });
     t.indeterminate = false;
     updateBacklogBulkActionsState();
+    applyBacklogQuickFilter();
     return;
   }
   if (t.dataset.backlogSelect === "row") {
     syncBacklogSelectAllState();
     updateBacklogBulkActionsState();
+    applyBacklogQuickFilter();
   }
+}
+
+function closePlanExportMenu() {
+  if (refs.planExportMenu) {
+    refs.planExportMenu.hidden = true;
+  }
+  if (refs.planExportBtn) {
+    refs.planExportBtn.setAttribute("aria-expanded", "false");
+  }
+}
+
+function togglePlanExportMenu() {
+  if (!refs.planExportBtn || !refs.planExportMenu || refs.planExportBtn.disabled) {
+    return;
+  }
+  const nextHidden = !refs.planExportMenu.hidden;
+  refs.planExportMenu.hidden = nextHidden;
+  refs.planExportBtn.setAttribute("aria-expanded", nextHidden ? "false" : "true");
+}
+
+function handlePlanExportMenuClick(event) {
+  const trigger = event.target;
+  if (!(trigger instanceof HTMLElement)) {
+    return;
+  }
+  if (refs.planExportBtn?.contains(trigger)) {
+    return;
+  }
+  if (refs.planExportMenu?.contains(trigger)) {
+    return;
+  }
+  closePlanExportMenu();
+}
+
+function handlePlanExportJson() {
+  closePlanExportMenu();
+  const plan = getActivePlan();
+  const r = downloadPlanExport(plan, "json");
+  setMessage(r.message, r.ok ? "success" : "info");
+}
+
+function handlePlanExportXlsx() {
+  closePlanExportMenu();
+  const plan = getActivePlan();
+  const r = downloadPlanExport(plan, "xlsx");
+  setMessage(r.message, r.ok ? "success" : "info");
+}
+
+function handleCapacityFieldFocusin(event) {
+  const t = event.target;
+  if (!(t instanceof HTMLInputElement) && !(t instanceof HTMLSelectElement)) {
+    return;
+  }
+  if (t.dataset.section !== "capacity") {
+    return;
+  }
+  const field = t.dataset.field;
+  if (!field) {
+    return;
+  }
+  const msg = getCapacityNumericFieldTitle(field, { estimationLabel: getEstimationUnitLabel() });
+  if (msg) {
+    t.title = msg;
+  }
+}
+
+async function handleBacklogDensityChange(event) {
+  const plan = getActivePlan();
+  if (!plan) {
+    return;
+  }
+  const v = event.target?.value === "compact" ? "compact" : "full";
+  plan.backlogTableViewMode = v;
+  touchPlan(plan);
+  await persistAndRender();
+}
+
+async function handleBacklogApplyPeriodToSelected() {
+  const plan = getActivePlan();
+  if (!plan?.backlogRows?.length) {
+    return;
+  }
+  const periodId = String(refs.backlogBulkPeriodSelect?.value || "").trim();
+  if (!periodId) {
+    return;
+  }
+  const selectedIds = new Set(
+    [...refs.backlogTable.querySelectorAll('input[data-backlog-select="row"]:checked')].map(
+      (cb) => cb.dataset.rowId
+    )
+  );
+  if (!selectedIds.size) {
+    return;
+  }
+  let applied = 0;
+  for (const row of plan.backlogRows) {
+    if (selectedIds.has(row.id)) {
+      row.targetPeriodId = periodId;
+      applied += 1;
+    }
+  }
+  touchPlan(plan);
+  await persistAndRender(`Period applied to ${applied} issue(s).`, "success");
 }
 
 function handleDeleteSelectedBacklogRows() {
@@ -1258,8 +1583,11 @@ function handleDeleteSelectedBacklogRows() {
     return;
   }
   const n = selectedIds.size;
+  const firstId = [...selectedIds][0];
+  const firstRow = plan.backlogRows.find((r) => r.id === firstId);
+  const keyHint = firstRow?.key ? ` (${normalizeBacklogIssueKey(firstRow.key)})` : "";
   openDeleteConfirmDialog(
-    n === 1 ? "Remove this issue from the backlog?" : `Remove ${n} issues from the backlog?`,
+    n === 1 ? `Remove this issue from the backlog?${keyHint}` : `Remove ${n} issues from the backlog?`,
     async () => {
       plan.backlogRows = plan.backlogRows.filter((r) => !selectedIds.has(r.id));
       touchPlan(plan);
@@ -1467,7 +1795,7 @@ async function handleCapacityTableClick(event) {
     }
 
     const removedPeriodLabel = plan.periods[periodIndex].label;
-    openDeleteConfirmDialog(`Delete quarter ${removedPeriodLabel}?`, async () => {
+    openDeleteConfirmDialog(`Delete period "${removedPeriodLabel}"?`, async () => {
       const activePlan = getActivePlan();
       if (!activePlan) {
         return;
@@ -1490,15 +1818,18 @@ async function handleCapacityTableClick(event) {
         }
       });
       touchPlan(activePlan);
-      await persistAndRender(`Quarter ${removedPeriod.label} removed.`, "success");
+      await persistAndRender(`Period ${removedPeriod.label} removed.`, "success");
     });
   }
 }
 
-/** Split (%) uses type=number; defer full render until change (blur) so multi-digit entry works. */
+/** Split (%) and per-role story points use type=number; defer full render until change (blur). */
 function isBacklogDeferredNumericField(field) {
   const f = String(field || "");
-  return f.startsWith("split_") && f.endsWith("_pct");
+  if (f.startsWith("split_") && f.endsWith("_pct")) {
+    return true;
+  }
+  return f.startsWith("role_estimation_");
 }
 
 /** Capacity number cells: defer full render until change (blur) so multi-digit entry works. */
@@ -1609,6 +1940,27 @@ async function handleTableInput(event) {
     }
   }
 
+  if (
+    section === "backlog" &&
+    (getPlanResourceGroupingType(plan) === "by_roles" || getPlanResourceGroupingType(plan) === "by_member") &&
+    field === "estimation" &&
+    target instanceof HTMLInputElement &&
+    (event.type === "input" || event.type === "change")
+  ) {
+    const brow = plan.backlogRows.find((entry) => entry.id === rowId);
+    if (brow) {
+      syncBacklogRowRoleEstimationsFromSplits(brow, plan);
+      const tr = target.closest("tr");
+      if (tr) {
+        refreshBacklogRoleSplitRowDom(tr, brow, plan);
+      }
+    }
+    touchPlan(plan);
+    await saveState(appState);
+    syncBacklogSplitSummary({ refs, plan });
+    return;
+  }
+
   touchPlan(plan);
   if (
     section === "backlog" &&
@@ -1624,7 +1976,27 @@ async function handleTableInput(event) {
     target.type === "number" &&
     isBacklogDeferredNumericField(field)
   ) {
+    const splitRow = plan.backlogRows.find((entry) => entry.id === rowId);
+    const rgSplit = getPlanResourceGroupingType(plan);
+    if (splitRow && (rgSplit === "by_roles" || rgSplit === "by_member")) {
+      const tr = target.closest("tr");
+      if (field.startsWith("split_") && field.endsWith("_pct")) {
+        syncBacklogRowRoleEstimationsFromSplits(splitRow, plan);
+        if (tr) {
+          refreshBacklogRoleSplitRowDom(tr, splitRow, plan, { skipSplitField: field });
+        }
+      } else if (field.startsWith("role_estimation_")) {
+        syncSplitPctFromRoleEstimationField(splitRow, plan, field);
+        syncBacklogRowRoleEstimationsFromSplits(splitRow, plan);
+        if (tr) {
+          refreshBacklogRoleSplitRowDom(tr, splitRow, plan, { skipEstimationField: field });
+        }
+      }
+    }
     await saveState(appState);
+    if (section === "backlog") {
+      syncBacklogSplitSummary({ refs, plan });
+    }
     return;
   }
   const isTextInput = target instanceof HTMLInputElement && target.type === "text";
@@ -1634,6 +2006,9 @@ async function handleTableInput(event) {
 
   if (isTextInput || (isSelectInput && field !== "loadPercent" && !shouldRenderForRoleGrouping)) {
     await saveState(appState);
+    if (section === "backlog") {
+      syncBacklogSplitSummary({ refs, plan });
+    }
     return;
   }
 
@@ -1875,14 +2250,35 @@ async function submitImport(event) {
     if (updatedCount) {
       summaryParts.push(`${updatedCount} updated`);
     }
+    const diagParts = [];
+    if (importStats.emptyEstimation > 0) {
+      diagParts.push(`${importStats.emptyEstimation} without estimate in Jira`);
+    }
+    if (importStats.emptySummary > 0) {
+      diagParts.push(`${importStats.emptySummary} without summary`);
+    }
+    if (importStats.emptyIssueType > 0) {
+      diagParts.push(`${importStats.emptyIssueType} without issue type`);
+    }
+    if (importStats.emptyPriority > 0) {
+      diagParts.push(`${importStats.emptyPriority} without priority`);
+    }
+    const diag = diagParts.length ? ` Data notes: ${diagParts.join("; ")}.` : "";
     const summary =
       summaryParts.length > 0
-        ? `Import complete: ${summaryParts.join(", ")} (${importedRows.length} in result).`
-        : `Import complete (${importedRows.length} in result).`;
+        ? `Import complete: ${summaryParts.join(", ")} (${importedRows.length} in result).${diag}`
+        : `Import complete (${importedRows.length} in result).${diag}`;
     await persistAndRender(summary, "success");
   } catch (error) {
     refs.importProgress.value = 0;
     const message = String(error?.message || "");
+    const authLike =
+      error?.code === "AUTH" ||
+      message.includes("Authorization error") ||
+      message.includes("401") ||
+      message.includes("403") ||
+      message.toLowerCase().includes("error page") ||
+      message.toLowerCase().includes("login");
     console.error("[Jira Import Error]", error);
     if (error?.code === "NO_JIRA_TAB") {
       setMessage("Open any Jira tab for selected Jira Base URL and retry import.", "error");
@@ -1893,15 +2289,17 @@ async function submitImport(event) {
       return;
     }
     if (error?.code === "AUTH") {
-      setMessage("401/403 from Jira. Re-login in Jira and retry.", "error");
+      await openJiraAuthTab(jiraBaseUrl);
+      setMessage("401/403 from Jira. Opened Jira tab for re-login; then retry import.", "error");
       return;
     }
     if (error?.code === "PARSE") {
       setMessage("Jira responded, but issue table format could not be parsed.", "error");
       return;
     }
-    if (message.includes("Authorization error")) {
-      setMessage("401/403 from Jira. Re-login in Jira and retry.", "error");
+    if (authLike) {
+      await openJiraAuthTab(jiraBaseUrl);
+      setMessage("Jira session/auth issue detected. Opened Jira tab for login; then retry import.", "error");
       return;
     }
     setMessage(`Import failed: ${message || "network error"}.`, "error");
@@ -2093,8 +2491,20 @@ function bindEvents() {
       handleCapacityTableClick,
       handleTeamNameInput,
       handleCapacityTableViewModeChange,
+      togglePlanExportMenu,
+      handlePlanExportMenuClick,
+      handlePlanExportJson,
+      handlePlanExportXlsx,
       handleBacklogSelectionChange,
+      handleCapacitySelectionChange,
       handleDeleteSelectedBacklogRows,
+      handleDeleteSelectedCapacityRows,
+      handleCapacityFieldFocusin,
+      handleBacklogDensityChange,
+      handleBacklogApplyPeriodToSelected,
+      applyCapacityQuickFilter,
+      applyBacklogQuickFilter,
+      updateBacklogBulkActionsState,
       persistAndRender
     }
   });
@@ -2209,6 +2619,12 @@ async function init() {
     }
     if (plan.capacityTableViewMode !== "compact" && plan.capacityTableViewMode !== "full") {
       plan.capacityTableViewMode = "full";
+    }
+    if (plan.backlogTableViewMode === "comfortable") {
+      plan.backlogTableViewMode = "full";
+    }
+    if (plan.backlogTableViewMode !== "compact" && plan.backlogTableViewMode !== "full") {
+      plan.backlogTableViewMode = "full";
     }
     if (typeof plan.defaultLoadPercent !== "number" || Number.isNaN(plan.defaultLoadPercent)) {
       const inferred = plan.capacityRows?.[0]?.loadPercent;

@@ -1,7 +1,8 @@
-import { sanitizeNonNegative, toNumber } from "../../../calculations.js";
+import { resolveLoadPercentStep, sanitizeNonNegative, toNumber } from "../../../calculations.js";
 import { sumPlannedForRoleGroup } from "../../services/backlogDemand.js";
 import { buildPeriodMetrics, buildRoleGroupMeta, computeStoryPointsTeamAvailableBalance } from "../../services/metrics.js";
 import { asNumber } from "../shared/backlogHelpers.js";
+import { setCompactPeriodHeader } from "./headerLabels.js";
 
 export function renderCapacityByRoles({
   refs,
@@ -29,6 +30,7 @@ export function renderCapacityByRoles({
     return 8;
   };
   const teamSubLabel = "Role total";
+  const stickyHeadClasses = ["capacity-col-idx", "capacity-col-member", "capacity-col-role"];
 
   const thead = document.createElement("thead");
   const estimationTitleForPlanned = estimationLabel ? estimationLabel.toLowerCase() : "estimation";
@@ -52,15 +54,26 @@ export function renderCapacityByRoles({
 
   if (isCompact) {
     const topHeadRow = document.createElement("tr");
-    ["#", "Member", "Role", "Act"].forEach((title) => {
+    const selectAllTh = document.createElement("th");
+    selectAllTh.rowSpan = 2;
+    selectAllTh.classList.add(stickyHeadClasses[0]);
+    const selectAllInput = document.createElement("input");
+    selectAllInput.type = "checkbox";
+    selectAllInput.setAttribute("aria-label", "Select all capacity rows");
+    selectAllInput.dataset.capacitySelect = "all";
+    selectAllTh.appendChild(selectAllInput);
+    topHeadRow.appendChild(selectAllTh);
+    ["Member", "Role"].forEach((title, i) => {
       const th = document.createElement("th");
       th.textContent = title;
       th.rowSpan = 2;
+      th.classList.add(stickyHeadClasses[i + 1]);
       topHeadRow.appendChild(th);
     });
     const loadHeadCompact = document.createElement("th");
     loadHeadCompact.rowSpan = 2;
     loadHeadCompact.textContent = "Load (%)";
+    loadHeadCompact.classList.add("capacity-col-load");
     topHeadRow.appendChild(loadHeadCompact);
 
     for (const period of plan.periods) {
@@ -90,45 +103,55 @@ export function renderCapacityByRoles({
 
       const working = document.createElement("th");
       working.className = "period-subcol period-subcol-short";
-      working.textContent = "Working days";
+      setCompactPeriodHeader(working, "WD", "Working days");
       metricRow.appendChild(working);
 
       const available = document.createElement("th");
       available.className = "period-subcol period-subcol-wide";
-      available.textContent = "Available capacity";
+      setCompactPeriodHeader(available, "Avail", "Available capacity");
       metricRow.appendChild(available);
 
       if (!isSprint) {
         const estimationPerDay = document.createElement("th");
         estimationPerDay.className = "period-subcol period-subcol-wide";
-        estimationPerDay.textContent = isPersonDays
-          ? "Man-days per day (Role total)"
-          : `${estimationLabel} per day`;
+        const estFull = isPersonDays ? "Man-days per day (Role total)" : `${estimationLabel} per day`;
+        setCompactPeriodHeader(estimationPerDay, isPersonDays ? "MD/d" : "SP/d", estFull);
         metricRow.appendChild(estimationPerDay);
 
         const planned = document.createElement("th");
         planned.className = "period-subcol period-subcol-wide";
-        planned.textContent = `Planned ${estimationTitleForPlanned}`;
+        setCompactPeriodHeader(planned, "Plan", `Planned ${estimationTitleForPlanned}`);
         metricRow.appendChild(planned);
 
         const balance = document.createElement("th");
         balance.className = "period-subcol period-subcol-wide";
-        balance.textContent = availableBalanceTitle;
+        setCompactPeriodHeader(balance, "Bal", availableBalanceTitle);
         metricRow.appendChild(balance);
       }
     }
     thead.appendChild(metricRow);
   } else {
     const topHeadRow = document.createElement("tr");
-    ["#", "Member", "Role", "Act"].forEach((title) => {
+    const selectAllTh = document.createElement("th");
+    selectAllTh.rowSpan = 3;
+    selectAllTh.classList.add(stickyHeadClasses[0]);
+    const selectAllInput = document.createElement("input");
+    selectAllInput.type = "checkbox";
+    selectAllInput.setAttribute("aria-label", "Select all capacity rows");
+    selectAllInput.dataset.capacitySelect = "all";
+    selectAllTh.appendChild(selectAllInput);
+    topHeadRow.appendChild(selectAllTh);
+    ["Member", "Role"].forEach((title, i) => {
       const th = document.createElement("th");
       th.textContent = title;
       th.rowSpan = 3;
+      th.classList.add(stickyHeadClasses[i + 1]);
       topHeadRow.appendChild(th);
     });
     const loadHead = document.createElement("th");
     loadHead.rowSpan = 3;
     loadHead.textContent = "Load (%)";
+    loadHead.classList.add("capacity-col-load");
     topHeadRow.appendChild(loadHead);
 
     for (const period of plan.periods) {
@@ -244,7 +267,7 @@ export function renderCapacityByRoles({
     const row = document.createElement("tr");
     const cell = document.createElement("td");
     const totalPeriodColumns = plan.periods.reduce((sum, period) => sum + getPeriodColumnsCount(period), 0);
-    cell.colSpan = 5 + totalPeriodColumns;
+    cell.colSpan = 4 + totalPeriodColumns;
     cell.textContent = "No team members yet. Use + Row.";
     row.appendChild(cell);
     tbody.appendChild(row);
@@ -275,12 +298,25 @@ export function renderCapacityByRoles({
     const isGroupStart = Boolean(rowGroupMeta?.isGroupStart);
     const groupSpan = Number(rowGroupMeta?.span || 1);
     const roleKey = String(rowGroupMeta?.roleKey || "");
+    if (isGroupStart && index > 0) {
+      tr.classList.add("capacity-role-group-start");
+    }
 
-    const idx = document.createElement("td");
-    idx.textContent = String(index + 1);
-    tr.appendChild(idx);
+    const selectTd = document.createElement("td");
+    selectTd.classList.add("capacity-col-idx");
+    const rowCb = document.createElement("input");
+    rowCb.type = "checkbox";
+    rowCb.setAttribute("aria-label", "Select capacity row");
+    rowCb.dataset.capacitySelect = "row";
+    rowCb.dataset.rowId = capacityRow.id;
+    selectTd.appendChild(rowCb);
+    tr.appendChild(selectTd);
 
     const member = document.createElement("td");
+    member.classList.add("capacity-col-member");
+    if (!String(capacityRow.memberName ?? "").trim()) {
+      member.classList.add("capacity-member-cell--empty");
+    }
     member.appendChild(
       buildCellInput({
         value: capacityRow.memberName,
@@ -291,6 +327,7 @@ export function renderCapacityByRoles({
     tr.appendChild(member);
 
     const role = document.createElement("td");
+    role.classList.add("capacity-col-role");
     role.appendChild(
       buildRoleSelect({
         value: capacityRow.roleId,
@@ -300,20 +337,12 @@ export function renderCapacityByRoles({
     );
     tr.appendChild(role);
 
-    const remove = document.createElement("td");
-    remove.className = "capacity-action-cell";
-    const deleteRowButton = document.createElement("button");
-    deleteRowButton.type = "button";
-    deleteRowButton.className = "row-delete-btn";
-    deleteRowButton.textContent = "×";
-    deleteRowButton.title = "Delete member";
-    deleteRowButton.setAttribute("aria-label", "Delete member");
-    deleteRowButton.dataset.action = "delete-capacity-row";
-    deleteRowButton.dataset.rowId = capacityRow.id;
-    remove.appendChild(deleteRowButton);
-    tr.appendChild(remove);
-
     const load = document.createElement("td");
+    load.classList.add("capacity-col-load", "capacity-load-cell");
+    const loadPct = resolveLoadPercentStep(capacityRow.loadPercent);
+    if (loadPct < 100) {
+      load.classList.add("capacity-load-cell--reduced");
+    }
     load.appendChild(
       buildPercentSelect({
         value: capacityRow.loadPercent,

@@ -26,6 +26,9 @@ export function renderBacklogTable({
   }
 
   refs.backlogTable.classList.add("backlog-import-table");
+  if (plan.backlogTableViewMode === "compact") {
+    refs.backlogTable.classList.add("backlog-density-compact");
+  }
   if (resourceGroupingType === "by_roles") {
     refs.backlogTable.classList.add("backlog-import-by-roles");
     renderImportBacklogByRoles({

@@ -12,41 +12,108 @@
       <div class="toolbar">
         <button id="createPlanBtn" class="btn">Create Plan</button>
         <select id="planSelect" class="input select" aria-label="Plan" hidden></select>
-        <a
-          class="toolbar-glyph-btn toolbar-help-link"
-          href="../help.html"
-          target="_blank"
-          rel="noopener noreferrer"
-          title="Instructions"
-          aria-label="Instructions"
-        >ℹ️</a>
-        <button id="settingsBtn" class="toolbar-glyph-btn" title="Settings" aria-label="Settings">⚙️</button>
+        <div class="toolbar-export">
+          <button
+            id="planExportBtn"
+            class="toolbar-glyph-btn toolbar-export-btn"
+            title="Export plan"
+            aria-label="Export plan"
+            aria-haspopup="menu"
+            aria-expanded="false"
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M12 3v10"></path>
+              <path d="M8.5 9.8 12 13.2l3.5-3.4"></path>
+              <path d="M4 14.5v4.3h16v-4.3"></path>
+            </svg>
+          </button>
+          <div id="planExportMenu" class="toolbar-menu" role="menu" hidden>
+            <button type="button" id="planExportJsonBtn" class="toolbar-menu-item" role="menuitem">
+              Export JSON
+            </button>
+            <button type="button" id="planExportXlsxBtn" class="toolbar-menu-item" role="menuitem">
+              Export XLSX
+            </button>
+          </div>
+        </div>
+        <button id="settingsBtn" class="toolbar-glyph-btn toolbar-settings-icon-btn" title="Settings" aria-label="Settings">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M12 8.8a3.2 3.2 0 1 0 0 6.4 3.2 3.2 0 0 0 0-6.4Z"></path>
+            <path d="M19.4 13.2a7.9 7.9 0 0 0 .05-2.4l2.06-1.6-2-3.4-2.5.7a7.8 7.8 0 0 0-2.08-1.2L14.5 3h-5l-.47 2.3a7.8 7.8 0 0 0-2.08 1.2l-2.5-.7-2 3.4 2.06 1.6a7.9 7.9 0 0 0 .05 2.4L2.45 14.8l2 3.4 2.5-.7c.62.5 1.32.9 2.08 1.2L9.5 21h5l.47-2.3c.76-.3 1.46-.7 2.08-1.2l2.5.7 2-3.4-2.15-1.6Z"></path>
+          </svg>
+        </button>
       </div>
     </header>
 
     <main class="layout">
-      <nav class="tabs">
-        <button data-tab="capacity" class="tab tab-active">Capacity</button>
-        <button data-tab="backlog" class="tab">Backlog for planning</button>
+      <nav class="tabs" role="tablist" aria-label="Main views">
+        <button
+          type="button"
+          id="tab-capacity"
+          role="tab"
+          data-tab="capacity"
+          class="tab tab-active"
+          aria-selected="true"
+          aria-controls="capacityPanel"
+        >Capacity</button>
+        <button
+          type="button"
+          id="tab-backlog"
+          role="tab"
+          data-tab="backlog"
+          class="tab"
+          aria-selected="false"
+          aria-controls="backlogPanel"
+        >Backlog for planning</button>
       </nav>
 
       <section id="statusBar" class="status-bar"></section>
 
       <div class="capacity-wrapper">
-        <section id="capacityPanel" class="panel panel-active">
-          <div class="panel-header">
-            <h2>Capacity</h2>
-            <div class="panel-actions capacity-view-actions">
-              <label for="capacityTableViewModeSelect" class="capacity-view-label">View</label>
-              <select id="capacityTableViewModeSelect" class="input select capacity-view-select" aria-label="Capacity table view">
-                <option value="full">Full</option>
-                <option value="compact">Compact</option>
-              </select>
-            </div>
-          </div>
+        <section
+          id="capacityPanel"
+          class="panel panel-active"
+          role="tabpanel"
+          aria-labelledby="tab-capacity"
+        >
           <div id="capacityContent" class="capacity-content">
+            <div id="capacityToolbar" class="backlog-toolbar capacity-toolbar" hidden>
+              <div class="backlog-toolbar-cluster backlog-toolbar-cluster--meta">
+                <input
+                  type="search"
+                  id="capacityQuickFilter"
+                  class="input capacity-quick-filter"
+                  placeholder="Filter by member or role…"
+                  aria-label="Filter capacity rows by member or role"
+                  autocomplete="off"
+                />
+              </div>
+              <div id="capacityBulkActions" class="backlog-toolbar-cluster backlog-toolbar-cluster--bulk">
+                <button type="button" id="capacityDeleteSelectedBtn" class="btn btn-danger" disabled>
+                  Delete selected
+                </button>
+              </div>
+              <div class="backlog-toolbar-cluster backlog-toolbar-cluster--primary">
+                <div class="capacity-view-control">
+                  <span class="capacity-view-prefix" aria-hidden="true">View:</span>
+                  <select
+                    id="capacityTableViewModeSelect"
+                    class="capacity-view-select-inner"
+                    aria-label="Table layout: Full or Compact"
+                  >
+                    <option value="full">Full</option>
+                    <option value="compact">Compact</option>
+                  </select>
+                </div>
+              </div>
+            </div>
             <div id="capacityTableWrap" class="table-wrap">
               <table id="capacityTable" class="grid-table"></table>
+            </div>
+            <div id="capacityStatsBar" class="capacity-stats-bar" role="status" aria-live="polite">
+              <span id="capacityTotalCount" class="capacity-stats-item">Total rows: 0</span>
+              <span id="capacityFilteredCount" class="capacity-stats-item">Filtered rows: 0</span>
+              <span id="capacitySelectedCount" class="capacity-stats-item">Selected rows: 0</span>
             </div>
             <div id="capacityOverlay" class="plan-overlay">
               <button id="createPlanOverlayBtn" class="btn overlay-btn">Create Plan</button>
@@ -69,21 +136,57 @@
         >+</button>
       </div>
 
-      <section id="backlogPanel" class="panel">
-        <div class="panel-header">
-          <h2>Backlog for planning</h2>
-          <div class="panel-actions">
-            <div id="backlogBulkActions" class="backlog-bulk-actions" hidden>
+      <section id="backlogPanel" class="panel" role="tabpanel" aria-labelledby="tab-backlog">
+        <div id="backlogContent" class="capacity-content">
+          <div id="backlogToolbar" class="backlog-toolbar">
+            <div class="backlog-toolbar-cluster backlog-toolbar-cluster--actions">
+              <button type="button" id="openImportModalBtn" class="btn" hidden>Import backlog from Jira</button>
+            </div>
+            <div class="backlog-toolbar-cluster backlog-toolbar-cluster--meta">
+              <input
+                type="search"
+                id="backlogQuickFilter"
+                class="input backlog-quick-filter"
+                placeholder="Filter by key or summary…"
+                aria-label="Filter backlog rows by key or summary"
+                autocomplete="off"
+              />
+            </div>
+            <div id="backlogBulkActions" class="backlog-toolbar-cluster backlog-toolbar-cluster--bulk" hidden>
+              <div class="capacity-view-control backlog-period-control">
+                <span class="capacity-view-prefix" aria-hidden="true">Period:</span>
+                <select
+                  id="backlogBulkPeriodSelect"
+                  class="capacity-view-select-inner backlog-bulk-period-select"
+                  aria-label="Period to assign to selected rows"
+                ></select>
+              </div>
               <button type="button" id="backlogDeleteSelectedBtn" class="btn btn-danger" disabled>
                 Delete selected
               </button>
             </div>
-            <button id="openImportModalBtn" class="btn">Import backlog from Jira</button>
+            <div class="backlog-toolbar-cluster backlog-toolbar-cluster--view">
+              <div class="capacity-view-control backlog-density-control">
+                <span class="capacity-view-prefix" aria-hidden="true">View:</span>
+                <select
+                  id="backlogDensitySelect"
+                  class="capacity-view-select-inner backlog-density-select"
+                  aria-label="Backlog table density"
+                >
+                  <option value="full">Full</option>
+                  <option value="compact">Compact</option>
+                </select>
+              </div>
+            </div>
           </div>
-        </div>
-        <div id="backlogContent" class="capacity-content">
+          <div id="backlogSplitSummary" class="backlog-split-summary" role="status" aria-live="polite" hidden></div>
           <div id="backlogTableWrap" class="table-wrap">
             <table id="backlogTable" class="grid-table"></table>
+          </div>
+          <div id="backlogStatsBar" class="backlog-stats-bar" role="status" aria-live="polite">
+            <span id="backlogTotalCount" class="backlog-stats-item">Total items: 0</span>
+            <span id="backlogFilteredCount" class="backlog-stats-item">Filtered items: 0</span>
+            <span id="backlogSelectedCount" class="backlog-stats-item">Selected items: 0</span>
           </div>
           <div id="backlogOverlay" class="plan-overlay">
             <div class="overlay-actions">
@@ -93,6 +196,13 @@
         </div>
       </section>
     </main>
+    <footer class="app-footer" role="contentinfo">
+      <span class="app-footer-license">© Jira Planning Tool</span>
+      <span class="app-footer-help">
+        Need help?
+        <a class="app-footer-link" href="help.html" target="_blank" rel="noopener noreferrer">Instructions</a>
+      </span>
+    </footer>
 
     <dialog id="createPlanDialog" class="modal">
       <form method="dialog" id="createPlanForm">

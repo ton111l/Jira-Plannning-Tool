@@ -3,9 +3,18 @@ import { renderCapacityByTeam } from "./byTeam.js";
 
 function renderCapacityNoPlan(refs) {
   const headRow = document.createElement("tr");
-  ["#", "Member", "Role", "Act", "Load (%)"].forEach((title) => {
+  ["", "Member", "Role", "Load (%)"].forEach((title) => {
     const th = document.createElement("th");
-    th.textContent = title;
+    if (!title) {
+      th.className = "capacity-col-idx";
+      const selectAll = document.createElement("input");
+      selectAll.type = "checkbox";
+      selectAll.disabled = true;
+      selectAll.setAttribute("aria-label", "Select all capacity rows");
+      th.appendChild(selectAll);
+    } else {
+      th.textContent = title;
+    }
     headRow.appendChild(th);
   });
   refs.capacityTable.appendChild(headRow);
@@ -14,7 +23,12 @@ function renderCapacityNoPlan(refs) {
     const tr = document.createElement("tr");
 
     const idx = document.createElement("td");
-    idx.textContent = String(index);
+    idx.className = "capacity-col-idx";
+    const rowCb = document.createElement("input");
+    rowCb.type = "checkbox";
+    rowCb.disabled = true;
+    rowCb.setAttribute("aria-label", "Select capacity row");
+    idx.appendChild(rowCb);
     tr.appendChild(idx);
 
     const member = document.createElement("td");
@@ -24,10 +38,6 @@ function renderCapacityNoPlan(refs) {
     const role = document.createElement("td");
     role.textContent = "Select";
     tr.appendChild(role);
-
-    const remove = document.createElement("td");
-    remove.textContent = "";
-    tr.appendChild(remove);
 
     const load = document.createElement("td");
     load.textContent = "100%";
@@ -58,9 +68,12 @@ export function renderCapacityTable({
   );
   if (!plan) {
     refs.capacityTable.classList.add("capacity-view-full");
+    refs.capacityTable.classList.remove("capacity-sticky-enabled");
     renderCapacityNoPlan(refs);
     return;
   }
+
+  refs.capacityTable.classList.add("capacity-sticky-enabled");
 
   const compact = plan.capacityTableViewMode === "compact";
   refs.capacityTable.classList.toggle("capacity-view-compact", compact);

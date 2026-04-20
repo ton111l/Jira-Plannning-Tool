@@ -23,5 +23,8 @@
     "browser-sync": "^3.0.4",
     "playwright": "^1.58.2",
     "vite": "^8.0.0"
+  },
+  "dependencies": {
+    "xlsx": "^0.18.5"
   }
 }

@@ -10,6 +10,16 @@ export function bindEvents({
   refs.createPlanForm.addEventListener("submit", handlers.submitCreatePlan);
   refs.createPeriodForm.addEventListener("submit", handlers.submitCreatePeriod);
   refs.planSelect.addEventListener("change", handlers.handlePlanSelect);
+  if (refs.planExportBtn) {
+    refs.planExportBtn.addEventListener("click", handlers.togglePlanExportMenu);
+  }
+  if (refs.planExportJsonBtn) {
+    refs.planExportJsonBtn.addEventListener("click", handlers.handlePlanExportJson);
+  }
+  if (refs.planExportXlsxBtn) {
+    refs.planExportXlsxBtn.addEventListener("click", handlers.handlePlanExportXlsx);
+  }
+  document.addEventListener("click", handlers.handlePlanExportMenuClick);
   refs.settingsBtn.addEventListener("click", handlers.openSettingsDialog);
   refs.settingsForm.addEventListener("submit", handlers.saveSettings);
   if (refs.settingsAddRoleBtn) {
@@ -47,8 +57,20 @@ export function bindEvents({
   if (refs.capacityTableViewModeSelect) {
     refs.capacityTableViewModeSelect.addEventListener("change", handlers.handleCapacityTableViewModeChange);
   }
+  if (refs.capacityQuickFilter) {
+    refs.capacityQuickFilter.addEventListener("input", handlers.applyCapacityQuickFilter);
+  }
   refs.addQuarterBtn.addEventListener("click", handlers.handleAddQuarter);
   refs.openImportModalBtn.addEventListener("click", handlers.openImportDialog);
+  if (refs.backlogDensitySelect) {
+    refs.backlogDensitySelect.addEventListener("change", handlers.handleBacklogDensityChange);
+  }
+  if (refs.backlogBulkPeriodSelect) {
+    refs.backlogBulkPeriodSelect.addEventListener("change", handlers.handleBacklogApplyPeriodToSelected);
+  }
+  if (refs.backlogQuickFilter) {
+    refs.backlogQuickFilter.addEventListener("input", handlers.applyBacklogQuickFilter);
+  }
   refs.importOverlayBtn.addEventListener("click", handlers.handleBacklogOverlayAction);
   refs.importForm.addEventListener("submit", handlers.submitImport);
   refs.importDialog.addEventListener("close", handlers.handleImportDialogClose);
@@ -120,12 +142,17 @@ export function bindEvents({
 
   refs.capacityTable.addEventListener("input", handlers.handleTableInput);
   refs.capacityTable.addEventListener("change", handlers.handleTableInput);
+  refs.capacityTable.addEventListener("change", handlers.handleCapacitySelectionChange);
+  refs.capacityTable.addEventListener("focusin", handlers.handleCapacityFieldFocusin);
   refs.capacityTable.addEventListener("keydown", handlers.handleDeferredNumericInputKeydown);
   refs.capacityTable.addEventListener("click", handlers.handleCapacityTableClick);
   refs.backlogTable.addEventListener("input", handlers.handleTableInput);
   refs.backlogTable.addEventListener("change", handlers.handleTableInput);
   refs.backlogTable.addEventListener("keydown", handlers.handleDeferredNumericInputKeydown);
   refs.backlogTable.addEventListener("change", handlers.handleBacklogSelectionChange);
+  if (refs.capacityDeleteSelectedBtn) {
+    refs.capacityDeleteSelectedBtn.addEventListener("click", handlers.handleDeleteSelectedCapacityRows);
+  }
   if (refs.backlogDeleteSelectedBtn) {
     refs.backlogDeleteSelectedBtn.addEventListener("click", handlers.handleDeleteSelectedBacklogRows);
   }

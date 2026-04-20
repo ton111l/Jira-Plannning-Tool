@@ -1,0 +1,741 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Instructions — Jira Planning Tool</title>
+    <link rel="stylesheet" href="./styles.css" />
+    <style>
+      .help-page-wrap {
+        max-width: 46rem;
+        margin: 0 auto;
+        padding: 1.5rem 1.25rem 3rem;
+      }
+      .help-lang-bar {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 8px 12px;
+        margin-bottom: 1.25rem;
+        padding-bottom: 0.75rem;
+        border-bottom: 1px solid #d9d9de;
+      }
+      .help-lang-label {
+        font-size: 13px;
+        font-weight: 600;
+        color: #3d3d4a;
+        margin-right: 4px;
+      }
+      .help-lang-btn {
+        border: 1px solid #696991;
+        background: #fff;
+        border-radius: 8px;
+        padding: 4px 14px;
+        cursor: pointer;
+        font: inherit;
+        font-size: 14px;
+        color: #1a1a1a;
+      }
+      .help-lang-btn:hover {
+        background: #fafafc;
+      }
+      .help-lang-btn[aria-pressed="true"] {
+        background: #e8e8ef;
+        font-weight: 600;
+        border-color: #5a5a72;
+      }
+      .help-doc {
+        line-height: 1.5;
+      }
+      .help-doc h1 {
+        font-size: 1.5rem;
+        font-weight: 700;
+        margin: 0 0 0.75rem;
+        color: #1a1a1a;
+      }
+      .help-doc .help-lead {
+        color: #3d3d4a;
+        margin-bottom: 1.5rem;
+      }
+      .help-doc h2 {
+        font-size: 1.15rem;
+        font-weight: 700;
+        margin: 1.75rem 0 0.5rem;
+        color: #1a1a1a;
+        border-bottom: 1px solid #d9d9de;
+        padding-bottom: 0.35rem;
+      }
+      .help-doc h3 {
+        font-size: 1rem;
+        font-weight: 600;
+        margin: 1rem 0 0.35rem;
+        color: #2a2a38;
+      }
+      .help-doc p {
+        margin: 0.5rem 0;
+      }
+      .help-doc ul {
+        margin: 0.35rem 0 0.75rem;
+        padding-left: 1.35rem;
+      }
+      .help-doc li {
+        margin: 0.25rem 0;
+      }
+      .help-doc kbd,
+      .help-doc .ui-label {
+        font-family: inherit;
+        font-size: 0.95em;
+        font-weight: 600;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="help-page-wrap">
+      <div class="help-lang-bar" role="group" id="helpLangGroup" aria-label="Language">
+        <span class="help-lang-label" id="helpLangLabel">Language:</span>
+        <button type="button" class="help-lang-btn" data-help-lang="en" aria-pressed="true">Eng</button>
+        <button type="button" class="help-lang-btn" data-help-lang="ru" aria-pressed="false">Ru</button>
+      </div>
+
+      <article id="help-content-en" class="help-doc" lang="en">
+        <h1>Jira Planning Tool — user guide</h1>
+        <p class="help-lead">
+          This browser extension lines up <strong>team capacity</strong> across time columns with a
+          <strong>backlog</strong> of issues. Each issue can target a plan period so demand rolls into
+          <strong>Planned</strong> on the capacity side. Everything is stored locally in your browser
+          profile (Chrome / Edge).
+        </p>
+
+        <h2>Opening the app</h2>
+        <p>
+          From the extension toolbar menu, open <span class="ui-label">Open Jira Planning Tool</span>
+          (wording may match the store listing). A dedicated tab hosts the UI. Import calls your Jira
+          instance; if requests fail from the extension tab while you are logged in on Jira, the
+          packaged content script can relay search traffic from a normal Jira tab on the same origin.
+        </p>
+
+        <h2>Main layout</h2>
+        <ul>
+          <li>
+            <span class="ui-label">Capacity</span> — people, roles, working time, and derived metrics
+            per period column.
+          </li>
+          <li>
+            <span class="ui-label">Backlog for planning</span> — issues, estimates, period assignment,
+            and (depending on grouping) how demand maps to roles or members.
+          </li>
+          <li>
+            Toolbar: <span class="ui-label">Create Plan</span>, the plan dropdown (after at least one
+            plan exists), a topbar <strong>Export</strong> icon (JSON / XLSX for the whole plan),
+            and <strong>⚙️</strong> for Settings. A text link to <strong>Instructions</strong> is in the footer.
+          </li>
+        </ul>
+
+        <h2>Plans</h2>
+        <ul>
+          <li>
+            Each plan keeps its own periods, capacity rows, backlog, and settings (estimation type,
+            grouping, Jira defaults, optional buffers, and so on).
+          </li>
+          <li>
+            When there is no plan yet, or capacity has no period columns, a blurred overlay appears on
+            Capacity with a primary action (<span class="ui-label">Create Plan</span> or
+            <span class="ui-label">Create period</span> in the rare “plan without periods” case).
+          </li>
+          <li>
+            The Backlog tab shows a similar overlay until the plan has at least one backlog row; then
+            the <strong>backlog toolbar</strong> appears above the table (import, filter,
+            density, bulk period actions, selection count, delete). Export is handled from topbar.
+          </li>
+        </ul>
+
+        <h2>Creating a plan</h2>
+        <p>
+          <span class="ui-label">Create Plan</span> opens a dialog: plan name, <strong>Start
+          period</strong> (quarter + year for the first anchor column), <strong>Estimation type</strong>
+          (Story Points or Man-days), <strong>Resource grouping type</strong> (<span class="ui-label">By
+          team</span>, <span class="ui-label">By roles</span>, or <span class="ui-label">By
+          member</span>), and optional sprint/buffer setup.
+        </p>
+        <h3>Story Points options at creation</h3>
+        <ul>
+          <li>
+            <span class="ui-label">Team Story Points per day</span> — <strong>Use Team average</strong>
+            (mean of member inputs later) or <strong>Use fixed Team value</strong> (one number for the
+            team cell). Fixed mode requires a numeric team value before Create.
+          </li>
+        </ul>
+        <h3>Use Sprints Planning</h3>
+        <ul>
+          <li>
+            Checking <span class="ui-label">Use Sprints Planning</span> enables
+            <span class="ui-label">Sprints settings</span>. There you add sprint rows, set
+            <strong>Working days</strong> per sprint, and Apply. On <strong>Create</strong>, sprint
+            period columns are generated for the <strong>start quarter</strong> (same anchor quarter /
+            year as your start period), each with those working days. The anchor quarter is replaced by
+            sprint periods (no extra quarter artifact in new sprint plans).
+          </li>
+          <li>
+            While this box is checked, <strong>Man-days</strong> is disabled (sprint-style columns are
+            intended for Story Points), and <span class="ui-label">Working days for all rows</span> in
+            the dialog is disabled — per-sprint working days replace that default for sprint columns.
+            <strong>Working days</strong> accepts multi-digit values and validates positive whole numbers
+            on Apply.
+          </li>
+        </ul>
+        <h3>Use Buffers</h3>
+        <ul>
+          <li>
+            Checking <span class="ui-label">Use Buffers</span> enables
+            <span class="ui-label">Buffer settings</span>. Add buffer lines (name + %). The
+            <strong>All Buffers</strong> row shows the total percentage stored on the plan.
+          </li>
+          <li>
+            When buffers are on, capacity shows <strong>Available balance with buffers</strong>: the
+            app scales the remaining balance after planned work by
+            <code>(1 − totalBuffer% / 100)</code>, so a higher total reduces the usable slack.
+          </li>
+        </ul>
+        <p>
+          Sprint and buffer dialogs are part of <strong>plan creation</strong> (configure before
+          clicking <span class="ui-label">Create</span>). To change them later you would need a new
+          plan or a future settings flow if one is added.
+        </p>
+
+        <h2>Period columns</h2>
+        <ul>
+          <li>
+            <span class="ui-label">+</span> (floating control on the Capacity side) appends the
+            <strong>next calendar quarter</strong> in sequence after the rightmost quarter column
+            (Q1→Q2→…→Q4→Q1 next year).
+          </li>
+          <li>
+            If the app ever opens with a plan that has zero periods, the overlay’s
+            <span class="ui-label">Create period</span> opens a dialog to pick quarter and year
+            manually.
+          </li>
+          <li>
+            Remove a period column with the delete control in that period’s header on the capacity
+            table (confirmation may apply). Deleting a period removes its column from capacity and
+            the period list used in backlog dropdowns.
+          </li>
+        </ul>
+
+        <h2>Capacity tab</h2>
+        <p>
+          Rows are team members (name, role, load %, per-period working inputs, estimation per day, and
+          roll-ups). Use <span class="ui-label">+</span> beside the table to add a member row. The Role
+          column includes <span class="ui-label">+ Add role…</span> to append to the plan’s role
+          catalog via a small dialog.
+        </p>
+        <ul>
+          <li>
+            Toolbar controls: member/role quick filter, <span class="ui-label">Delete selected</span>, and
+            <span class="ui-label">View</span>. First column checkboxes select rows (header checkbox selects all).
+          </li>
+          <li>
+            Bottom stats strip shows <strong>Total rows</strong>, <strong>Filtered rows</strong>, and
+            <strong>Selected rows</strong>.
+          </li>
+          <li>
+            <span class="ui-label">View</span> — <strong>Full</strong> shows every column, including
+            days off and per-member detail where the layout defines them. <strong>Compact</strong> hides
+            days off and per-member cells so the header stays aligned with fewer cells.
+          </li>
+          <li>
+            The table keeps natural column width; if it is wider than the panel, scroll horizontally
+            inside the table area. For long tables, vertical scroll is also inside the white table area.
+            Extra bottom space is reserved so the floating <span class="ui-label">+</span> is not blocked.
+          </li>
+          <li>
+            <strong>By team</strong> — merged team metrics where applicable; backlog demand for an issue
+            is spread <strong>evenly</strong> across all member rows when a period is selected.
+          </li>
+          <li>
+            <strong>By roles</strong> — capacity is organized by role totals; backlog rows carry per-role
+            split % and story points. In <strong>Full</strong> view, <strong>Planned</strong> and
+            <strong>Available balance</strong> columns show <strong>role totals</strong> only (not
+            per-member sub-columns), while available capacity and story points per day still expose
+            member-level inputs.
+          </li>
+          <li>
+            <strong>By member</strong> — same capacity grid style as by team but labels emphasize
+            <strong>Per member</strong>; backlog uses <strong>Member by roles</strong> so each role’s
+            share of an issue can be sent to a chosen member row.
+          </li>
+          <li>
+            Team-level <strong>Story Points per day</strong> (when Story Points + by team) is edited in
+            the merged team cell; changing it switches that period to manual team mode. For
+            <strong>By member</strong>, edit each member’s story points per day separately.
+          </li>
+          <li>
+            If the plan includes sprint period columns, <strong>Working days for all rows</strong> in
+            Settings is disabled — sprint cells already carry their own working days.
+          </li>
+        </ul>
+
+        <h2>Backlog tab</h2>
+        <ul>
+          <li>
+            <strong>Toolbar</strong> (when the table is visible): <span class="ui-label">Import backlog from
+            Jira</span>; a
+            <strong>Filter</strong> box (matches issue key or summary in the browser only); <strong>Period</strong>
+            for selected rows (applies immediately on selection change); <span class="ui-label">Delete selected</span>;
+            and <strong>View</strong> (<strong>Full</strong> / <strong>Compact</strong>, saved per plan).
+            If any row has invalid role splits in
+            <strong>By roles</strong> or <strong>By member</strong>, a yellow notice appears under the toolbar.
+          </li>
+          <li>
+            Bottom stats strip shows <strong>Total items</strong>, <strong>Filtered items</strong>, and
+            <strong>Selected items</strong>.
+          </li>
+          <li>
+            The checkbox and <strong>Key</strong> columns stay pinned on the left when you scroll the
+            table horizontally.
+          </li>
+          <li>
+            Columns include key, summary, status, priority, type, estimate, and <span class="ui-label">Period</span>
+            (which plan period receives the issue’s demand). Empty period means the issue does not add
+            to <strong>Planned</strong> on capacity.
+          </li>
+          <li>
+            <strong>Summary</strong> uses a fixed width so long titles wrap; scroll horizontally when
+            there are many columns. For long lists, vertical scroll is also inside the white table area.
+          </li>
+          <li>
+            <strong>By roles</strong> — per role: <strong>Split (%)</strong> and <strong>Story
+            Point</strong>. You may edit either side: changing % recomputes role story points from the
+            row total; changing role story points recomputes that role’s %. Invalid combinations (splits
+            &gt; 100% or role points above the row total) highlight in <strong>red</strong>; hover for
+            a short English tooltip.
+          </li>
+          <li>
+            <strong>By member</strong> — for each role, set split % and pick the capacity row (<strong>Member</strong>)
+            that receives that share.
+          </li>
+          <li>
+            First-column checkboxes select rows (header selects all). <span class="ui-label">Delete
+            selected</span> removes the chosen issues after confirmation (the dialog states how many
+            issues are affected, and shows the key when only one row is selected).
+          </li>
+          <li>
+            Re-import merges on normalized keys (e.g. <kbd>PROJECT-123</kbd>): existing keys refresh
+            Jira-sourced fields; new keys append. Locally deleted issues reappear if your JQL returns
+            them again.
+          </li>
+        </ul>
+
+        <h2>Settings (gear)</h2>
+        <ul>
+          <li>
+            <span class="ui-label">Estimation type</span> — Story Points vs Man-days for metrics and
+            editable backlog units. Changing it can hide imported values that were stored with a
+            different semantic (<strong>estimation kind</strong>); re-import or re-enter estimates if
+            needed.
+          </li>
+          <li>
+            Story Points — <span class="ui-label">Team Story Points per day</span> (team average vs
+            fixed team value + numeric team value when fixed).
+          </li>
+          <li>
+            <span class="ui-label">Working days for all rows</span> — default working days for capacity
+            rows and new rows (disabled when sprint columns exist).
+          </li>
+          <li>
+            <span class="ui-label">Load (%) for all rows</span> — default allocation; <strong>Save</strong>
+            applies the chosen percentage to <em>every</em> capacity row (per-row overrides are not
+            preserved across Save).
+          </li>
+          <li>
+            <span class="ui-label">Resource grouping type</span> — same three modes as at plan creation;
+            affects both Capacity and Backlog rendering and how planned demand is attributed.
+          </li>
+          <li>
+            <span class="ui-label">Default % SP by roles</span> (visible for Story Points + By roles or
+            By member) — one percentage per catalog role; totals must equal 100%. Editing the
+            <strong>first</strong> role’s field redistributes the remainder evenly across the others
+            (last row absorbs rounding). Empty backlog split cells pick up these defaults when you save
+            Settings, after import, or when splits are first created.
+          </li>
+          <li>
+            <span class="ui-label">Roles for this plan</span> — rename, remove, or use
+            <span class="ui-label">Add role</span> to extend the catalog. Removing a role clears it from
+            capacity rows that referenced it. Changes apply when you click <span class="ui-label">Save</span>.
+          </li>
+        </ul>
+        <p>
+          A modal titled <strong>Set estimation per day for all rows</strong> exists for bulk edits in
+          Story Points mode; some toolbar shortcuts instead jump you to Settings to adjust the team
+          story-points-per-day mode — follow the on-screen message.
+        </p>
+
+        <h2>Jira import</h2>
+        <p>Open <span class="ui-label">Import backlog from Jira</span> and provide:</p>
+        <ul>
+          <li>
+            <span class="ui-label">Jira Base URL</span> — the same origin you use in the browser (saved
+            on the plan for the next import).
+          </li>
+          <li>
+            <span class="ui-label">Input JQL request</span> — identical idea to the Issue Navigator
+            (last JQL is remembered per plan).
+          </li>
+          <li>
+            <span class="ui-label">Jira estimation field type</span> — choose whether the field id below
+            is <strong>Story Points (numeric)</strong> or <strong>Man-days (time / original
+            estimate)</strong>. This choice is independent of the plan’s Settings estimation type: rows
+            remember what they were imported as so the UI does not mix units. The hint in the dialog
+            explains that mismatched rows stay hidden until you re-import or fix the estimate.
+          </li>
+          <li>
+            Field id text box — e.g. <kbd>customfield_10016</kbd> for many Story Points fields; Man-days
+            may default to <kbd>timeoriginalestimate</kbd> when left empty (see inline hints).
+          </li>
+        </ul>
+        <p>
+          Progress and issue counts display in the dialog. Merge behavior is keyed on normalized issue
+          keys, not a full replace of the backlog. After a successful import, the status message may add
+          short <strong>Data notes</strong> (for example, how many issues had no estimate in Jira).
+        </p>
+
+        <h2>Where data lives</h2>
+        <p>
+          Plans persist in <code>chrome.storage.local</code>. Clearing extension data or uninstalling
+          can remove plans — keep separate copies of anything critical. <strong>Velocity</strong> fields
+          exist in the data model for future use and are not surfaced as a separate workflow yet.
+        </p>
+
+        <h2>This help page</h2>
+        <p>
+          Open from footer link <strong>Instructions</strong>. Use <strong>Eng</strong> /
+          <strong>Ru</strong> above to switch language (stored in <code>localStorage</code> as
+          <code>helpPageLang</code>). Elsewhere, labels may include a “?” tooltip with extra context.
+        </p>
+      </article>
+
+      <article id="help-content-ru" class="help-doc" lang="ru" hidden>
+        <h1>Jira Planning Tool — инструкция пользователя</h1>
+        <p class="help-lead">
+          Расширение для браузера сводит <strong>ёмкость команды</strong> по колонкам времени с
+          <strong>бэклогом</strong> задач. У каждой задачи можно выбрать период плана, чтобы спрос учитывался
+          в колонке <strong>Planned</strong> на стороне ёмкости. Все данные хранятся локально в профиле
+          браузера (Chrome / Edge).
+        </p>
+
+        <h2>Как открыть приложение</h2>
+        <p>
+          Через меню расширения на панели инструментов выберите действие вроде
+          <span class="ui-label">Open Jira Planning Tool</span> (точная формулировка может совпадать с
+          описанием в каталоге). Интерфейс открывается в отдельной вкладке. Импорт обращается к вашему
+          Jira; если запрос из вкладки расширения не проходит при активной сессии в Jira, в комплекте
+          может использоваться сценарий с вкладкой Jira того же origin (контент-скрипт).
+        </p>
+
+        <h2>Основная структура экрана</h2>
+        <ul>
+          <li>
+            <span class="ui-label">Capacity</span> — люди, роли, рабочее время и производные показатели
+            по колонкам периодов.
+          </li>
+          <li>
+            <span class="ui-label">Backlog for planning</span> — задачи, оценки, выбор периода и (в
+            зависимости от режима группировки) распределение спроса по ролям или участникам.
+          </li>
+          <li>
+            В шапке: <span class="ui-label">Create Plan</span>, выпадающий список планов (после появления
+            хотя бы одного плана), иконка <strong>Export</strong> (JSON / XLSX для всего плана), <strong>⚙️</strong> —
+            <span class="ui-label">Settings</span>. Текстовая ссылка <strong>Instructions</strong> находится в футере.
+          </li>
+        </ul>
+
+        <h2>Планы</h2>
+        <ul>
+          <li>
+            У каждого плана свои периоды, строки ёмкости, бэклог и настройки (тип оценки, группировка,
+            последние параметры импорта Jira, опциональные буферы и т.д.).
+          </li>
+          <li>
+            Если плана ещё нет или у выбранного плана нет колонок периодов на Capacity, таблица закрыта
+            оверлеем с основным действием (<span class="ui-label">Create Plan</span> или редкий случай
+            <span class="ui-label">Create period</span>, когда план есть, но периодов ноль).
+          </li>
+          <li>
+            На вкладке бэклога оверлей показывается, пока в плане нет ни одной строки бэклога; после
+            появления строк над таблицей показывается <strong>панель инструментов бэклога</strong> (импорт,
+            фильтр, плотность, массовый период, счётчик выбора, удаление). Экспорт вынесен в верхнюю
+            панель.
+          </li>
+        </ul>
+
+        <h2>Создание плана</h2>
+        <p>
+          По кнопке <span class="ui-label">Create Plan</span> открывается диалог: имя плана,
+          <strong>Start period</strong> (квартал и год первой опорной колонки), <strong>Estimation
+          type</strong> (Story Points или Man-days), <strong>Resource grouping type</strong> (<span
+          class="ui-label">By team</span>, <span class="ui-label">By roles</span>, <span class="ui-label">By
+          member</span>), а также опционально спринты и буферы.
+        </p>
+        <h3>Story Points при создании</h3>
+        <ul>
+          <li>
+            <span class="ui-label">Team Story Points per day</span> — <strong>Use Team average</strong>
+            (позже по значениям участников) или <strong>Use fixed Team value</strong> (одно число для
+            ячейки команды). Во втором случае перед <span class="ui-label">Create</span> нужно ввести
+            числовое значение команды.
+          </li>
+        </ul>
+        <h3>Use Sprints Planning</h3>
+        <ul>
+          <li>
+            Флажок <span class="ui-label">Use Sprints Planning</span> включает кнопку
+            <span class="ui-label">Sprints settings</span>. В таблице задаются строки спринтов и
+            <strong>Working days</strong> на спринт, затем <strong>Apply</strong>. По нажатию
+            <span class="ui-label">Create</span> для <strong>стартового квартала</strong> (тот же
+            квартал/год, что в Start period) создаются колонки спринтов с этими рабочими днями. Опорный
+            квартал заменяется спринт-периодами (лишний квартальный артефакт для нового sprint-плана не остаётся).
+          </li>
+          <li>
+            Пока флажок включён, вариант <strong>Man-days</strong> недоступен, а поле
+            <span class="ui-label">Working days for all rows</span> в диалоге отключено — для спринтов
+            рабочие дни задаются по строкам в настройках спринтов, а не одним общим числом в форме
+            создания. Поле <strong>Working days</strong> поддерживает многозначный ввод и валидируется
+            как положительное целое число при Apply.
+          </li>
+        </ul>
+        <h3>Use Buffers</h3>
+        <ul>
+          <li>
+            Флажок <span class="ui-label">Use Buffers</span> включает <span class="ui-label">Buffer
+            settings</span>. Добавляются строки буфера (название + %). Строка <strong>All Buffers</strong>
+            показывает суммарный процент, который сохраняется в плане.
+          </li>
+          <li>
+            При включённых буферах в таблице ёмкости подпись <strong>Available balance with buffers</strong>:
+            к остатку после плана применяется множитель
+            <code>(1 − суммарный% / 100)</code>, то есть больший суммарный % сильнее уменьшает запас
+            баланса.
+          </li>
+        </ul>
+        <p>
+          Диалоги спринтов и буферов относятся к этапу <strong>создания плана</strong> (настройте до
+          нажатия <span class="ui-label">Create</span>). Изменить те же параметры позже можно только
+          создав новый план или дождавшись отдельного сценария в настройках, если он появится в версии.
+        </p>
+
+        <h2>Колонки периодов</h2>
+        <ul>
+          <li>
+            Кнопка <span class="ui-label">+</span> у области Capacity добавляет <strong>следующий
+            календарный квартал</strong> после самой правой квартальной колонки (Q1→…→Q4→Q1 следующего
+            года).
+          </li>
+          <li>
+            Если план открылся без периодов, оверлей с <span class="ui-label">Create period</span> открывает
+            диалог ручного выбора квартала и года.
+          </li>
+          <li>
+            Удалить колонку периода можно элементом удаления в заголовке этой колонки в таблице Capacity
+            (при необходимости с подтверждением). Вместе с колонкой период исчезает из выпадающих списков
+            в бэклоге.
+          </li>
+        </ul>
+
+        <h2>Вкладка Capacity</h2>
+        <p>
+          Строки — участники (имя, роль, нагрузка %, рабочие дни по периодам, оценка в день, агрегаты).
+          Кнопка <span class="ui-label">+</span> у таблицы добавляет строку. В колонке роли есть пункт
+          <span class="ui-label">+ Add role…</span> для добавления роли в каталог через небольшой диалог.
+        </p>
+        <ul>
+          <li>
+            Элементы панели: быстрый фильтр по member/role, <span class="ui-label">Delete selected</span> и
+            <span class="ui-label">View</span>. Первая колонка — чекбоксы выбора строк (в шапке — выбрать все).
+          </li>
+          <li>
+            Нижняя серая панель показывает <strong>Total rows</strong>, <strong>Filtered rows</strong> и
+            <strong>Selected rows</strong>.
+          </li>
+          <li>
+            Поле <span class="ui-label">View</span> — <strong>Full</strong> показывает все колонки,
+            включая выходные и детализацию «на человека», где вёрстка это предусматривает.
+            <strong>Compact</strong> скрывает выходные и ячейки per member, чтобы заголовок совпадал с
+            числом ячеек в строках.
+          </li>
+          <li>
+            Ширина таблицы по содержимому; при переполнении панели — горизонтальная прокрутка внутри
+            области таблицы. При большом числе строк вертикальная прокрутка тоже остаётся внутри белой
+            области. Снизу оставлен запас, чтобы плавающая кнопка <span class="ui-label">+</span> не перекрывала строки.
+          </li>
+          <li>
+            <strong>By team</strong> — где уместно, блоки команды объединены; спрос по задаче с выбранным
+            периодом делится <strong>поровну</strong> между всеми строками ёмкости.
+          </li>
+          <li>
+            <strong>By roles</strong> — ёмкость сгруппирована по ролям; в бэклоге задаются доли и
+            story points по ролям. В режиме <strong>Full</strong> колонки <strong>Planned</strong> и
+            <strong>Available balance</strong> показывают только <strong>итоги по ролям</strong> (без
+            подколонок на каждого человека), при этом доступная ёмкость и story points в день по-прежнему
+            ведутся на уровне участников.
+          </li>
+          <li>
+            <strong>By member</strong> — сетка ёмкости как у команды, но с акцентом на
+            <strong>Per member</strong>; в бэклоге блок <strong>Member by roles</strong>: для каждой роли
+            — доля и выбор строки участника, куда относится эта доля.
+          </li>
+          <li>
+            Ячейка <strong>Story Points per day</strong> на уровне команды (Story Points + by team)
+            редактируется в объединённой ячейке; изменение переводит период в режим ручного значения для
+            команды. В режиме <strong>By member</strong> значения в день задаются по каждому участнику.
+          </li>
+          <li>
+            Если в плане есть колонки спринтов, поле <span class="ui-label">Working days for all rows</span>
+            в Settings отключено — рабочие дни уже заданы в ячейках спринтов.
+          </li>
+        </ul>
+
+        <h2>Вкладка Backlog for planning</h2>
+        <ul>
+          <li>
+            <strong>Панель над таблицей</strong> (когда таблица видна): импорт из Jira; поле <strong>фильтра</strong> (поиск по ключу
+            или summary только в браузере); <strong>Period</strong> для выбранных строк (применяется сразу
+            при выборе значения); <span class="ui-label">Delete selected</span>; <strong>View</strong>
+            (<strong>Full</strong> / <strong>Compact</strong>, сохраняется в плане). При ошибках
+            долей в режимах <strong>By roles</strong> / <strong>By member</strong> под панелью показывается
+            жёлтое предупреждение.
+          </li>
+          <li>
+            Нижняя серая панель показывает <strong>Total items</strong>, <strong>Filtered items</strong> и
+            <strong>Selected items</strong>.
+          </li>
+          <li>
+            Колонки <strong>чекбокс</strong> и <strong>Key</strong> закреплены слева при горизонтальной
+            прокрутке таблицы.
+          </li>
+          <li>
+            Колонки: ключ, summary, статус, приоритет, тип, оценка, <span class="ui-label">Period</span> —
+            в какой период плана относится спрос. Без периода задача не увеличивает <strong>Planned</strong>
+            на Capacity.
+          </li>
+          <li>
+            У <strong>Summary</strong> фиксированная ширина — длинный текст переносится внутри колонки;
+            при большом числе колонок используйте горизонтальную прокрутку. При большом числе строк
+            вертикальная прокрутка тоже остаётся внутри белой области таблицы.
+          </li>
+          <li>
+            <strong>By roles</strong> — для каждой роли: <strong>Split (%)</strong> и <strong>Story
+            Point</strong>. Можно править и процент, и SP: изменение % пересчитывает ролевые SP от общей
+            оценки строки; изменение SP роли пересчитывает её %. Некорректные комбинации (сумма долей
+            &gt; 100% или сумма ролевых SP больше оценки строки) подсвечиваются <strong>красным</strong>;
+            подсказка при наведении на английском.
+          </li>
+          <li>
+            <strong>By member</strong> — для каждой роли: доля (%) и выбор участника (<strong>Member</strong>),
+            на чью строку ёмкости относится эта доля.
+          </li>
+          <li>
+            Первая колонка — чекбоксы (в шапке — выбрать все). <span class="ui-label">Delete selected</span>
+            удаляет выбранные строки после подтверждения (в диалоге указано число задач; для одной строки
+            показывается ключ).
+          </li>
+          <li>
+            Повторный импорт объединяет по нормализованному ключу (например, <kbd>PROJECT-123</kbd>):
+            существующие ключи обновляются, новые добавляются. Локально удалённая задача появится снова,
+            если снова попадёт в выборку JQL.
+          </li>
+        </ul>
+
+        <h2>Настройки (шестерёнка)</h2>
+        <ul>
+          <li>
+            <span class="ui-label">Estimation type</span> — Story Points или Man-days для метрик и
+            редактируемых оценок в бэклоге. Смена типа может скрыть импортированные значения другой
+            семантики; тогда помогут повторный импорт или ручной ввод.
+          </li>
+          <li>
+            Для Story Points — <span class="ui-label">Team Story Points per day</span> (среднее по команде
+            или фиксированное значение + число при фиксированном режиме).
+          </li>
+          <li>
+            <span class="ui-label">Working days for all rows</span> — базовые рабочие дни для строк и
+            новых строк (отключается, если в плане есть спринтовые колонки).
+          </li>
+          <li>
+            <span class="ui-label">Load (%) for all rows</span> — загрузка по умолчанию; по кнопке
+            <strong>Save</strong> выбранный процент применяется ко <strong>всем</strong> строкам ёмкости
+            (индивидуальные отличия при сохранении не сохраняются).
+          </li>
+          <li>
+            <span class="ui-label">Resource grouping type</span> — те же три режима, что при создании
+            плана; влияет на обе вкладки и на то, как спрос попадает в Planned.
+          </li>
+          <li>
+            <span class="ui-label">Default % SP by roles</span> (видно при Story Points и группировке
+            By roles или By member) — процент по каждой роли из каталога; сумма должна быть 100%. Редактирование
+            <strong>первой</strong> строки перераспределяет остаток поровну по остальным ролям (последняя
+            строка забирает округление). Пустые ячейки Split (%) в бэклоге заполняются этими значениями
+            при сохранении настроек, после импорта и при первом появлении долей.
+          </li>
+          <li>
+            <span class="ui-label">Roles for this plan</span> — переименование, удаление,
+            <span class="ui-label">Add role</span>. Удаление роли сбрасывает её у строк, где она была
+            выбрана. Изменения вступают в силу после <span class="ui-label">Save</span>.
+          </li>
+        </ul>
+        <p>
+          В приложении есть модальное окно <strong>Set estimation per day for all rows</strong> для
+          массовых правок в режиме Story Points; отдельные действия в интерфейсе могут вместо этого
+          открыть Settings с подсказкой настроить режим story points в день для команды — ориентируйтесь
+          на сообщение в статусной строке.
+        </p>
+
+        <h2>Импорт из Jira</h2>
+        <p>По кнопке <span class="ui-label">Import backlog from Jira</span> укажите:</p>
+        <ul>
+          <li>
+            <span class="ui-label">Jira Base URL</span> — тот же адрес origin, что в браузере (сохраняется
+            в плане для следующего открытия диалога).
+          </li>
+          <li>
+            <span class="ui-label">Input JQL request</span> — как в навигаторе задач (последний JQL
+            запоминается в плане).
+          </li>
+          <li>
+            <span class="ui-label">Jira estimation field type</span> — отдельно от типа оценки в
+            Settings: это <strong>что именно</strong> означает поле в Jira (числовые Story Points или
+            Man-days по времени). У импортированных строк запоминается вид оценки, чтобы не смешивать
+            единицы при смене типа плана; подсказка в диалоге описывает скрытие несовпадающих строк до
+            повторного импорта или правки.
+          </li>
+          <li>
+            Поле идентификатора — например <kbd>customfield_10016</kbd> для SP; для Man-days пустое значение
+            может подставлять стандартное поле времени (см. подсказки в форме).
+          </li>
+        </ul>
+        <p>
+          В диалоге отображаются прогресс и число задач. Импорт не затирает весь бэклог, а сливает по ключу.
+          После успешного импорта в статусной строке могут появиться краткие <strong>заметки по данным</strong>
+          (например, сколько задач без оценки в Jira).
+        </p>
+
+        <h2>Где хранятся данные</h2>
+        <p>
+          Планы лежат в <code>chrome.storage.local</code>. Очистка данных расширения или удаление
+          расширения может стереть планы — заранее сохраняйте важное вне инструмента. Поля
+          <strong>velocity</strong> в модели данных зарезервированы под будущие сценарии и пока не вынесены
+          отдельным сценарием в интерфейсе.
+        </p>
+
+        <h2>Эта страница</h2>
+        <p>
+          Открывается по ссылке <strong>Instructions</strong> в футере основного окна. Переключатель <strong>Eng</strong> /
+          <strong>Ru</strong> выше меняет язык (значение в <code>localStorage</code>:
+          <code>helpPageLang</code>). В формах основного приложения дополнительные пояснения часто
+          стоят в значке «?» у подписи поля.
+        </p>
+      </article>
+    </div>
+
+    <!-- Inline scripts are blocked by extension page CSP (MV3); logic lives in help-page.js -->
+    <script src="help-page.js" defer></script>
+  </body>
+</html>
