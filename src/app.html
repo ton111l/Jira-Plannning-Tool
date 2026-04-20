@@ -107,6 +107,7 @@
                 </div>
               </div>
             </div>
+            <div id="capacityBuffersBar" class="capacity-summary-bar" hidden></div>
             <div id="capacityTableWrap" class="table-wrap">
               <table id="capacityTable" class="grid-table"></table>
             </div>
@@ -648,24 +649,6 @@
                 <th></th>
               </tr>
             </thead>
-            <tbody>
-              <tr>
-                <td class="sprint-settings-cell">
-                  <input type="text" class="input" value="All Buffers" readonly aria-label="All Buffers label" />
-                </td>
-                <td class="sprint-settings-cell">
-                  <input
-                    id="bufferSettingsTotalPercentInput"
-                    type="number"
-                    class="input sprint-settings-days-input"
-                    value="0"
-                    readonly
-                    aria-label="All Buffers percent"
-                  />
-                </td>
-                <td class="sprint-settings-cell sprint-settings-action-cell"></td>
-              </tr>
-            </tbody>
             <tbody id="bufferSettingsTbody"></tbody>
           </table>
           <button

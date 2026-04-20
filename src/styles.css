@@ -1322,6 +1322,11 @@ a.toolbar-help-link {
   padding: 6px 0;
 }
 
+/* Author `display` on labels/buttons must not beat the `hidden` attribute. */
+.sprint-planning-grid [hidden] {
+  display: none !important;
+}
+
 .sprint-settings-btn {
   white-space: nowrap;
   flex-shrink: 0;
