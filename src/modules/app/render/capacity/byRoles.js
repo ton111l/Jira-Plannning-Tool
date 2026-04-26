@@ -51,7 +51,9 @@ export function renderCapacityByRoles({
 
   const thead = document.createElement("thead");
   const estimationTitleForPlanned = estimationLabel ? estimationLabel.toLowerCase() : "estimation";
-  const availableBalanceTitle = plan.useBuffers ? "Available balance with buffers" : "Available balance";
+  const availableBalanceTitle = plan.useBuffers
+    ? `Available balance - buffers (${sanitizeNonNegative(plan.allBuffersPercent ?? 0)}%)`
+    : "Available balance";
   const buffersFactor = plan.useBuffers
     ? Math.max(0, 1 - sanitizeNonNegative(plan.allBuffersPercent ?? 0) / 100)
     : 1;

@@ -1391,6 +1391,13 @@ a.toolbar-help-link {
   width: 90px;
 }
 
+.buffer-settings-total {
+  margin-top: 8px;
+  font-size: 13px;
+  color: #5a5a72;
+  text-align: right;
+}
+
 .sprint-settings-add-btn {
   position: absolute;
   bottom: 0;
@@ -1611,6 +1618,15 @@ progress {
 .cell-input:focus {
   outline: 1px solid #7d7db6;
   border-radius: 4px;
+}
+
+.cell-input[readonly] {
+  color: #5a5a72;
+  cursor: default;
+}
+
+.cell-input[readonly]:focus {
+  outline: none;
 }
 
 .cell-select:focus {

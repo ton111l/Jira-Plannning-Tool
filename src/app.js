@@ -657,7 +657,11 @@ function updateAllBuffersTotal() {
     const percentInput = row.querySelector(".sprint-settings-days-input");
     return sum + sanitizeNonNegative(percentInput?.value ?? 0);
   }, 0);
-  return Number(total.toFixed(2));
+  const rounded = Number(total.toFixed(2));
+  if (refs.buffersTotalDisplay) {
+    refs.buffersTotalDisplay.textContent = `${rounded}%`;
+  }
+  return rounded;
 }
 
 function updateBufferDeleteButton() {
@@ -685,9 +689,15 @@ function updateBufferDeleteButton() {
 
 function openBufferSettingsDialog() {
   refs.bufferSettingsTbody.innerHTML = "";
+
+  const isAllBuffersLegacyRow = (item) =>
+    String(item?.name || "").trim().toLowerCase() === "all buffers" &&
+    sanitizeNonNegative(item?.percent ?? 0) === 0;
+
   if (isSettingsDialogOpen()) {
     const plan = getActivePlan();
-    const savedItems = Array.isArray(plan?.bufferItems) ? plan.bufferItems : [];
+    const savedItems = (Array.isArray(plan?.bufferItems) ? plan.bufferItems : [])
+      .filter((item) => !isAllBuffersLegacyRow(item));
     if (savedItems.length > 0) {
       savedItems.forEach((item, idx) => {
         refs.bufferSettingsTbody.appendChild(
@@ -696,19 +706,24 @@ function openBufferSettingsDialog() {
       });
     } else if (plan && sanitizeNonNegative(plan.allBuffersPercent ?? 0) > 0) {
       refs.bufferSettingsTbody.appendChild(
-        buildBufferSettingsRow(1, { name: "All Buffers", percent: sanitizeNonNegative(plan.allBuffersPercent) })
+        buildBufferSettingsRow(1, { percent: sanitizeNonNegative(plan.allBuffersPercent) })
       );
     } else {
-      refs.bufferSettingsTbody.appendChild(buildBufferSettingsRow(1, { name: "All Buffers" }));
+      refs.bufferSettingsTbody.appendChild(buildBufferSettingsRow(1));
     }
   } else if (pendingBufferItems.length > 0) {
-    pendingBufferItems.forEach((item, idx) => {
-      refs.bufferSettingsTbody.appendChild(
-        buildBufferSettingsRow(idx + 1, { name: item?.name || "", percent: item?.percent || "" })
-      );
-    });
+    const filteredPending = pendingBufferItems.filter((item) => !isAllBuffersLegacyRow(item));
+    if (filteredPending.length > 0) {
+      filteredPending.forEach((item, idx) => {
+        refs.bufferSettingsTbody.appendChild(
+          buildBufferSettingsRow(idx + 1, { name: item?.name || "", percent: item?.percent || "" })
+        );
+      });
+    } else {
+      refs.bufferSettingsTbody.appendChild(buildBufferSettingsRow(1));
+    }
   } else {
-    refs.bufferSettingsTbody.appendChild(buildBufferSettingsRow(1, { name: "All Buffers" }));
+    refs.bufferSettingsTbody.appendChild(buildBufferSettingsRow(1));
   }
   updateBufferDeleteButton();
   updateAllBuffersTotal();
@@ -792,6 +807,10 @@ async function submitBufferSettings(event) {
     const name = String(nameInput?.value || "").trim();
     const percent = sanitizeNonNegative(percentInput?.value || 0);
     if (!name && percent <= 0) {
+      continue;
+    }
+    // Skip legacy "All Buffers" placeholder rows with zero percent
+    if (name.toLowerCase() === "all buffers" && percent <= 0) {
       continue;
     }
     items.push({ name: name || "Buffer", percent: Number(percent.toFixed(2)) });
@@ -1037,42 +1056,12 @@ async function handleCreatePlan() {
   refs.createPlanTeamEstimationModeSelect.value = periodTeamSettings?.teamEstimationMode || "average";
   refs.createPlanTeamEstimationValueInput.value = String(periodTeamSettings?.teamEstimationPerDay ?? "");
   handleCreatePlanEstimationTypeChange();
-  if (activePlan) {
-    refs.createPlanUseBuffersCheckbox.checked = Boolean(activePlan.useBuffers);
-    pendingBufferTotalPercent = sanitizeNonNegative(activePlan.allBuffersPercent ?? 0);
-    pendingBufferItems = Array.isArray(activePlan.bufferItems)
-      ? activePlan.bufferItems.map((item) => ({
-          name: String(item?.name || "").trim(),
-          percent: sanitizeNonNegative(item?.percent || 0)
-        }))
-      : [];
-    refs.createPlanUseSprintsCheckbox.checked = Boolean(activePlan.useSprintsPlanning);
-    const anchor = activePlan.periods?.find((p) => p.kind === "quarter" || !p.kind);
-    const sprints = anchor
-      ? activePlan.periods.filter(
-          (p) =>
-            p.kind === "sprint" &&
-            p.anchorQuarter === anchor.anchorQuarter &&
-            p.anchorYear === anchor.anchorYear
-        )
-      : [];
-    sprints.sort((a, b) => (a.sprintIndex ?? 0) - (b.sprintIndex ?? 0));
-    if (sprints.length && activePlan.useSprintsPlanning) {
-      const refRow = activePlan.capacityRows?.[0];
-      pendingSprintConfig = sprints.map((sp) => ({
-        sprintIndex: sp.sprintIndex,
-        workingDays: sanitizeNonNegative(refRow?.periodValues?.[sp.id]?.workingDays ?? 0)
-      }));
-    } else {
-      pendingSprintConfig = null;
-    }
-  } else {
-    refs.createPlanUseBuffersCheckbox.checked = false;
-    pendingBufferTotalPercent = 0;
-    pendingBufferItems = [];
-    refs.createPlanUseSprintsCheckbox.checked = false;
-    pendingSprintConfig = null;
-  }
+  // Always start a new plan with sprints and buffers off, regardless of the active plan
+  refs.createPlanUseBuffersCheckbox.checked = false;
+  pendingBufferTotalPercent = 0;
+  pendingBufferItems = [];
+  refs.createPlanUseSprintsCheckbox.checked = false;
+  pendingSprintConfig = null;
   handleCreatePlanUseSprintsChange();
   handleCreatePlanUseBuffersChange();
   refs.createPlanDialog.showModal();

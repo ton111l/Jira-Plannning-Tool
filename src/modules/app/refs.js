@@ -66,6 +66,7 @@ export function cacheRefs(refs) {
   refs.bufferSettingsDialog = document.getElementById("bufferSettingsDialog");
   refs.bufferSettingsForm = document.getElementById("bufferSettingsForm");
   refs.bufferSettingsTbody = document.getElementById("bufferSettingsTbody");
+  refs.buffersTotalDisplay = document.getElementById("buffersTotalDisplay");
   refs.addBufferRowBtn = document.getElementById("addBufferRowBtn");
   refs.sprintSettingsDialog = document.getElementById("sprintSettingsDialog");
   refs.sprintSettingsForm = document.getElementById("sprintSettingsForm");
