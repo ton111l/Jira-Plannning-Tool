@@ -32,6 +32,23 @@ export function renderCapacityByRoles({
   const teamSubLabel = "Role total";
   const stickyHeadClasses = ["capacity-col-idx", "capacity-col-member", "capacity-col-role"];
 
+  // Build sprint-by-anchor map once; used in header rendering
+  const sprintsByAnchor = {};
+  for (const p of plan.periods) {
+    if (p.kind === "sprint") {
+      const key = `${p.anchorQuarter}_${p.anchorYear}`;
+      if (!sprintsByAnchor[key]) sprintsByAnchor[key] = [];
+      sprintsByAnchor[key].push(p);
+    }
+  }
+
+  const isQuarterSummary = (period) => {
+    const isQ = period.kind === "quarter" || !period.kind;
+    if (!isQ) return false;
+    const key = `${period.anchorQuarter ?? period.quarter}_${period.anchorYear ?? period.year}`;
+    return (sprintsByAnchor[key]?.length ?? 0) > 0;
+  };
+
   const thead = document.createElement("thead");
   const estimationTitleForPlanned = estimationLabel ? estimationLabel.toLowerCase() : "estimation";
   const availableBalanceTitle = plan.useBuffers ? "Available balance with buffers" : "Available balance";
@@ -79,19 +96,24 @@ export function renderCapacityByRoles({
     for (const period of plan.periods) {
       const periodHead = document.createElement("th");
       periodHead.colSpan = 5;
+      const isQSummary = isQuarterSummary(period);
+      if (isQSummary) periodHead.classList.add("period-head-th--quarter-total");
       const periodHeadWrap = document.createElement("div");
       periodHeadWrap.className = "period-head";
       const periodLabel = document.createElement("span");
-      periodLabel.textContent = period.label;
-      const deletePeriodButton = document.createElement("button");
-      deletePeriodButton.type = "button";
-      deletePeriodButton.className = "quarter-delete-btn";
-      deletePeriodButton.textContent = "×";
-      deletePeriodButton.title = `Delete ${period.label}`;
-      deletePeriodButton.setAttribute("aria-label", `Delete ${period.label}`);
-      deletePeriodButton.dataset.action = "delete-quarter";
-      deletePeriodButton.dataset.periodId = period.id;
-      periodHeadWrap.append(periodLabel, deletePeriodButton);
+      periodLabel.textContent = isQSummary ? `${period.label} (Total)` : period.label;
+      periodHeadWrap.appendChild(periodLabel);
+      if (!isQSummary) {
+        const deletePeriodButton = document.createElement("button");
+        deletePeriodButton.type = "button";
+        deletePeriodButton.className = "quarter-delete-btn";
+        deletePeriodButton.textContent = "×";
+        deletePeriodButton.title = `Delete ${period.label}`;
+        deletePeriodButton.setAttribute("aria-label", `Delete ${period.label}`);
+        deletePeriodButton.dataset.action = "delete-quarter";
+        deletePeriodButton.dataset.periodId = period.id;
+        periodHeadWrap.appendChild(deletePeriodButton);
+      }
       periodHead.appendChild(periodHeadWrap);
       topHeadRow.appendChild(periodHead);
     }
@@ -157,19 +179,24 @@ export function renderCapacityByRoles({
     for (const period of plan.periods) {
       const periodHead = document.createElement("th");
       periodHead.colSpan = getPeriodColumnsCount(period);
+      const isQSummary = isQuarterSummary(period);
+      if (isQSummary) periodHead.classList.add("period-head-th--quarter-total");
       const periodHeadWrap = document.createElement("div");
       periodHeadWrap.className = "period-head";
       const periodLabel = document.createElement("span");
-      periodLabel.textContent = period.label;
-      const deletePeriodButton = document.createElement("button");
-      deletePeriodButton.type = "button";
-      deletePeriodButton.className = "quarter-delete-btn";
-      deletePeriodButton.textContent = "×";
-      deletePeriodButton.title = `Delete ${period.label}`;
-      deletePeriodButton.setAttribute("aria-label", `Delete ${period.label}`);
-      deletePeriodButton.dataset.action = "delete-quarter";
-      deletePeriodButton.dataset.periodId = period.id;
-      periodHeadWrap.append(periodLabel, deletePeriodButton);
+      periodLabel.textContent = isQSummary ? `${period.label} (Total)` : period.label;
+      periodHeadWrap.appendChild(periodLabel);
+      if (!isQSummary) {
+        const deletePeriodButton = document.createElement("button");
+        deletePeriodButton.type = "button";
+        deletePeriodButton.className = "quarter-delete-btn";
+        deletePeriodButton.textContent = "×";
+        deletePeriodButton.title = `Delete ${period.label}`;
+        deletePeriodButton.setAttribute("aria-label", `Delete ${period.label}`);
+        deletePeriodButton.dataset.action = "delete-quarter";
+        deletePeriodButton.dataset.periodId = period.id;
+        periodHeadWrap.appendChild(deletePeriodButton);
+      }
       periodHead.appendChild(periodHeadWrap);
       topHeadRow.appendChild(periodHead);
     }
@@ -282,15 +309,6 @@ export function renderCapacityByRoles({
     teamPeriodValues: plan.teamPeriodValues,
     isByRolesGrouping: true
   });
-
-  const sprintsByAnchor = {};
-  for (const p of plan.periods) {
-    if (p.kind === "sprint") {
-      const key = `${p.anchorQuarter}_${p.anchorYear}`;
-      if (!sprintsByAnchor[key]) sprintsByAnchor[key] = [];
-      sprintsByAnchor[key].push(p);
-    }
-  }
 
   plan.capacityRows.forEach((capacityRow, index) => {
     const tr = document.createElement("tr");

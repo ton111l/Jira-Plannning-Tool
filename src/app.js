@@ -62,7 +62,7 @@ import {
   normalizePlanForMode
 } from "./modules/planning/index.js";
 import { PLANNING_TIME_MODE } from "./modules/planning/constants.js";
-import { buildSprintPeriods } from "./modules/planning/periodFactory.js";
+import { buildQuarterPeriodRecord, buildSprintPeriods } from "./modules/planning/periodFactory.js";
 
 let appState = null;
 let pendingDeleteAction = null;
@@ -584,8 +584,12 @@ function updateSprintDeleteButton() {
 
 function openSprintSettingsDialog() {
   refs.sprintSettingsTbody.innerHTML = "";
+  const activePlan = getActivePlan();
+  const sprintDur = activePlan?.sprintDurationDays ?? 14;
+  const defaultSprintWd = Math.max(1, Math.round((sprintDur * 5) / 7));
+
   if (isSettingsDialogOpen()) {
-    const plan = getActivePlan();
+    const plan = activePlan;
     const anchor = plan?.periods?.find((p) => p.kind === "quarter" || !p.kind);
     const sprints = anchor
       ? plan.periods.filter(
@@ -602,14 +606,14 @@ function openSprintSettingsDialog() {
       refs.sprintSettingsTbody.appendChild(buildSprintSettingsRow(idx + 1, wd > 0 ? wd : ""));
     });
     if (refs.sprintSettingsTbody.rows.length === 0) {
-      refs.sprintSettingsTbody.appendChild(buildSprintSettingsRow(1));
+      refs.sprintSettingsTbody.appendChild(buildSprintSettingsRow(1, defaultSprintWd));
     }
   } else if (Array.isArray(pendingSprintConfig) && pendingSprintConfig.length > 0) {
-      pendingSprintConfig.forEach((cfg, idx) => {
-        refs.sprintSettingsTbody.appendChild(buildSprintSettingsRow(idx + 1, cfg?.workingDays ?? ""));
-      });
+    pendingSprintConfig.forEach((cfg, idx) => {
+      refs.sprintSettingsTbody.appendChild(buildSprintSettingsRow(idx + 1, cfg?.workingDays ?? ""));
+    });
   } else {
-    refs.sprintSettingsTbody.appendChild(buildSprintSettingsRow(1));
+    refs.sprintSettingsTbody.appendChild(buildSprintSettingsRow(1, defaultSprintWd));
   }
   updateSprintDeleteButton();
   refs.sprintSettingsDialog.showModal();
@@ -835,26 +839,30 @@ function applySprintConfigToPlan(plan, sprintConfig) {
     sprintCount: sprintConfig.length
   });
 
+  const estimationType = getPlanEstimationType(plan);
+  const workingDaysByIndex = Object.fromEntries(sprintConfig.map((s) => [s.sprintIndex, s.workingDays]));
+
+  // Store working days on each sprint period so new rows can use the correct default
+  sprintPeriods.forEach((sp) => {
+    sp.defaultWorkingDays = workingDaysByIndex[sp.sprintIndex] ?? 0;
+  });
+
   const anchorIdx = plan.periods.findIndex((p) => p.id === anchorPeriod.id);
   if (anchorIdx >= 0) {
-    // Sprint mode should replace the anchor quarter, not keep both.
-    plan.periods.splice(anchorIdx, 1, ...sprintPeriods);
+    // Sprints come before the anchor quarter; the quarter acts as a read-only summary column
+    plan.periods.splice(anchorIdx, 1, ...sprintPeriods, anchorPeriod);
   }
 
   ensureTeamPeriodValues(plan);
-  if (plan.teamPeriodValues?.[anchorPeriod.id]) {
-    delete plan.teamPeriodValues[anchorPeriod.id];
-  }
+  // Keep the anchor quarter's team period values (it's now a summary column, not deleted)
   sprintPeriods.forEach((sp) => {
     plan.teamPeriodValues[sp.id] = { teamEstimationMode: "average", teamEstimationPerDay: "" };
   });
 
-  const estimationType = getPlanEstimationType(plan);
-  const workingDaysByIndex = Object.fromEntries(sprintConfig.map((s) => [s.sprintIndex, s.workingDays]));
-
   plan.capacityRows.forEach((row) => {
-    if (row.periodValues?.[anchorPeriod.id]) {
-      delete row.periodValues[anchorPeriod.id];
+    // Ensure the quarter summary period values exist; recomputeCapacityRow will sum from sprints
+    if (!row.periodValues[anchorPeriod.id]) {
+      row.periodValues[anchorPeriod.id] = createEmptyCapacityPeriodValues();
     }
     sprintPeriods.forEach((sp) => {
       const values = createEmptyCapacityPeriodValues();
@@ -1181,8 +1189,12 @@ async function handleAddCapacityRow() {
   for (const period of plan.periods) {
     const to = newRow.periodValues[period.id];
     if (!to) continue;
-    if (period.kind === "sprint" && referenceRow) {
-      to.workingDays = sanitizeNonNegative(referenceRow.periodValues[period.id]?.workingDays ?? 0);
+    if (period.kind === "sprint") {
+      if (referenceRow) {
+        to.workingDays = sanitizeNonNegative(referenceRow.periodValues[period.id]?.workingDays ?? 0);
+      } else {
+        to.workingDays = sanitizeNonNegative(period.defaultWorkingDays ?? defaultWorkingDays);
+      }
     } else {
       to.workingDays = defaultWorkingDays;
     }
@@ -2613,6 +2625,54 @@ async function init() {
       plan.planningTimeMode = PLANNING_TIME_MODE.sprint;
     } else if (!hasSprintPeriods && plan.planningTimeMode === PLANNING_TIME_MODE.sprint) {
       plan.planningTimeMode = PLANNING_TIME_MODE.quarter;
+    }
+
+    // Migration: restore quarter summary period for sprint plans that previously had the
+    // quarter removed, and backfill defaultWorkingDays on sprint periods.
+    if (hasSprintPeriods) {
+      const sprintGroups = {};
+      (plan.periods || []).forEach((p) => {
+        if (p.kind === "sprint") {
+          const key = `${p.anchorQuarter}_${p.anchorYear}`;
+          if (!sprintGroups[key]) sprintGroups[key] = [];
+          sprintGroups[key].push(p);
+        }
+      });
+      const refRow = plan.capacityRows?.[0];
+      Object.entries(sprintGroups).forEach(([key, sprints]) => {
+        const underscoreIdx = key.indexOf("_");
+        const anchorQ = key.slice(0, underscoreIdx);
+        const anchorY = Number(key.slice(underscoreIdx + 1));
+        const hasQuarter = (plan.periods || []).some(
+          (p) => (p.kind === "quarter" || !p.kind) && p.anchorQuarter === anchorQ && p.anchorYear === anchorY
+        );
+        if (!hasQuarter) {
+          const quarterPeriod = buildQuarterPeriodRecord({ quarter: anchorQ, year: anchorY });
+          const lastSprintIdx = (plan.periods || []).reduce((max, p, i) => {
+            return p.kind === "sprint" && p.anchorQuarter === anchorQ && p.anchorYear === anchorY ? i : max;
+          }, -1);
+          plan.periods.splice(lastSprintIdx + 1, 0, quarterPeriod);
+          if (!plan.teamPeriodValues) plan.teamPeriodValues = {};
+          if (!plan.teamPeriodValues[quarterPeriod.id]) {
+            plan.teamPeriodValues[quarterPeriod.id] = { teamEstimationMode: "average", teamEstimationPerDay: "" };
+          }
+          (plan.capacityRows || []).forEach((row) => {
+            if (!row.periodValues[quarterPeriod.id]) {
+              row.periodValues[quarterPeriod.id] = createEmptyCapacityPeriodValues();
+            }
+          });
+        }
+        sprints.forEach((sp) => {
+          if (sp.defaultWorkingDays === undefined || sp.defaultWorkingDays === null) {
+            sp.defaultWorkingDays = sanitizeNonNegative(refRow?.periodValues?.[sp.id]?.workingDays ?? 0);
+          }
+        });
+      });
+      // Recompute all rows so quarter values are derived from their linked sprints
+      const estimationTypeMigration = plan.estimationType || "story_points";
+      (plan.capacityRows || []).forEach((row) => {
+        recomputeCapacityRow(row, plan.periods, estimationTypeMigration);
+      });
     }
     (plan.backlogRows || []).forEach((row) => {
       if (row.targetPeriodId === undefined || row.targetPeriodId === null) {

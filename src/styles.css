@@ -946,6 +946,11 @@ body {
   cursor: pointer;
 }
 
+.period-head-th--quarter-total {
+  background-color: #f0f0f8;
+  border-left: 2px solid #c0c0d8;
+}
+
 .working-days-edit-btn {
   border: none;
   background: transparent;

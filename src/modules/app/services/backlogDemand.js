@@ -159,6 +159,37 @@ export function applyPlannedFromBacklog(plan, resourceGroupingType) {
       }
     }
   }
+
+  aggregateSprintPlannedIntoQuarters(plan);
+}
+
+/**
+ * After all period planned values are set, aggregate sprint planned values into their
+ * parent quarter period so the quarter summary column shows the correct totals.
+ */
+function aggregateSprintPlannedIntoQuarters(plan) {
+  for (const period of plan.periods) {
+    const isQuarter = period.kind === "quarter" || !period.kind;
+    if (!isQuarter) continue;
+    const linkedSprints = plan.periods.filter(
+      (p) =>
+        p.kind === "sprint" &&
+        p.anchorQuarter === period.anchorQuarter &&
+        p.anchorYear === period.anchorYear
+    );
+    if (!linkedSprints.length) continue;
+    for (const row of plan.capacityRows) {
+      if (!row.periodValues[period.id]) {
+        row.periodValues[period.id] = createEmptyCapacityPeriodValues();
+      }
+      const sprintTotal = linkedSprints.reduce(
+        (sum, sp) => sum + asNumber(row.periodValues?.[sp.id]?.plannedEstimation ?? 0),
+        0
+      );
+      row.periodValues[period.id].plannedEstimation =
+        sprintTotal > 0 ? String(Number(sprintTotal.toFixed(2))) : "";
+    }
+  }
 }
 
 export function sumPlannedForPeriod(plan, periodId) {
