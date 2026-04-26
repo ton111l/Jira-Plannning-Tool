@@ -1212,6 +1212,25 @@ a.toolbar-help-link {
   background: #fbfbfc;
 }
 
+.settings-form-footer-spacer {
+  flex: 1;
+}
+
+.modal--sm {
+  width: min(360px, calc(100vw - 24px));
+  max-width: 100%;
+}
+
+.modal--sm h3 {
+  margin: 0 0 12px;
+}
+
+.modal--sm .input {
+  width: 100%;
+  box-sizing: border-box;
+  margin-bottom: 16px;
+}
+
 #settingsForm label {
   font-weight: 600;
 }

@@ -731,8 +731,11 @@ function openBufferSettingsDialog() {
 }
 
 function handleAddSprintRow() {
-  const nextNumber = refs.sprintSettingsTbody.rows.length + 1;
-  refs.sprintSettingsTbody.appendChild(buildSprintSettingsRow(nextNumber));
+  const rows = refs.sprintSettingsTbody.rows;
+  const nextNumber = rows.length + 1;
+  const lastRow = rows[rows.length - 1];
+  const lastWd = lastRow?.querySelector(".sprint-settings-days-input")?.value ?? "";
+  refs.sprintSettingsTbody.appendChild(buildSprintSettingsRow(nextNumber, lastWd));
   updateSprintDeleteButton();
 }
 
@@ -1174,7 +1177,7 @@ async function handleAddCapacityRow() {
   const newRow = createCapacityRow(plan.periods);
   newRow.loadPercent = sanitizeLoadPercent(plan.defaultLoadPercent ?? 100);
   const defaultWorkingDays = sanitizeNonNegative(plan.defaultWorkingDays ?? 0);
-  const referenceRow = plan.capacityRows[0] ?? null;
+  const referenceRow = plan.capacityRows[plan.capacityRows.length - 1] ?? null;
   for (const period of plan.periods) {
     const to = newRow.periodValues[period.id];
     if (!to) continue;
@@ -2356,6 +2359,70 @@ function openSettingsDialog() {
   refs.settingsDialog.showModal();
 }
 
+function openRenamePlanDialog() {
+  const plan = getActivePlan();
+  if (!plan || !refs.renamePlanDialog || !refs.renamePlanInput) {
+    return;
+  }
+  refs.renamePlanInput.value = plan.name || "";
+  refs.renamePlanDialog.showModal();
+  refs.renamePlanInput.select();
+}
+
+function submitRenamePlan(event) {
+  event.preventDefault();
+  if (event.submitter?.value !== "ok") {
+    refs.renamePlanDialog?.close();
+    return;
+  }
+  const plan = getActivePlan();
+  if (!plan) {
+    refs.renamePlanDialog?.close();
+    return;
+  }
+  const newName = (refs.renamePlanInput?.value || "").trim();
+  if (!newName) {
+    setMessage("Plan name cannot be empty.", "error");
+    return;
+  }
+  plan.name = newName;
+  touchPlan(plan);
+  refs.renamePlanDialog?.close();
+  persistAndRender(`Plan renamed to "${newName}".`, "success");
+}
+
+async function handleDeletePlan() {
+  const plan = getActivePlan();
+  if (!plan || !refs.deletePlanDialog) {
+    return;
+  }
+  if (refs.deletePlanNameDisplay) {
+    refs.deletePlanNameDisplay.textContent = plan.name || plan.id;
+  }
+  refs.deletePlanDialog.showModal();
+}
+
+function submitDeletePlan(event) {
+  event.preventDefault();
+  if (event.submitter?.value !== "delete") {
+    refs.deletePlanDialog?.close();
+    return;
+  }
+  const plan = getActivePlan();
+  if (!plan) {
+    refs.deletePlanDialog?.close();
+    return;
+  }
+  const deletedId = plan.id;
+  appState.plans = appState.plans.filter((p) => p.id !== deletedId);
+  appState.lastSelectedPlanId = appState.plans[0]?.id ?? null;
+  refs.deletePlanDialog?.close();
+  if (refs.settingsDialog?.open) {
+    refs.settingsDialog.close();
+  }
+  persistAndRender("Plan deleted.", "success");
+}
+
 function handleSettingsAddRoleRow() {
   if (!refs.settingsRolesList) {
     return;
@@ -2458,13 +2525,9 @@ async function saveSettings(event) {
   }
   applyDefaultRoleSplitsToBacklogRows(activePlan);
   if (refs.settingsUseSprintsCheckbox) {
-    const sprintPlanning =
-      String(activePlan.planningTimeMode || PLANNING_TIME_MODE.quarter) === PLANNING_TIME_MODE.sprint;
-    if (sprintPlanning) {
-      activePlan.useSprintsPlanning = Boolean(refs.settingsUseSprintsCheckbox.checked);
-      if (!activePlan.useSprintsPlanning) {
-        removeSprintsFromPlan(activePlan);
-      }
+    activePlan.useSprintsPlanning = Boolean(refs.settingsUseSprintsCheckbox.checked);
+    if (!activePlan.useSprintsPlanning) {
+      removeSprintsFromPlan(activePlan);
     }
   }
   if (refs.settingsUseBuffersCheckbox) {
@@ -2524,6 +2587,10 @@ function bindEvents() {
       handleCreatePlanUseBuffersChange,
       openSprintSettingsDialog,
       openBufferSettingsDialog,
+      openRenamePlanDialog,
+      submitRenamePlan,
+      handleDeletePlan,
+      submitDeletePlan,
       handleAddSprintRow,
       handleAddBufferRow,
       handleBufferSettingsInput,

@@ -113,6 +113,14 @@ export function cacheRefs(refs) {
   refs.settingsRolesSection = document.getElementById("settingsRolesSection");
   refs.settingsRolesList = document.getElementById("settingsRolesList");
   refs.settingsAddRoleBtn = document.getElementById("settingsAddRoleBtn");
+  refs.renamePlanBtn = document.getElementById("renamePlanBtn");
+  refs.deletePlanBtn = document.getElementById("deletePlanBtn");
+  refs.renamePlanDialog = document.getElementById("renamePlanDialog");
+  refs.renamePlanForm = document.getElementById("renamePlanForm");
+  refs.renamePlanInput = document.getElementById("renamePlanInput");
+  refs.deletePlanDialog = document.getElementById("deletePlanDialog");
+  refs.deletePlanForm = document.getElementById("deletePlanForm");
+  refs.deletePlanNameDisplay = document.getElementById("deletePlanNameDisplay");
   refs.deleteConfirmDialog = document.getElementById("deleteConfirmDialog");
   refs.deleteConfirmForm = document.getElementById("deleteConfirmForm");
   refs.deleteConfirmText = document.getElementById("deleteConfirmText");
