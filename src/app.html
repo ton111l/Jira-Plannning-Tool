@@ -563,8 +563,32 @@
         </div>
 
         <div class="modal-actions settings-form-footer">
+          <button type="button" id="renamePlanBtn" class="btn btn-secondary">Rename plan</button>
+          <button type="button" id="deletePlanBtn" class="btn btn-danger">Delete plan</button>
+          <div class="settings-form-footer-spacer"></div>
           <button type="submit" value="cancel" class="btn btn-secondary">Close</button>
           <button type="submit" id="saveSettingsBtn" value="default" class="btn">Save</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="renamePlanDialog" class="modal modal--sm">
+      <form method="dialog" id="renamePlanForm">
+        <h3>Rename plan</h3>
+        <input type="text" id="renamePlanInput" class="input" maxlength="120" />
+        <div class="modal-actions">
+          <button type="submit" value="cancel" formnovalidate class="btn btn-secondary">Cancel</button>
+          <button type="submit" value="ok" class="btn">OK</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="deletePlanDialog" class="modal modal--sm">
+      <form method="dialog" id="deletePlanForm">
+        <p>Delete plan "<strong id="deletePlanNameDisplay"></strong>"?</p>
+        <div class="modal-actions">
+          <button type="submit" value="cancel" formnovalidate class="btn btn-secondary">Cancel</button>
+          <button type="submit" value="delete" class="btn btn-danger">Delete</button>
         </div>
       </form>
     </dialog>
@@ -658,6 +682,9 @@
             title="Add buffer"
             aria-label="Add buffer row"
           >+</button>
+        </div>
+        <div class="buffer-settings-total">
+          Total: <strong id="buffersTotalDisplay">0%</strong>
         </div>
         <div class="modal-actions">
           <button type="submit" value="cancel" formnovalidate class="btn btn-secondary">Cancel</button>

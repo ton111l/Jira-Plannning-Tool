@@ -75,17 +75,21 @@ export function renderSettings({ refs, plan, appState, syncSettingsPlanningRow }
     refs.settingsPlanningGrid.hidden = !plan;
   }
   if (refs.settingsUseSprintsCheckbox) {
-    refs.settingsUseSprintsCheckbox.checked = isSprintPlanningMode ? Boolean(plan?.useSprintsPlanning) : false;
+    refs.settingsUseSprintsCheckbox.checked = Boolean(plan?.useSprintsPlanning);
     const sprintsLabel = refs.settingsUseSprintsCheckbox.closest("label");
     if (sprintsLabel) {
-      sprintsLabel.hidden = !isSprintPlanningMode;
+      sprintsLabel.hidden = false;
     }
   }
   if (refs.settingsSprintSettingsBtn) {
-    refs.settingsSprintSettingsBtn.hidden = !isSprintPlanningMode;
+    refs.settingsSprintSettingsBtn.hidden = false;
+    refs.settingsSprintSettingsBtn.disabled = !plan?.useSprintsPlanning;
   }
   if (refs.settingsUseBuffersCheckbox) {
     refs.settingsUseBuffersCheckbox.checked = Boolean(plan?.useBuffers);
+  }
+  if (refs.settingsBufferSettingsBtn) {
+    refs.settingsBufferSettingsBtn.disabled = !plan?.useBuffers;
   }
   if (refs.settingsDefaultLoadPercentSelect) {
     const raw = plan?.defaultLoadPercent ?? 100;
@@ -97,6 +101,12 @@ export function renderSettings({ refs, plan, appState, syncSettingsPlanningRow }
 
   syncSettingsDefaultRoleSplitSection(refs, plan, appState);
 
+  if (refs.renamePlanBtn) {
+    refs.renamePlanBtn.disabled = !plan;
+  }
+  if (refs.deletePlanBtn) {
+    refs.deletePlanBtn.disabled = !plan;
+  }
   if (refs.settingsRolesSection) {
     refs.settingsRolesSection.hidden = !plan;
     if (plan) {

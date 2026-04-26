@@ -108,6 +108,18 @@ export function bindEvents({
   if (refs.settingsBufferSettingsBtn) {
     refs.settingsBufferSettingsBtn.addEventListener("click", handlers.openBufferSettingsDialog);
   }
+  if (refs.renamePlanBtn) {
+    refs.renamePlanBtn.addEventListener("click", handlers.openRenamePlanDialog);
+  }
+  if (refs.renamePlanForm) {
+    refs.renamePlanForm.addEventListener("submit", handlers.submitRenamePlan);
+  }
+  if (refs.deletePlanBtn) {
+    refs.deletePlanBtn.addEventListener("click", handlers.handleDeletePlan);
+  }
+  if (refs.deletePlanForm) {
+    refs.deletePlanForm.addEventListener("submit", handlers.submitDeletePlan);
+  }
   if (refs.resourceGroupingTypeSelect) {
     refs.resourceGroupingTypeSelect.addEventListener("change", handlers.handleSettingsResourceGroupingChange);
   }

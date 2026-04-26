@@ -62,7 +62,7 @@ import {
   normalizePlanForMode
 } from "./modules/planning/index.js";
 import { PLANNING_TIME_MODE } from "./modules/planning/constants.js";
-import { buildSprintPeriods } from "./modules/planning/periodFactory.js";
+import { buildQuarterPeriodRecord, buildSprintPeriods } from "./modules/planning/periodFactory.js";
 
 let appState = null;
 let pendingDeleteAction = null;
@@ -584,8 +584,12 @@ function updateSprintDeleteButton() {
 
 function openSprintSettingsDialog() {
   refs.sprintSettingsTbody.innerHTML = "";
+  const activePlan = getActivePlan();
+  const sprintDur = activePlan?.sprintDurationDays ?? 14;
+  const defaultSprintWd = Math.max(1, Math.round((sprintDur * 5) / 7));
+
   if (isSettingsDialogOpen()) {
-    const plan = getActivePlan();
+    const plan = activePlan;
     const anchor = plan?.periods?.find((p) => p.kind === "quarter" || !p.kind);
     const sprints = anchor
       ? plan.periods.filter(
@@ -602,14 +606,14 @@ function openSprintSettingsDialog() {
       refs.sprintSettingsTbody.appendChild(buildSprintSettingsRow(idx + 1, wd > 0 ? wd : ""));
     });
     if (refs.sprintSettingsTbody.rows.length === 0) {
-      refs.sprintSettingsTbody.appendChild(buildSprintSettingsRow(1));
+      refs.sprintSettingsTbody.appendChild(buildSprintSettingsRow(1, defaultSprintWd));
     }
   } else if (Array.isArray(pendingSprintConfig) && pendingSprintConfig.length > 0) {
-      pendingSprintConfig.forEach((cfg, idx) => {
-        refs.sprintSettingsTbody.appendChild(buildSprintSettingsRow(idx + 1, cfg?.workingDays ?? ""));
-      });
+    pendingSprintConfig.forEach((cfg, idx) => {
+      refs.sprintSettingsTbody.appendChild(buildSprintSettingsRow(idx + 1, cfg?.workingDays ?? ""));
+    });
   } else {
-    refs.sprintSettingsTbody.appendChild(buildSprintSettingsRow(1));
+    refs.sprintSettingsTbody.appendChild(buildSprintSettingsRow(1, defaultSprintWd));
   }
   updateSprintDeleteButton();
   refs.sprintSettingsDialog.showModal();
@@ -653,7 +657,11 @@ function updateAllBuffersTotal() {
     const percentInput = row.querySelector(".sprint-settings-days-input");
     return sum + sanitizeNonNegative(percentInput?.value ?? 0);
   }, 0);
-  return Number(total.toFixed(2));
+  const rounded = Number(total.toFixed(2));
+  if (refs.buffersTotalDisplay) {
+    refs.buffersTotalDisplay.textContent = `${rounded}%`;
+  }
+  return rounded;
 }
 
 function updateBufferDeleteButton() {
@@ -681,9 +689,15 @@ function updateBufferDeleteButton() {
 
 function openBufferSettingsDialog() {
   refs.bufferSettingsTbody.innerHTML = "";
+
+  const isAllBuffersLegacyRow = (item) =>
+    String(item?.name || "").trim().toLowerCase() === "all buffers" &&
+    sanitizeNonNegative(item?.percent ?? 0) === 0;
+
   if (isSettingsDialogOpen()) {
     const plan = getActivePlan();
-    const savedItems = Array.isArray(plan?.bufferItems) ? plan.bufferItems : [];
+    const savedItems = (Array.isArray(plan?.bufferItems) ? plan.bufferItems : [])
+      .filter((item) => !isAllBuffersLegacyRow(item));
     if (savedItems.length > 0) {
       savedItems.forEach((item, idx) => {
         refs.bufferSettingsTbody.appendChild(
@@ -692,19 +706,24 @@ function openBufferSettingsDialog() {
       });
     } else if (plan && sanitizeNonNegative(plan.allBuffersPercent ?? 0) > 0) {
       refs.bufferSettingsTbody.appendChild(
-        buildBufferSettingsRow(1, { name: "All Buffers", percent: sanitizeNonNegative(plan.allBuffersPercent) })
+        buildBufferSettingsRow(1, { percent: sanitizeNonNegative(plan.allBuffersPercent) })
       );
     } else {
-      refs.bufferSettingsTbody.appendChild(buildBufferSettingsRow(1, { name: "All Buffers" }));
+      refs.bufferSettingsTbody.appendChild(buildBufferSettingsRow(1));
     }
   } else if (pendingBufferItems.length > 0) {
-    pendingBufferItems.forEach((item, idx) => {
-      refs.bufferSettingsTbody.appendChild(
-        buildBufferSettingsRow(idx + 1, { name: item?.name || "", percent: item?.percent || "" })
-      );
-    });
+    const filteredPending = pendingBufferItems.filter((item) => !isAllBuffersLegacyRow(item));
+    if (filteredPending.length > 0) {
+      filteredPending.forEach((item, idx) => {
+        refs.bufferSettingsTbody.appendChild(
+          buildBufferSettingsRow(idx + 1, { name: item?.name || "", percent: item?.percent || "" })
+        );
+      });
+    } else {
+      refs.bufferSettingsTbody.appendChild(buildBufferSettingsRow(1));
+    }
   } else {
-    refs.bufferSettingsTbody.appendChild(buildBufferSettingsRow(1, { name: "All Buffers" }));
+    refs.bufferSettingsTbody.appendChild(buildBufferSettingsRow(1));
   }
   updateBufferDeleteButton();
   updateAllBuffersTotal();
@@ -712,8 +731,11 @@ function openBufferSettingsDialog() {
 }
 
 function handleAddSprintRow() {
-  const nextNumber = refs.sprintSettingsTbody.rows.length + 1;
-  refs.sprintSettingsTbody.appendChild(buildSprintSettingsRow(nextNumber));
+  const rows = refs.sprintSettingsTbody.rows;
+  const nextNumber = rows.length + 1;
+  const lastRow = rows[rows.length - 1];
+  const lastWd = lastRow?.querySelector(".sprint-settings-days-input")?.value ?? "";
+  refs.sprintSettingsTbody.appendChild(buildSprintSettingsRow(nextNumber, lastWd));
   updateSprintDeleteButton();
 }
 
@@ -790,6 +812,10 @@ async function submitBufferSettings(event) {
     if (!name && percent <= 0) {
       continue;
     }
+    // Skip legacy "All Buffers" placeholder rows with zero percent
+    if (name.toLowerCase() === "all buffers" && percent <= 0) {
+      continue;
+    }
     items.push({ name: name || "Buffer", percent: Number(percent.toFixed(2)) });
   }
   pendingBufferItems = items;
@@ -835,26 +861,30 @@ function applySprintConfigToPlan(plan, sprintConfig) {
     sprintCount: sprintConfig.length
   });
 
+  const estimationType = getPlanEstimationType(plan);
+  const workingDaysByIndex = Object.fromEntries(sprintConfig.map((s) => [s.sprintIndex, s.workingDays]));
+
+  // Store working days on each sprint period so new rows can use the correct default
+  sprintPeriods.forEach((sp) => {
+    sp.defaultWorkingDays = workingDaysByIndex[sp.sprintIndex] ?? 0;
+  });
+
   const anchorIdx = plan.periods.findIndex((p) => p.id === anchorPeriod.id);
   if (anchorIdx >= 0) {
-    // Sprint mode should replace the anchor quarter, not keep both.
-    plan.periods.splice(anchorIdx, 1, ...sprintPeriods);
+    // Sprints come before the anchor quarter; the quarter acts as a read-only summary column
+    plan.periods.splice(anchorIdx, 1, ...sprintPeriods, anchorPeriod);
   }
 
   ensureTeamPeriodValues(plan);
-  if (plan.teamPeriodValues?.[anchorPeriod.id]) {
-    delete plan.teamPeriodValues[anchorPeriod.id];
-  }
+  // Keep the anchor quarter's team period values (it's now a summary column, not deleted)
   sprintPeriods.forEach((sp) => {
     plan.teamPeriodValues[sp.id] = { teamEstimationMode: "average", teamEstimationPerDay: "" };
   });
 
-  const estimationType = getPlanEstimationType(plan);
-  const workingDaysByIndex = Object.fromEntries(sprintConfig.map((s) => [s.sprintIndex, s.workingDays]));
-
   plan.capacityRows.forEach((row) => {
-    if (row.periodValues?.[anchorPeriod.id]) {
-      delete row.periodValues[anchorPeriod.id];
+    // Ensure the quarter summary period values exist; recomputeCapacityRow will sum from sprints
+    if (!row.periodValues[anchorPeriod.id]) {
+      row.periodValues[anchorPeriod.id] = createEmptyCapacityPeriodValues();
     }
     sprintPeriods.forEach((sp) => {
       const values = createEmptyCapacityPeriodValues();
@@ -1029,42 +1059,12 @@ async function handleCreatePlan() {
   refs.createPlanTeamEstimationModeSelect.value = periodTeamSettings?.teamEstimationMode || "average";
   refs.createPlanTeamEstimationValueInput.value = String(periodTeamSettings?.teamEstimationPerDay ?? "");
   handleCreatePlanEstimationTypeChange();
-  if (activePlan) {
-    refs.createPlanUseBuffersCheckbox.checked = Boolean(activePlan.useBuffers);
-    pendingBufferTotalPercent = sanitizeNonNegative(activePlan.allBuffersPercent ?? 0);
-    pendingBufferItems = Array.isArray(activePlan.bufferItems)
-      ? activePlan.bufferItems.map((item) => ({
-          name: String(item?.name || "").trim(),
-          percent: sanitizeNonNegative(item?.percent || 0)
-        }))
-      : [];
-    refs.createPlanUseSprintsCheckbox.checked = Boolean(activePlan.useSprintsPlanning);
-    const anchor = activePlan.periods?.find((p) => p.kind === "quarter" || !p.kind);
-    const sprints = anchor
-      ? activePlan.periods.filter(
-          (p) =>
-            p.kind === "sprint" &&
-            p.anchorQuarter === anchor.anchorQuarter &&
-            p.anchorYear === anchor.anchorYear
-        )
-      : [];
-    sprints.sort((a, b) => (a.sprintIndex ?? 0) - (b.sprintIndex ?? 0));
-    if (sprints.length && activePlan.useSprintsPlanning) {
-      const refRow = activePlan.capacityRows?.[0];
-      pendingSprintConfig = sprints.map((sp) => ({
-        sprintIndex: sp.sprintIndex,
-        workingDays: sanitizeNonNegative(refRow?.periodValues?.[sp.id]?.workingDays ?? 0)
-      }));
-    } else {
-      pendingSprintConfig = null;
-    }
-  } else {
-    refs.createPlanUseBuffersCheckbox.checked = false;
-    pendingBufferTotalPercent = 0;
-    pendingBufferItems = [];
-    refs.createPlanUseSprintsCheckbox.checked = false;
-    pendingSprintConfig = null;
-  }
+  // Always start a new plan with sprints and buffers off, regardless of the active plan
+  refs.createPlanUseBuffersCheckbox.checked = false;
+  pendingBufferTotalPercent = 0;
+  pendingBufferItems = [];
+  refs.createPlanUseSprintsCheckbox.checked = false;
+  pendingSprintConfig = null;
   handleCreatePlanUseSprintsChange();
   handleCreatePlanUseBuffersChange();
   refs.createPlanDialog.showModal();
@@ -1177,12 +1177,16 @@ async function handleAddCapacityRow() {
   const newRow = createCapacityRow(plan.periods);
   newRow.loadPercent = sanitizeLoadPercent(plan.defaultLoadPercent ?? 100);
   const defaultWorkingDays = sanitizeNonNegative(plan.defaultWorkingDays ?? 0);
-  const referenceRow = plan.capacityRows[0] ?? null;
+  const referenceRow = plan.capacityRows[plan.capacityRows.length - 1] ?? null;
   for (const period of plan.periods) {
     const to = newRow.periodValues[period.id];
     if (!to) continue;
-    if (period.kind === "sprint" && referenceRow) {
-      to.workingDays = sanitizeNonNegative(referenceRow.periodValues[period.id]?.workingDays ?? 0);
+    if (period.kind === "sprint") {
+      if (referenceRow) {
+        to.workingDays = sanitizeNonNegative(referenceRow.periodValues[period.id]?.workingDays ?? 0);
+      } else {
+        to.workingDays = sanitizeNonNegative(period.defaultWorkingDays ?? defaultWorkingDays);
+      }
     } else {
       to.workingDays = defaultWorkingDays;
     }
@@ -2355,6 +2359,70 @@ function openSettingsDialog() {
   refs.settingsDialog.showModal();
 }
 
+function openRenamePlanDialog() {
+  const plan = getActivePlan();
+  if (!plan || !refs.renamePlanDialog || !refs.renamePlanInput) {
+    return;
+  }
+  refs.renamePlanInput.value = plan.name || "";
+  refs.renamePlanDialog.showModal();
+  refs.renamePlanInput.select();
+}
+
+function submitRenamePlan(event) {
+  event.preventDefault();
+  if (event.submitter?.value !== "ok") {
+    refs.renamePlanDialog?.close();
+    return;
+  }
+  const plan = getActivePlan();
+  if (!plan) {
+    refs.renamePlanDialog?.close();
+    return;
+  }
+  const newName = (refs.renamePlanInput?.value || "").trim();
+  if (!newName) {
+    setMessage("Plan name cannot be empty.", "error");
+    return;
+  }
+  plan.name = newName;
+  touchPlan(plan);
+  refs.renamePlanDialog?.close();
+  persistAndRender(`Plan renamed to "${newName}".`, "success");
+}
+
+async function handleDeletePlan() {
+  const plan = getActivePlan();
+  if (!plan || !refs.deletePlanDialog) {
+    return;
+  }
+  if (refs.deletePlanNameDisplay) {
+    refs.deletePlanNameDisplay.textContent = plan.name || plan.id;
+  }
+  refs.deletePlanDialog.showModal();
+}
+
+function submitDeletePlan(event) {
+  event.preventDefault();
+  if (event.submitter?.value !== "delete") {
+    refs.deletePlanDialog?.close();
+    return;
+  }
+  const plan = getActivePlan();
+  if (!plan) {
+    refs.deletePlanDialog?.close();
+    return;
+  }
+  const deletedId = plan.id;
+  appState.plans = appState.plans.filter((p) => p.id !== deletedId);
+  appState.lastSelectedPlanId = appState.plans[0]?.id ?? null;
+  refs.deletePlanDialog?.close();
+  if (refs.settingsDialog?.open) {
+    refs.settingsDialog.close();
+  }
+  persistAndRender("Plan deleted.", "success");
+}
+
 function handleSettingsAddRoleRow() {
   if (!refs.settingsRolesList) {
     return;
@@ -2457,13 +2525,9 @@ async function saveSettings(event) {
   }
   applyDefaultRoleSplitsToBacklogRows(activePlan);
   if (refs.settingsUseSprintsCheckbox) {
-    const sprintPlanning =
-      String(activePlan.planningTimeMode || PLANNING_TIME_MODE.quarter) === PLANNING_TIME_MODE.sprint;
-    if (sprintPlanning) {
-      activePlan.useSprintsPlanning = Boolean(refs.settingsUseSprintsCheckbox.checked);
-      if (!activePlan.useSprintsPlanning) {
-        removeSprintsFromPlan(activePlan);
-      }
+    activePlan.useSprintsPlanning = Boolean(refs.settingsUseSprintsCheckbox.checked);
+    if (!activePlan.useSprintsPlanning) {
+      removeSprintsFromPlan(activePlan);
     }
   }
   if (refs.settingsUseBuffersCheckbox) {
@@ -2523,6 +2587,10 @@ function bindEvents() {
       handleCreatePlanUseBuffersChange,
       openSprintSettingsDialog,
       openBufferSettingsDialog,
+      openRenamePlanDialog,
+      submitRenamePlan,
+      handleDeletePlan,
+      submitDeletePlan,
       handleAddSprintRow,
       handleAddBufferRow,
       handleBufferSettingsInput,
@@ -2613,6 +2681,54 @@ async function init() {
       plan.planningTimeMode = PLANNING_TIME_MODE.sprint;
     } else if (!hasSprintPeriods && plan.planningTimeMode === PLANNING_TIME_MODE.sprint) {
       plan.planningTimeMode = PLANNING_TIME_MODE.quarter;
+    }
+
+    // Migration: restore quarter summary period for sprint plans that previously had the
+    // quarter removed, and backfill defaultWorkingDays on sprint periods.
+    if (hasSprintPeriods) {
+      const sprintGroups = {};
+      (plan.periods || []).forEach((p) => {
+        if (p.kind === "sprint") {
+          const key = `${p.anchorQuarter}_${p.anchorYear}`;
+          if (!sprintGroups[key]) sprintGroups[key] = [];
+          sprintGroups[key].push(p);
+        }
+      });
+      const refRow = plan.capacityRows?.[0];
+      Object.entries(sprintGroups).forEach(([key, sprints]) => {
+        const underscoreIdx = key.indexOf("_");
+        const anchorQ = key.slice(0, underscoreIdx);
+        const anchorY = Number(key.slice(underscoreIdx + 1));
+        const hasQuarter = (plan.periods || []).some(
+          (p) => (p.kind === "quarter" || !p.kind) && p.anchorQuarter === anchorQ && p.anchorYear === anchorY
+        );
+        if (!hasQuarter) {
+          const quarterPeriod = buildQuarterPeriodRecord({ quarter: anchorQ, year: anchorY });
+          const lastSprintIdx = (plan.periods || []).reduce((max, p, i) => {
+            return p.kind === "sprint" && p.anchorQuarter === anchorQ && p.anchorYear === anchorY ? i : max;
+          }, -1);
+          plan.periods.splice(lastSprintIdx + 1, 0, quarterPeriod);
+          if (!plan.teamPeriodValues) plan.teamPeriodValues = {};
+          if (!plan.teamPeriodValues[quarterPeriod.id]) {
+            plan.teamPeriodValues[quarterPeriod.id] = { teamEstimationMode: "average", teamEstimationPerDay: "" };
+          }
+          (plan.capacityRows || []).forEach((row) => {
+            if (!row.periodValues[quarterPeriod.id]) {
+              row.periodValues[quarterPeriod.id] = createEmptyCapacityPeriodValues();
+            }
+          });
+        }
+        sprints.forEach((sp) => {
+          if (sp.defaultWorkingDays === undefined || sp.defaultWorkingDays === null) {
+            sp.defaultWorkingDays = sanitizeNonNegative(refRow?.periodValues?.[sp.id]?.workingDays ?? 0);
+          }
+        });
+      });
+      // Recompute all rows so quarter values are derived from their linked sprints
+      const estimationTypeMigration = plan.estimationType || "story_points";
+      (plan.capacityRows || []).forEach((row) => {
+        recomputeCapacityRow(row, plan.periods, estimationTypeMigration);
+      });
     }
     (plan.backlogRows || []).forEach((row) => {
       if (row.targetPeriodId === undefined || row.targetPeriodId === null) {
