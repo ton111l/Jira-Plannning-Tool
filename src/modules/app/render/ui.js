@@ -208,7 +208,8 @@ function splitRemainderEqually(remainder, count) {
 
 /**
  * When the first default-% field has a value, fills the rest so the sum is 100%.
- * (Editing rows 2+ does not trigger this — only call this when the first row changes or role count changes.)
+ * Call on `change` (after the user finishes editing the first field) or when role count changes;
+ * editing rows 2+ does not trigger this.
  */
 export function distributeDefaultRoleSplitFromFirst(refs) {
   const list = refs.settingsDefaultRoleSplitList;
@@ -417,9 +418,6 @@ export function renderBacklogOverlay({ refs, plan }) {
   }
   if (refs.backlogStatsBar) {
     refs.backlogStatsBar.style.display = showOverlay ? "none" : "";
-  }
-  if (refs.openImportModalBtn) {
-    refs.openImportModalBtn.style.display = "";
   }
 
   if (!showOverlay) {

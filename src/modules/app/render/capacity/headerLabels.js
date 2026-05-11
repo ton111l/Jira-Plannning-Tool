@@ -33,7 +33,7 @@ export function getCapacityNumericFieldTitle(field, ctx) {
     case "rowEstimationPerDay":
       return `${est} per day for this member: supply for the period is available capacity times this rate; balance is supply minus planned.`;
     case "rowEstimationPerDayTeam":
-      return `${est} per day for the team or role total. When you save a value here, manual mode is used instead of the average of members.`;
+      return `${est} per day for the merged team (or role-total) cell in this period. Typing a value locks this column to a fixed team rate; leaving it in average mode uses the mean of members’ per-day values below. Defaults for new plans / the first period also come from Settings → Team Story Points per day.`;
     case "plannedEstimation":
       return "Planned demand from the backlog for this member and period (read-only).";
     case "plannedEstimationTeam":

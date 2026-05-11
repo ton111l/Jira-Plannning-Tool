@@ -82,6 +82,17 @@ export function collectSettingsRoleOptions(refs) {
   return { ok: true, options };
 }
 
+function teamPeriodSettingsEqual(a, b) {
+  const modeA = a?.teamEstimationMode || "average";
+  const modeB = b?.teamEstimationMode || "average";
+  if (modeA !== modeB) {
+    return false;
+  }
+  const vA = String(a?.teamEstimationPerDay ?? "").trim();
+  const vB = String(b?.teamEstimationPerDay ?? "").trim();
+  return vA === vB;
+}
+
 function applyRoleOptionsFromCollect(plan, options) {
   if (!options?.length) {
     return;
@@ -118,18 +129,34 @@ export function applySettingsChanges({
     if (selectedMode === "manual") {
       const numericValue = Number(rawValue);
       if (rawValue === "" || !Number.isFinite(numericValue) || numericValue < 0) {
-        return { ok: false, error: "Enter Team value or switch to Team average." };
+        return {
+          ok: false,
+          error: 'Enter "Fixed team SP/day" or switch to "Average of members\' SP/day".'
+        };
       }
     }
     if (!plan.teamPeriodValues || typeof plan.teamPeriodValues !== "object") {
       plan.teamPeriodValues = {};
     }
+    const firstPeriodId = plan.periods[0]?.id;
+    const prevFirst =
+      firstPeriodId && plan.teamPeriodValues[firstPeriodId]
+        ? {
+            teamEstimationMode: plan.teamPeriodValues[firstPeriodId].teamEstimationMode || "average",
+            teamEstimationPerDay: plan.teamPeriodValues[firstPeriodId].teamEstimationPerDay
+          }
+        : { teamEstimationMode: "average", teamEstimationPerDay: "" };
     plan.periods.forEach((period) => {
       if (!plan.teamPeriodValues[period.id]) {
         plan.teamPeriodValues[period.id] = { teamEstimationMode: "average", teamEstimationPerDay: "" };
       }
-      plan.teamPeriodValues[period.id].teamEstimationMode = selectedMode;
-      plan.teamPeriodValues[period.id].teamEstimationPerDay = selectedMode === "manual" ? rawValue : "";
+      const current = plan.teamPeriodValues[period.id];
+      const isFirst = firstPeriodId && period.id === firstPeriodId;
+      const stillMirrorsFirstBeforeSave = teamPeriodSettingsEqual(current, prevFirst);
+      if (isFirst || stillMirrorsFirstBeforeSave) {
+        current.teamEstimationMode = selectedMode;
+        current.teamEstimationPerDay = selectedMode === "manual" ? rawValue : "";
+      }
     });
   } else if (plan.teamPeriodValues && typeof plan.teamPeriodValues === "object") {
     plan.periods.forEach((period) => {

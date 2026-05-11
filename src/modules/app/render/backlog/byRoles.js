@@ -140,6 +140,10 @@ export function renderImportBacklogByRoles({
         buildCellInput({
           value: backlogRow[column.splitField] || "",
           type: "number",
+          min: 0,
+          max: 100,
+          step: "any",
+          title: "Role share of this issue’s estimate (0–100%). Decimals allowed.",
           dataset: { section: "backlog", rowId: backlogRow.id, field: column.splitField }
         })
       );
@@ -151,10 +155,10 @@ export function renderImportBacklogByRoles({
         value: backlogRow[column.estimationField],
         type: "number",
         readOnly: false,
+        min: 0,
+        step: "any",
         dataset: { section: "backlog", rowId: backlogRow.id, field: column.estimationField }
       });
-      roleSpInput.step = "any";
-      roleSpInput.min = "0";
       estimationTd.appendChild(roleSpInput);
       tr.appendChild(estimationTd);
     });

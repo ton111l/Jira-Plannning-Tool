@@ -29,7 +29,10 @@ export function bindEvents({
     refs.settingsRolesList.addEventListener("click", handlers.handleSettingsRolesListClick);
   }
   if (refs.settingsDefaultRoleSplitList) {
-    refs.settingsDefaultRoleSplitList.addEventListener("input", (event) => {
+    refs.settingsDefaultRoleSplitList.addEventListener("input", () => {
+      refreshDefaultRoleSplitTotal(refs);
+    });
+    refs.settingsDefaultRoleSplitList.addEventListener("change", (event) => {
       const inputs = refs.settingsDefaultRoleSplitList.querySelectorAll(".settings-default-role-split-input");
       if (inputs.length && event.target === inputs[0]) {
         distributeDefaultRoleSplitFromFirst(refs);

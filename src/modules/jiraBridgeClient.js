@@ -1,3 +1,5 @@
+import { BACKLOG_MAX_ISSUES } from "./planning/constants.js";
+
 function canUseChromeRuntime() {
   return (
     typeof chrome !== "undefined" &&
@@ -26,7 +28,7 @@ function sendRuntimeMessage(payload) {
 export async function importIssuesViaJiraTab({
   baseUrl,
   jql,
-  maxResults = 200,
+  maxResults = BACKLOG_MAX_ISSUES,
   estimationFieldName = "",
   timeoutMs = 120000
 }) {

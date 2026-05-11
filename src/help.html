@@ -160,9 +160,13 @@
         <h3>Story Points options at creation</h3>
         <ul>
           <li>
-            <span class="ui-label">Team Story Points per day</span> — <strong>Use Team average</strong>
-            (mean of member inputs later) or <strong>Use fixed Team value</strong> (one number for the
-            team cell). Fixed mode requires a numeric team value before Create.
+            <span class="ui-label">Team Story Points per day</span> — for Story Points + <strong>By
+            team</strong> or <strong>By member</strong>, how Capacity fills the merged team
+            <strong>Story Points per day</strong> cell: <strong>Average of members’ SP/day</strong> (mean
+            of each member’s value in that period column) or <strong>Single fixed SP/day for the
+            team</strong> (one number in <span class="ui-label">Fixed team SP/day</span>). Fixed mode
+            requires that number before <strong>Create</strong>. The first period column starts here;
+            you can still set other period columns separately on Capacity.
           </li>
         </ul>
         <h3>Use Sprints Planning</h3>
@@ -277,17 +281,19 @@
         <h2>Backlog tab</h2>
         <ul>
           <li>
-            <strong>Toolbar</strong> (when the table is visible): <span class="ui-label">Import backlog from
-            Jira</span>; a
-            <strong>Filter</strong> box (matches issue key or summary in the browser only); <strong>Period</strong>
-            for selected rows (applies immediately on selection change); <span class="ui-label">Delete selected</span>;
+            <strong>Toolbar</strong> (when the table is visible): a
+            <strong>Filter</strong> box (matches issue key or summary in the browser only); toolbar
+            <strong>Period</strong> (filters rows by that plan period when no checkboxes are selected;
+            if one or more rows are selected, choosing a period assigns it to those rows and saves);
+            <span class="ui-label">Delete selected</span>;
+            then <span class="ui-label">Import backlog from Jira</span> (same merge dialog as the overlay);
             and <strong>View</strong> (<strong>Full</strong> / <strong>Compact</strong>, saved per plan).
             If any row has invalid role splits in
             <strong>By roles</strong> or <strong>By member</strong>, a yellow notice appears under the toolbar.
           </li>
           <li>
-            Bottom stats strip shows <strong>Total items</strong>, <strong>Filtered items</strong>, and
-            <strong>Selected items</strong>.
+            Bottom stats strip shows <strong>Total items</strong>, <strong>Filtered items</strong> (after
+            text + toolbar period filters), and <strong>Selected items</strong>.
           </li>
           <li>
             The checkbox and <strong>Key</strong> columns stay pinned on the left when you scroll the
@@ -320,8 +326,10 @@
           </li>
           <li>
             Re-import merges on normalized keys (e.g. <kbd>PROJECT-123</kbd>): existing keys refresh
-            Jira-sourced fields; new keys append. Locally deleted issues reappear if your JQL returns
-            them again.
+            Jira-sourced fields except the **estimate** — that column updates from Jira only when the
+            row’s current value is empty; if you already entered or edited an estimate, re-import leaves
+            it unchanged. New keys append with full Jira data. Locally deleted issues reappear if your JQL
+            returns them again.
           </li>
         </ul>
 
@@ -334,8 +342,11 @@
             needed.
           </li>
           <li>
-            Story Points — <span class="ui-label">Team Story Points per day</span> (team average vs
-            fixed team value + numeric team value when fixed).
+            Story Points — <span class="ui-label">Team Story Points per day</span> matches the Create
+            Plan control: merged team SP/day on Capacity is either the <strong>average of members</strong>
+            in that column or a <strong>single fixed</strong> value (<span class="ui-label">Fixed team
+            SP/day</span>). <strong>Save</strong> updates the <strong>first</strong> period column from
+            this form; other period columns keep their own values if you already edited them in Capacity.
           </li>
           <li>
             <span class="ui-label">Working days for all rows</span> — default working days for capacity
@@ -378,7 +389,9 @@
           </li>
           <li>
             <span class="ui-label">Input JQL request</span> — identical idea to the Issue Navigator
-            (last JQL is remembered per plan).
+            (last JQL is remembered per plan). At most <strong>100</strong> issues are fetched per import;
+            the backlog table also holds at most <strong>100</strong> rows (delete rows to make room for
+            more new keys on a later import).
           </li>
           <li>
             <span class="ui-label">Jira estimation field type</span> — choose whether the field id below
@@ -478,10 +491,14 @@
         <h3>Story Points при создании</h3>
         <ul>
           <li>
-            <span class="ui-label">Team Story Points per day</span> — <strong>Use Team average</strong>
-            (позже по значениям участников) или <strong>Use fixed Team value</strong> (одно число для
-            ячейки команды). Во втором случае перед <span class="ui-label">Create</span> нужно ввести
-            числовое значение команды.
+            <span class="ui-label">Team Story Points per day</span> — при Story Points и группировке
+            <strong>By team</strong> или <strong>By member</strong>: как заполняется объединённая ячейка
+            команды <strong>Story Points per day</strong> на Capacity — <strong>Average of members’
+            SP/day</strong> (среднее по участникам в этой колонке периода) или <strong>Single fixed SP/day
+            for the team</strong> (одно число в <span class="ui-label">Fixed team SP/day</span>). Во
+            втором случае перед <span class="ui-label">Create</span> нужно ввести число. Здесь задаётся
+            старт для <strong>первого</strong> периода; остальные колонки периодов можно править отдельно
+            в таблице Capacity.
           </li>
         </ul>
         <h3>Use Sprints Planning</h3>
@@ -596,16 +613,18 @@
         <h2>Вкладка Backlog for planning</h2>
         <ul>
           <li>
-            <strong>Панель над таблицей</strong> (когда таблица видна): импорт из Jira; поле <strong>фильтра</strong> (поиск по ключу
-            или summary только в браузере); <strong>Period</strong> для выбранных строк (применяется сразу
-            при выборе значения); <span class="ui-label">Delete selected</span>; <strong>View</strong>
-            (<strong>Full</strong> / <strong>Compact</strong>, сохраняется в плане). При ошибках
+            <strong>Панель над таблицей</strong> (когда таблица видна): поле <strong>фильтра</strong> (поиск по ключу
+            или summary только в браузере); в тулбаре <strong>Period</strong> — если строки не отмечены
+            чекбоксами, по выбранному периоду фильтруются видимые строки; если отмечены одна или несколько
+            строк, выбор периода назначает его им и сохраняет план; <span class="ui-label">Delete selected</span>; затем
+            <span class="ui-label">Import backlog from Jira</span> (тот же диалог слияния, что и на оверлее);
+            <strong>View</strong> (<strong>Full</strong> / <strong>Compact</strong>, сохраняется в плане). При ошибках
             долей в режимах <strong>By roles</strong> / <strong>By member</strong> под панелью показывается
             жёлтое предупреждение.
           </li>
           <li>
-            Нижняя серая панель показывает <strong>Total items</strong>, <strong>Filtered items</strong> и
-            <strong>Selected items</strong>.
+            Нижняя серая панель показывает <strong>Total items</strong>, <strong>Filtered items</strong> (с учётом
+            фильтра по тексту и периоду в тулбаре) и <strong>Selected items</strong>.
           </li>
           <li>
             Колонки <strong>чекбокс</strong> и <strong>Key</strong> закреплены слева при горизонтальной
@@ -639,8 +658,10 @@
           </li>
           <li>
             Повторный импорт объединяет по нормализованному ключу (например, <kbd>PROJECT-123</kbd>):
-            существующие ключи обновляются, новые добавляются. Локально удалённая задача появится снова,
-            если снова попадёт в выборку JQL.
+            у существующих строк обновляются поля из Jira, кроме **оценки** — колонка оценки подтягивается
+            из Jira только если сейчас пусто; если значение уже введено или отредактировано, повторный
+            импорт его не меняет. Новые ключи добавляются с полными данными из Jira. Локально удалённая
+            задача появится снова, если снова попадёт в выборку JQL.
           </li>
         </ul>
 
@@ -652,8 +673,11 @@
             семантики; тогда помогут повторный импорт или ручной ввод.
           </li>
           <li>
-            Для Story Points — <span class="ui-label">Team Story Points per day</span> (среднее по команде
-            или фиксированное значение + число при фиксированном режиме).
+            Для Story Points — <span class="ui-label">Team Story Points per day</span> то же, что при
+            создании плана: среднее по участникам или одно фиксированное значение SP/day для ячейки
+            команды (<span class="ui-label">Fixed team SP/day</span>). По <strong>Save</strong> из формы
+            обновляется <strong>первый</strong> период; колонки других периодов, если вы уже меняли их
+            в Capacity, сохраняют свои значения.
           </li>
           <li>
             <span class="ui-label">Working days for all rows</span> — базовые рабочие дни для строк и
@@ -697,7 +721,9 @@
           </li>
           <li>
             <span class="ui-label">Input JQL request</span> — как в навигаторе задач (последний JQL
-            запоминается в плане).
+            запоминается в плане). За один импорт из Jira приходит не больше <strong>100</strong> задач;
+            в таблице бэклога не больше <strong>100</strong> строк — лишние новые ключи не добавляются,
+            пока не удалите строки и не импортируете снова.
           </li>
           <li>
             <span class="ui-label">Jira estimation field type</span> — отдельно от типа оценки в

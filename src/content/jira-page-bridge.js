@@ -2,6 +2,7 @@
   const REQUEST_SOURCE = "jira-planning-content";
   const RESPONSE_SOURCE = "jira-planning-page-bridge";
   const DEBUG_PREFIX = "[Jira Import Debug][page-bridge]";
+  const BACKLOG_MAX_ISSUES = 100;
 
   function buildFormBody(params) {
     return Object.entries(params)
@@ -108,7 +109,7 @@
       "labels",
       ...optionalFields
     ]));
-    const normalizedMaxResults = Math.min(Math.max(Number(maxResults) || 50, 1), 200);
+    const normalizedMaxResults = Math.min(Math.max(Number(maxResults) || 50, 1), BACKLOG_MAX_ISSUES);
     async function doSearch(fields) {
       const fieldsCsv = fields.join(",");
       const normalizedJql = String(jql).trim();
@@ -370,7 +371,7 @@
   async function runImport(payload) {
     const baseUrl = String(payload?.baseUrl || "").trim().replace(/\/+$/, "");
     const jql = String(payload?.jql || "").trim();
-    const maxResults = Math.min(Math.max(Number(payload?.maxResults) || 50, 1), 200);
+    const maxResults = Math.min(Math.max(Number(payload?.maxResults) || 50, 1), BACKLOG_MAX_ISSUES);
     const estimationFieldName = String(payload?.estimationFieldName || "").trim() || "customfield_10016";
 
     if (!baseUrl) {

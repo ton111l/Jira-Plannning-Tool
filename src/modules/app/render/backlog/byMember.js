@@ -13,18 +13,26 @@ function buildMemberSelectForRole(plan, backlogRow, roleOption) {
   ph.value = "";
   ph.textContent = "Select member";
   select.appendChild(ph);
-  for (const crow of plan.capacityRows || []) {
+  const roleId = String(roleOption?.id || "").trim();
+  const membersForRole = (plan.capacityRows || []).filter(
+    (crow) => String(crow?.roleId || "").trim() === roleId && roleId
+  );
+  for (const crow of membersForRole) {
     const opt = document.createElement("option");
     opt.value = crow.id;
     opt.textContent = String(crow.memberName || "").trim() || "(unnamed)";
     select.appendChild(opt);
   }
-  const map =
-    backlogRow.targetCapacityRowIdByRoleId && typeof backlogRow.targetCapacityRowIdByRoleId === "object"
-      ? backlogRow.targetCapacityRowIdByRoleId
-      : {};
-  const v = map[roleOption.id];
-  select.value = (plan.capacityRows || []).some((r) => r.id === v) ? v : "";
+  if (!backlogRow.targetCapacityRowIdByRoleId || typeof backlogRow.targetCapacityRowIdByRoleId !== "object") {
+    backlogRow.targetCapacityRowIdByRoleId = {};
+  }
+  const map = backlogRow.targetCapacityRowIdByRoleId;
+  let v = String(map[roleOption.id] || "").trim();
+  if (v && !membersForRole.some((r) => r.id === v)) {
+    map[roleOption.id] = "";
+    v = "";
+  }
+  select.value = v && membersForRole.some((r) => r.id === v) ? v : "";
   select.dataset.section = "backlog";
   select.dataset.rowId = backlogRow.id;
   select.dataset.field = "targetCapacityRowIdByRole";
@@ -176,6 +184,10 @@ export function renderImportBacklogByMember({
         buildCellInput({
           value: backlogRow[column.splitField] || "",
           type: "number",
+          min: 0,
+          max: 100,
+          step: "any",
+          title: "Role share of this issue’s estimate (0–100%). Decimals allowed.",
           dataset: { section: "backlog", rowId: backlogRow.id, field: column.splitField }
         })
       );

@@ -8,6 +8,9 @@ export const PLANNING_TIME_MODE = {
   sprint: "sprint"
 };
 
+/** Max Jira search results per import and max backlog rows for the plan (new keys skip when full). */
+export const BACKLOG_MAX_ISSUES = 100;
+
 /** Velocity is optional; consumed later when formulas are defined. */
 export const VELOCITY_MODE = {
   none: "none",

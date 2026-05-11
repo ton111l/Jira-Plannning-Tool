@@ -140,9 +140,6 @@
       <section id="backlogPanel" class="panel" role="tabpanel" aria-labelledby="tab-backlog">
         <div id="backlogContent" class="capacity-content">
           <div id="backlogToolbar" class="backlog-toolbar">
-            <div class="backlog-toolbar-cluster backlog-toolbar-cluster--actions">
-              <button type="button" id="openImportModalBtn" class="btn" hidden>Import backlog from Jira</button>
-            </div>
             <div class="backlog-toolbar-cluster backlog-toolbar-cluster--meta">
               <input
                 type="search"
@@ -153,18 +150,19 @@
                 autocomplete="off"
               />
             </div>
-            <div id="backlogBulkActions" class="backlog-toolbar-cluster backlog-toolbar-cluster--bulk" hidden>
+            <div id="backlogBulkActions" class="backlog-toolbar-cluster backlog-toolbar-cluster--bulk">
               <div class="capacity-view-control backlog-period-control">
                 <span class="capacity-view-prefix" aria-hidden="true">Period:</span>
                 <select
                   id="backlogBulkPeriodSelect"
                   class="capacity-view-select-inner backlog-bulk-period-select"
-                  aria-label="Period to assign to selected rows"
+                  aria-label="Filter backlog by plan period, or assign this period to selected rows"
                 ></select>
               </div>
               <button type="button" id="backlogDeleteSelectedBtn" class="btn btn-danger" disabled>
                 Delete selected
               </button>
+              <button type="button" id="openImportModalBtn" class="btn">Import backlog from Jira</button>
             </div>
             <div class="backlog-toolbar-cluster backlog-toolbar-cluster--view">
               <div class="capacity-view-control backlog-density-control">
@@ -275,16 +273,19 @@
             <span
               class="help-tooltip"
               tabindex="0"
-              aria-label="Help: Team Story Points per day"
-              data-tooltip="Choose how Team Story Points per day is calculated. Team average uses the mean of member values; Fixed value uses one shared number for the team."
+              aria-label="Help: merged team Story Points per day on Capacity"
+              data-tooltip="Only when Estimation type is Story Points and grouping is By team or By member. On the Capacity tab this is the merged team “Story Points per day” cell for each period column. Team average: mean of every member’s SP/day in that column. Fixed team value: one number (below) replaces that mean until you switch back. The first planning period starts from what you choose here; other period columns can be edited separately in Capacity."
             >?</span>
           </label>
           <select id="createPlanTeamEstimationModeSelect" class="input select">
-            <option value="average">Use Team average</option>
-            <option value="manual">Use fixed Team value</option>
+            <option value="average">Average of members' SP/day</option>
+            <option value="manual">Single fixed SP/day for the team</option>
           </select>
           <div id="createPlanTeamEstimationValueWrap">
-            <label for="createPlanTeamEstimationValueInput">Team value</label>
+            <label
+              for="createPlanTeamEstimationValueInput"
+              title='Used only when "Single fixed SP/day for the team" is selected.'
+              >Fixed team SP/day</label>
             <input
               id="createPlanTeamEstimationValueInput"
               class="input"
@@ -341,6 +342,11 @@
     <dialog id="importDialog" class="modal">
       <form method="dialog" id="importForm">
         <h3>Import backlog from Jira</h3>
+        <p class="import-estimation-kind-hint">
+          Jira returns at most <strong>100</strong> issues per run. The backlog tab stores at most
+          <strong>100</strong> rows; new keys are skipped when the table is full — delete rows, then
+          import again to add more.
+        </p>
         <label for="importJiraBaseUrlInput">Jira Base URL</label>
         <input id="importJiraBaseUrlInput" class="input" placeholder="https://jira.company.local" />
         <label for="jqlInput">Input JQL request</label>
@@ -456,16 +462,19 @@
             <span
               class="help-tooltip"
               tabindex="0"
-              aria-label="Help: Team Story Points per day"
-              data-tooltip="Choose how Team Story Points per day is calculated. Team average uses the mean of member values; Fixed value uses one shared number for the team."
+              aria-label="Help: merged team Story Points per day on Capacity"
+              data-tooltip="Only when Estimation type is Story Points and grouping is By team or By member. On the Capacity tab this is the merged team “Story Points per day” cell for each period column. Team average: mean of every member’s SP/day in that column. Fixed team value: one number (below) replaces that mean until you switch back. Save updates the first period from this form; period columns you already changed in Capacity keep their own values."
             >?</span>
           </label>
           <select id="settingsTeamEstimationModeSelect" class="input select">
-            <option value="average">Use Team average</option>
-            <option value="manual">Use fixed Team value</option>
+            <option value="average">Average of members' SP/day</option>
+            <option value="manual">Single fixed SP/day for the team</option>
           </select>
           <div id="settingsTeamEstimationValueWrap">
-            <label for="settingsTeamEstimationValueInput">Team value</label>
+            <label
+              for="settingsTeamEstimationValueInput"
+              title='Used only when "Single fixed SP/day for the team" is selected.'
+              >Fixed team SP/day</label>
             <input
               id="settingsTeamEstimationValueInput"
               class="input"
