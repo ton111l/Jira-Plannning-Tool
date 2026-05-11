@@ -61,7 +61,7 @@ import {
   getEffectiveEstimationType,
   normalizePlanForMode
 } from "./modules/planning/index.js";
-import { PLANNING_TIME_MODE } from "./modules/planning/constants.js";
+import { BACKLOG_MAX_ISSUES, PLANNING_TIME_MODE } from "./modules/planning/constants.js";
 import { buildQuarterPeriodRecord, buildSprintPeriods } from "./modules/planning/periodFactory.js";
 
 let appState = null;
@@ -134,9 +134,9 @@ function setMessage(message, kind = "info") {
   }
 }
 
-async function persistAndRender(message, kind) {
+async function persistAndRender(message, kind, { applyBacklogDemand = true } = {}) {
   await saveState(appState);
-  render();
+  render({ applyBacklogDemand });
   if (message) {
     setMessage(message, kind);
   }
@@ -156,7 +156,10 @@ function buildCellInput({
   type = "text",
   readOnly = false,
   placeholder = "",
-  title = ""
+  title = "",
+  min,
+  max,
+  step
 }) {
   const input = document.createElement("input");
   input.className = "cell-input";
@@ -166,6 +169,15 @@ function buildCellInput({
   input.placeholder = placeholder;
   if (title) {
     input.title = title;
+  }
+  if (min != null && String(min).trim() !== "") {
+    input.min = String(min);
+  }
+  if (max != null && String(max).trim() !== "") {
+    input.max = String(max);
+  }
+  if (step != null && String(step).trim() !== "") {
+    input.step = String(step);
   }
   for (const [key, datasetValue] of Object.entries(dataset)) {
     input.dataset[key] = datasetValue;
@@ -637,7 +649,7 @@ function buildBufferSettingsRow(bufferNumber, { name = "", percent = "" } = {}) 
   const percentInput = document.createElement("input");
   percentInput.type = "number";
   percentInput.min = "0";
-  percentInput.step = "0.1";
+  percentInput.step = "any";
   percentInput.className = "input sprint-settings-days-input";
   percentInput.setAttribute("aria-label", `Buffer percent ${bufferNumber}`);
   percentInput.value = String(percent ?? "");
@@ -949,13 +961,13 @@ function dedupeBacklogRowsByKey(plan) {
   });
 }
 
-function render() {
+function render({ applyBacklogDemand = true } = {}) {
   renderTabs();
   renderPlanSelect();
   renderPlanExportControlView({ refs, plan: getActivePlan() });
   renderTeamName();
   const activePlanForDemand = getActivePlan();
-  if (activePlanForDemand?.periods?.length && activePlanForDemand.capacityRows?.length) {
+  if (applyBacklogDemand && activePlanForDemand?.periods?.length && activePlanForDemand.capacityRows?.length) {
     applyPlannedFromBacklog(activePlanForDemand, getPlanResourceGroupingType(activePlanForDemand));
   }
   renderCapacityTable();
@@ -1098,7 +1110,7 @@ async function submitCreatePlan(event) {
   if (estimationType === "story_points" && teamEstimationMode === "manual") {
     const numericTeamValue = Number(teamEstimationPerDay);
     if (!teamEstimationPerDay || !Number.isFinite(numericTeamValue) || numericTeamValue < 0) {
-      setMessage("Enter Team value or switch to Team average.", "error");
+      setMessage('Enter "Fixed team SP/day" or switch to "Average of members\' SP/day".', "error");
       return;
     }
   }
@@ -1431,6 +1443,7 @@ async function handleDeleteSelectedCapacityRows() {
 
 function applyBacklogQuickFilter() {
   const input = refs.backlogQuickFilter;
+  const periodFilterId = String(refs.backlogBulkPeriodSelect?.value || "").trim();
   if (!input) {
     syncBacklogStatsBar();
     return;
@@ -1449,15 +1462,15 @@ function applyBacklogQuickFilter() {
       tr.style.display = "";
       return;
     }
-    if (!q) {
-      tr.style.display = "";
-      return;
-    }
     const keyInp = tr.querySelector('input.cell-input[data-field="key"]');
     const sumInp = tr.querySelector('input.cell-input[data-field="summary"]');
     const k = String(keyInp?.value || "").toLowerCase();
     const s = String(sumInp?.value || "").toLowerCase();
-    tr.style.display = k.includes(q) || s.includes(q) ? "" : "none";
+    const textOk = !q || k.includes(q) || s.includes(q);
+    const periodSel = tr.querySelector('select[data-field="targetPeriodId"]');
+    const rowPeriodId = String(periodSel?.value ?? "").trim();
+    const periodOk = !periodFilterId || rowPeriodId === periodFilterId;
+    tr.style.display = textOk && periodOk ? "" : "none";
   });
   syncBacklogStatsBar();
 }
@@ -1587,29 +1600,28 @@ async function handleBacklogDensityChange(event) {
 async function handleBacklogApplyPeriodToSelected() {
   const plan = getActivePlan();
   if (!plan?.backlogRows?.length) {
+    applyBacklogQuickFilter();
     return;
   }
   const periodId = String(refs.backlogBulkPeriodSelect?.value || "").trim();
-  if (!periodId) {
-    return;
-  }
   const selectedIds = new Set(
     [...refs.backlogTable.querySelectorAll('input[data-backlog-select="row"]:checked')].map(
       (cb) => cb.dataset.rowId
     )
   );
-  if (!selectedIds.size) {
+  if (periodId && selectedIds.size > 0) {
+    let applied = 0;
+    for (const row of plan.backlogRows) {
+      if (selectedIds.has(row.id)) {
+        row.targetPeriodId = periodId;
+        applied += 1;
+      }
+    }
+    touchPlan(plan);
+    await persistAndRender(`Period applied to ${applied} issue(s).`, "success");
     return;
   }
-  let applied = 0;
-  for (const row of plan.backlogRows) {
-    if (selectedIds.has(row.id)) {
-      row.targetPeriodId = periodId;
-      applied += 1;
-    }
-  }
-  touchPlan(plan);
-  await persistAndRender(`Period applied to ${applied} issue(s).`, "success");
+  applyBacklogQuickFilter();
 }
 
 function handleDeleteSelectedBacklogRows() {
@@ -1806,7 +1818,10 @@ async function handleCapacityTableClick(event) {
   const action = actionButton.dataset.action;
   if (action === "bulk-row-estimation-per-day") {
     openSettingsDialog();
-    setMessage("Team Story Points per day is configured in Settings.", "info");
+    setMessage(
+      "Merged team Story Points per day: open Settings (gear) → Story Points section → Team Story Points per day.",
+      "info"
+    );
     return;
   }
 
@@ -2201,7 +2216,7 @@ async function submitImport(event) {
     const imported = await importIssuesFromJira({
       baseUrl: jiraBaseUrl,
       jql,
-      maxResults: 200,
+      maxResults: BACKLOG_MAX_ISSUES,
       estimationFieldName,
       onProgress: (payload) => {
         if (payload?.value !== undefined) {
@@ -2248,6 +2263,7 @@ async function submitImport(event) {
 
     let updatedCount = 0;
     let addedCount = 0;
+    let skippedNewDueToBacklogCap = 0;
     importedRows.forEach((jiraRow, index) => {
       const normalizedImportedKey = normalizeBacklogIssueKey(jiraRow.key);
       const existing = normalizedImportedKey ? byKey.get(normalizedImportedKey) : null;
@@ -2258,9 +2274,14 @@ async function submitImport(event) {
         existing.status = jiraRow.status;
         existing.issueType = jiraRow.issueType;
         existing.priority = jiraRow.priority;
-        existing.estimation = jiraRow.estimation;
-        existing.estimationKind = importKind;
+        const existingEstimationEmpty = !String(existing.estimation ?? "").trim();
+        if (existingEstimationEmpty) {
+          existing.estimation = jiraRow.estimation;
+          existing.estimationKind = importKind;
+        }
         existing.source = "jira";
+      } else if (plan.backlogRows.length >= BACKLOG_MAX_ISSUES) {
+        skippedNewDueToBacklogCap += 1;
       } else {
         addedCount += 1;
         const newRow = createBacklogRow({
@@ -2305,6 +2326,11 @@ async function submitImport(event) {
     }
     if (importStats.emptyPriority > 0) {
       diagParts.push(`${importStats.emptyPriority} without priority`);
+    }
+    if (skippedNewDueToBacklogCap > 0) {
+      diagParts.push(
+        `${skippedNewDueToBacklogCap} new not added (backlog limit ${BACKLOG_MAX_ISSUES}; delete rows to import more keys)`
+      );
     }
     const diag = diagParts.length ? ` Data notes: ${diagParts.join("; ")}.` : "";
     const summary =
@@ -2388,7 +2414,10 @@ function submitRenamePlan(event) {
   plan.name = newName;
   touchPlan(plan);
   refs.renamePlanDialog?.close();
-  persistAndRender(`Plan renamed to "${newName}".`, "success");
+  // Rename must not wipe any derived plan data.
+  // `applyPlannedFromBacklog()` runs on render and clears/recomputes `plannedEstimation`,
+  // which can look like a "reset" of plan data when only the name changed.
+  persistAndRender(`Plan renamed to "${newName}".`, "success", { applyBacklogDemand: false });
 }
 
 async function handleDeletePlan() {
@@ -2632,6 +2661,7 @@ async function init() {
   if (!appState.resourceGroupingType) {
     appState.resourceGroupingType = "by_team";
   }
+  let repairedEmptyPlanPeriods = false;
   appState.plans.forEach((plan) => {
     plan.backlogEntryMode = "import";
     const firstPeriodMeta = plan.periods?.[0];
@@ -2640,6 +2670,35 @@ async function init() {
     }
     if (typeof plan.anchorYear !== "number" || Number.isNaN(plan.anchorYear)) {
       plan.anchorYear = Number(firstPeriodMeta?.anchorYear ?? firstPeriodMeta?.year) || new Date().getFullYear();
+    }
+    if (!Array.isArray(plan.periods)) {
+      plan.periods = [];
+    }
+    if (plan.periods.length === 0) {
+      const recovered = createPeriod(plan.anchorQuarter, plan.anchorYear);
+      plan.periods = [recovered];
+      if (!plan.teamPeriodValues || typeof plan.teamPeriodValues !== "object") {
+        plan.teamPeriodValues = {};
+      }
+      plan.teamPeriodValues[recovered.id] = {
+        teamEstimationMode: "average",
+        teamEstimationPerDay: ""
+      };
+      const rows = Array.isArray(plan.capacityRows) ? plan.capacityRows : [];
+      if (rows.length) {
+        rows.forEach((row) => {
+          if (!row.periodValues || typeof row.periodValues !== "object") {
+            row.periodValues = {};
+          }
+          if (!row.periodValues[recovered.id]) {
+            row.periodValues[recovered.id] = createEmptyCapacityPeriodValues();
+          }
+        });
+      } else {
+        plan.capacityRows = [createCapacityRow([recovered])];
+      }
+      touchPlan(plan);
+      repairedEmptyPlanPeriods = true;
     }
     if (typeof plan.sprintDurationDays !== "number" || Number.isNaN(plan.sprintDurationDays)) {
       plan.sprintDurationDays = 14;
@@ -2844,6 +2903,10 @@ async function init() {
       touchPlan(plan);
     }
   });
+
+  if (repairedEmptyPlanPeriods) {
+    await saveState(appState);
+  }
 
   if (!appState.activeTab) {
     appState.activeTab = "capacity";

@@ -4,6 +4,7 @@ const BRIDGE_SCRIPT_ID = "jira-planning-page-bridge-script";
 const DEFAULT_TIMEOUT_MS = 120000;
 const BRIDGE_QUICK_TIMEOUT_MS = 8000;
 const DEBUG_PREFIX = "[Jira Import Debug][content]";
+const BACKLOG_MAX_ISSUES = 100;
 
 function ensurePageBridgeInjected() {
   if (document.getElementById(BRIDGE_SCRIPT_ID)) {
@@ -169,7 +170,7 @@ async function importViaSearchApi(baseUrl, jql, maxResults, estimationFieldName)
     "labels",
     ...optionalFields
   ]));
-  const normalizedMaxResults = Math.min(Math.max(Number(maxResults) || 50, 1), 200);
+  const normalizedMaxResults = Math.min(Math.max(Number(maxResults) || 50, 1), BACKLOG_MAX_ISSUES);
   async function doSearch(fields) {
     const fieldsCsv = fields.join(",");
     const normalizedJql = String(jql).trim();
@@ -412,7 +413,7 @@ async function postForm(url, params, headers = {}) {
 async function runImportInContent(payload) {
   const baseUrl = String(payload?.baseUrl || "").trim().replace(/\/+$/, "");
   const jql = String(payload?.jql || "").trim();
-  const maxResults = Math.min(Math.max(Number(payload?.maxResults) || 50, 1), 200);
+  const maxResults = Math.min(Math.max(Number(payload?.maxResults) || 50, 1), BACKLOG_MAX_ISSUES);
   const estimationFieldName = String(payload?.estimationFieldName || "").trim() || "customfield_10016";
 
   if (!baseUrl) {

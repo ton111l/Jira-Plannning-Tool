@@ -32,7 +32,14 @@ export function renderCapacityByTeam({
     if (isCompact) {
       return isSprint ? 2 : 5;
     }
-    if (isSprint) return 4;
+    if (isSprint) {
+      if (isPersonDays) return 4;
+      if (isSpTeamOnlyColumns) {
+        const teamMode = plan.teamPeriodValues?.[period.id]?.teamEstimationMode || "average";
+        return teamMode === "manual" ? 9 : 10;
+      }
+      return 4;
+    }
     if (isPersonDays) return 9;
     if (useSpTeamSimplifiedHeader) {
       return 6;
@@ -108,7 +115,7 @@ export function renderCapacityByTeam({
 
     for (const period of plan.periods) {
       const periodHead = document.createElement("th");
-      periodHead.colSpan = 5;
+      periodHead.colSpan = getPeriodColumnsCount(period);
       const isQSummary = isQuarterSummary(period);
       if (isQSummary) periodHead.classList.add("period-head-th--quarter-total");
       const periodHeadWrap = document.createElement("div");
@@ -319,6 +326,8 @@ export function renderCapacityByTeam({
       const isSprint = period.kind === "sprint";
       const teamMode = plan.teamPeriodValues?.[period.id]?.teamEstimationMode || "average";
       const hasTeamFixedMode = !isPersonDays && teamMode === "manual";
+      const sprintSpFullColumns =
+        isSprint && !isPersonDays && estimationType === "story_points" && isSpTeamOnlyColumns;
       const dayOff = document.createElement("th");
       dayOff.className = "period-subcol period-subcol-short";
       dayOff.rowSpan = 2;
@@ -333,7 +342,7 @@ export function renderCapacityByTeam({
       available.colSpan = 2;
       available.textContent = "Available capacity";
 
-      if (isSprint) {
+      if (isSprint && isPersonDays) {
         metricHeadRow.append(dayOff, working, available);
       } else {
         const estimationPerDay = document.createElement("th");
@@ -371,7 +380,7 @@ export function renderCapacityByTeam({
       availableTeamSub.textContent = teamSubLabel;
       metricSubHeadRow.appendChild(availableTeamSub);
 
-      if (!isSprint) {
+      if (!isSprint || sprintSpFullColumns) {
         if (!isPersonDays && !hasTeamFixedMode) {
           const estimationMemberSub = document.createElement("th");
           estimationMemberSub.className = "period-subcol period-subcol-wide";
@@ -506,6 +515,8 @@ export function renderCapacityByTeam({
       }
       const values = capacityRow.periodValues[period.id];
       const rowEstimationPerDay = values.rowEstimationPerDay ?? values.estimationPerDay ?? "";
+      const sprintSpFullColumns =
+        isSprint && !isCompact && !isPersonDays && estimationType === "story_points" && isSpTeamOnlyColumns;
 
       if (useTeamOnlyBody) {
         if (isByMember) {
@@ -635,10 +646,13 @@ export function renderCapacityByTeam({
           estimationPerDayTeamCellOnly.rowSpan = groupSpan;
           const teamEstInput = buildCellInput({
             value: groupedMetrics?.estimationTeamValue ?? "",
-            type: "number",
+            type: "text",
             dataset: { section: "capacity", rowId: capacityRow.id, field: "rowEstimationPerDayTeam", periodId: period.id },
             readOnly: false
           });
+          // Make input behavior stable in Chromium when user types quickly.
+          teamEstInput.inputMode = "numeric";
+          teamEstInput.pattern = "[0-9]*";
           teamEstInput.title =
             "Fixed team Story Points per day for this period. Saving your entry switches from team average to this value.";
           estimationPerDayTeamCellOnly.appendChild(teamEstInput);
@@ -817,7 +831,7 @@ export function renderCapacityByTeam({
         tr.appendChild(availableTeamCell);
       }
 
-      if (!isSprint) {
+      if (!isSprint || sprintSpFullColumns) {
         if (isPersonDays) {
           if (isGroupStart) {
             const groupedMetrics = periodTeamMetrics[period.id];
@@ -856,10 +870,12 @@ export function renderCapacityByTeam({
             estimationPerDayTeamCell.rowSpan = groupSpan;
             const teamEstInputLegacy = buildCellInput({
               value: groupedMetrics?.estimationTeamValue ?? "",
-              type: "number",
+              type: "text",
               dataset: { section: "capacity", rowId: capacityRow.id, field: "rowEstimationPerDayTeam", periodId: period.id },
               readOnly: false
             });
+            teamEstInputLegacy.inputMode = "numeric";
+            teamEstInputLegacy.pattern = "[0-9]*";
             teamEstInputLegacy.title =
               "Fixed team Story Points per day for this period. Saving your entry switches from team average to this value.";
             estimationPerDayTeamCell.appendChild(teamEstInputLegacy);
@@ -868,7 +884,7 @@ export function renderCapacityByTeam({
         }
       }
 
-      if (!isCompact && !isSprint) {
+      if (!isCompact && (!isSprint || sprintSpFullColumns)) {
         const plannedCell = document.createElement("td");
         plannedCell.className = "period-value-cell period-value-cell-wide";
         plannedCell.appendChild(
@@ -881,7 +897,7 @@ export function renderCapacityByTeam({
         tr.appendChild(plannedCell);
       }
 
-      if (isGroupStart && !isSprint) {
+      if (isGroupStart && (!isSprint || sprintSpFullColumns)) {
         const plannedTeamCell = document.createElement("td");
         plannedTeamCell.className = "period-value-cell period-value-cell-wide";
         plannedTeamCell.rowSpan = groupSpan;
@@ -895,7 +911,7 @@ export function renderCapacityByTeam({
         tr.appendChild(plannedTeamCell);
       }
 
-      if (!isCompact && !isSprint) {
+      if (!isCompact && (!isSprint || sprintSpFullColumns)) {
         const balanceCell = document.createElement("td");
         balanceCell.className = "period-value-cell period-value-cell-wide";
         const remainingMemberRaw = calculateRemainingMember(values, rowEstimationPerDay);
@@ -913,7 +929,7 @@ export function renderCapacityByTeam({
         tr.appendChild(balanceCell);
       }
 
-      if (isGroupStart && !isSprint) {
+      if (isGroupStart && (!isSprint || sprintSpFullColumns)) {
         const groupedMetricsBalance = periodTeamMetrics[period.id];
         const remainingTeam =
           estimationType === "story_points"

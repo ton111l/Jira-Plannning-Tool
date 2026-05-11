@@ -1,4 +1,5 @@
 import { importIssuesViaJiraTab, isJiraBridgeAvailable } from "./jiraBridgeClient.js";
+import { BACKLOG_MAX_ISSUES } from "./planning/constants.js";
 
 const BASE_SEARCH_FIELDS = ["summary", "issuetype", "priority", "status", "labels"];
 const DEFAULT_ESTIMATION_FIELD = "customfield_10016";
@@ -355,7 +356,7 @@ async function importViaSearchApi(baseUrl, jql, maxResults, estimationField, onP
   reportProgress({ phase: "search_start", value: 25 });
   const optionalFields = [estimationField, ...FALLBACK_ESTIMATION_FIELDS].filter(Boolean);
   const requestFields = Array.from(new Set([...BASE_SEARCH_FIELDS, ...optionalFields]));
-  const normalizedMaxResults = Math.min(Math.max(Number(maxResults) || 50, 1), 200);
+  const normalizedMaxResults = Math.min(Math.max(Number(maxResults) || 50, 1), BACKLOG_MAX_ISSUES);
 
   async function doSearch(fields) {
     const normalizedJql = String(jql).trim();
@@ -472,7 +473,13 @@ async function importViaSearchApi(baseUrl, jql, maxResults, estimationField, onP
   };
 }
 
-export async function importIssuesFromJira({ baseUrl, jql, maxResults = 200, estimationFieldName = "", onProgress = null }) {
+export async function importIssuesFromJira({
+  baseUrl,
+  jql,
+  maxResults = BACKLOG_MAX_ISSUES,
+  estimationFieldName = "",
+  onProgress = null
+}) {
   const normalizedBaseUrl = normalizeBaseUrl(baseUrl);
   if (!normalizedBaseUrl) {
     throw new Error("Jira Base URL is empty.");
