@@ -53,9 +53,15 @@ export function assertPlanInvariants(plan) {
   }
 
   if (mode === PLANNING_TIME_MODE.sprint) {
-    for (const period of plan.periods || []) {
-      if (period.kind !== "sprint") {
-        errors.push(`Sprint mode plan contains non-sprint period: ${period.id}.`);
+    const periods = plan.periods || [];
+    if (!periods.some((p) => p.kind === "sprint")) {
+      errors.push("Sprint planning mode requires at least one sprint period.");
+    }
+    for (const period of periods) {
+      if (period.kind !== "sprint" && period.kind !== "quarter") {
+        errors.push(
+          `Sprint mode plan has unsupported period kind "${period.kind ?? ""}" for period ${period.id}.`
+        );
       }
     }
   }
